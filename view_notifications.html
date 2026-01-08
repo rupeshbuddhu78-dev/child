@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Notifications - Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #4caf50;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px;
+            padding: 25px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid var(--glass-border);
+            height: fit-content;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-btn {
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 1.2rem;
+            background: var(--glass-bg);
+            padding: 10px 15px;
+            border-radius: 50%;
+            transition: 0.3s;
+            border: 1px solid var(--glass-border);
+        }
+        .back-btn:hover { background: var(--accent); }
+
+        .title { font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .title i { color: #FF9800; } 
+
+        /* NOTIFICATION LIST */
+        .notif-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .notif-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .notif-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+
+        .app-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            background: rgba(0,0,0,0.3);
+            flex-shrink: 0;
+        }
+
+        .content { flex: 1; overflow: hidden; }
+        
+        .sender-name {
+            font-weight: bold;
+            font-size: 1rem;
+            margin-bottom: 3px;
+            color: #fff;
+        }
+
+        .preview-text {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .time-badge {
+            font-size: 0.7rem;
+            background: rgba(255,255,255,0.1);
+            padding: 4px 8px;
+            border-radius: 10px;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        /* MODAL (POPUP) STYLES */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-box {
+            background: #1e1e1e;
+            width: 90%;
+            max-width: 400px;
+            border-radius: 20px;
+            padding: 25px;
+            border: 1px solid var(--glass-border);
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: popIn 0.3s ease;
+        }
+
+        @keyframes popIn {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .modal-app-name { font-weight: bold; font-size: 1.1rem; color: var(--accent); }
+        
+        .modal-body {
+            font-size: 1rem;
+            line-height: 1.6;
+            color: #e0e0e0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 15px; right: 20px;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .empty-state { text-align: center; padding: 50px; color: var(--text-muted); }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="title"><i class="fa-regular fa-bell"></i> Notifications</div>
+            <div style="width: 40px;"></div>
+        </div>
+
+        <div id="notif-list" class="notif-list">
+            <div class="empty-state">
+                <i class="fa-solid fa-circle-notch fa-spin"></i>
+                <p>Syncing Notifications...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="detailModal" class="modal-overlay" onclick="closeModal(event)">
+        <div class="modal-box" onclick="event.stopPropagation()">
+            <span class="close-modal" onclick="closeModalDirect()">&times;</span>
+            <div class="modal-header">
+                <div id="modalIcon" class="app-icon" style="width: 35px; height: 35px; font-size: 1rem;"></div>
+                <div id="modalAppName" class="modal-app-name">App Name</div>
+            </div>
+            <div style="color: #aaa; font-size: 0.85rem; margin-bottom: 5px;">From: <span id="modalSender" style="color:white;"></span></div>
+            <div id="modalMessage" class="modal-body"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            fetchNotifications();
+        });
+
+        function fetchNotifications() {
+            const deviceId = "Child_Phone_01"; 
+
+            fetch(`/api/notifications/${deviceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const listContainer = document.getElementById("notif-list");
+                    listContainer.innerHTML = ""; 
+
+                    if (data.length === 0) {
+                        listContainer.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fa-solid fa-bell-slash" style="font-size: 3rem; margin-bottom: 10px;"></i>
+                                <p>No Notifications Yet</p>
+                            </div>`;
+                        return;
+                    }
+
+                    // Reverse taaki nayi notification upar aaye
+                    data.reverse().forEach(notif => {
+                        const appInfo = getAppStyle(notif.package_name);
+                        
+                        const card = document.createElement("div");
+                        card.className = "notif-card";
+                        
+                        // Card Click Event
+                        card.onclick = () => openModal(appInfo, notif.title, notif.message);
+
+                        card.innerHTML = `
+                            <div class="app-icon" style="color: ${appInfo.color}; border: 1px solid ${appInfo.color}40;">
+                                <i class="${appInfo.icon}"></i>
+                            </div>
+                            <div class="content">
+                                <div class="sender-name">${notif.title || "System"}</div>
+                                <div class="preview-text">${notif.message}</div>
+                            </div>
+                            <div class="time-badge">${notif.time || ""}</div>
+                        `;
+                        listContainer.appendChild(card);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error fetching notifications:", err);
+                    document.getElementById("notif-list").innerHTML = `
+                        <div class="empty-state" style="color: #ff4444;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            <p>Cannot Load Notifications</p>
+                            <small style="color:#777">Server might be offline or no data yet</small>
+                        </div>`;
+                });
+        }
+
+        // App ka icon aur color pehchanne ke liye
+        function getAppStyle(pkg) {
+            if(!pkg) return { icon: 'fa-solid fa-bell', color: '#ffffff', name: 'System' };
+            
+            if (pkg.includes("whatsapp")) return { icon: 'fa-brands fa-whatsapp', color: '#25D366', name: 'WhatsApp' };
+            if (pkg.includes("instagram")) return { icon: 'fa-brands fa-instagram', color: '#E1306C', name: 'Instagram' };
+            if (pkg.includes("facebook")) return { icon: 'fa-brands fa-facebook', color: '#1877F2', name: 'Facebook' };
+            if (pkg.includes("snapchat")) return { icon: 'fa-brands fa-snapchat', color: '#FFFC00', name: 'Snapchat' };
+            if (pkg.includes("youtube")) return { icon: 'fa-brands fa-youtube', color: '#FF0000', name: 'YouTube' };
+            if (pkg.includes("msg") || pkg.includes("mms")) return { icon: 'fa-solid fa-comment-sms', color: '#4caf50', name: 'SMS' };
+            
+            return { icon: 'fa-solid fa-cube', color: '#aaaaaa', name: 'App' };
+        }
+
+        // Modal Logic
+        function openModal(appInfo, sender, message) {
+            const modal = document.getElementById("detailModal");
+            document.getElementById("modalIcon").innerHTML = `<i class="${appInfo.icon}"></i>`;
+            document.getElementById("modalIcon").style.color = appInfo.color;
+            document.getElementById("modalAppName").innerText = appInfo.name;
+            document.getElementById("modalAppName").style.color = appInfo.color;
+            document.getElementById("modalSender").innerText = sender;
+            document.getElementById("modalMessage").innerText = message;
+            
+            modal.style.display = "flex";
+        }
+
+        function closeModal(e) {
+            if (e.target.id === "detailModal") {
+                document.getElementById("detailModal").style.display = "none";
+            }
+        }
+        function closeModalDirect() {
+            document.getElementById("detailModal").style.display = "none";
+        }
+    </script>
+
+</body>
+</html>

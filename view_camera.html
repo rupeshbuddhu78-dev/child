@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Spy - Camera/Mic</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #050505;
+            --accent: #ff4444; /* Recording Red */
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+        body { 
+            background: var(--bg); 
+            color: white; 
+            font-family: 'Segoe UI', sans-serif; 
+            margin: 0; 
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Full screen height */
+            box-sizing: border-box;
+        }
+
+        /* Top Bar */
+        .top-nav {
+            display: flex;
+            align-items: center;
+            padding: 5px 0;
+        }
+        .back-btn { color: white; text-decoration: none; font-size: 1.2rem; }
+
+        /* --- BADA MONITOR AREA --- */
+        .monitor { 
+            flex: 1; /* Jitni jagah hai sab monitor le lega */
+            width: 100%; 
+            background: #000; 
+            margin: 10px 0; 
+            border: 1px solid #333; 
+            border-radius: 15px; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            position: relative; 
+            overflow: hidden; 
+        }
+        
+        .status { 
+            position: absolute; 
+            top: 15px; 
+            left: 15px; 
+            background: rgba(255,0,0,0.8); 
+            padding: 4px 10px; 
+            border-radius: 5px; 
+            font-size: 10px; 
+            font-weight: bold;
+            letter-spacing: 1px;
+            animation: blink 1s infinite; 
+            z-index: 5;
+        }
+        @keyframes blink { 50% { opacity: 0.2; } }
+
+        #liveStream {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* --- CHOTE BUTTONS AREA --- */
+        .controls-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); /* Ek hi line mein 4 buttons */
+            gap: 8px; 
+            padding-bottom: 10px;
+        }
+
+        .btn { 
+            padding: 10px 5px; 
+            border-radius: 10px; 
+            border: 1px solid #222; 
+            background: var(--glass); 
+            color: #ddd; 
+            cursor: pointer; 
+            font-size: 11px; /* Chota font */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            transition: 0.2s;
+        }
+        .btn i { font-size: 1.2rem; } /* Icon size balanced */
+        .btn:active { background: #333; transform: scale(0.95); }
+        
+        .btn-stop { border-color: var(--accent); color: var(--accent); }
+
+    </style>
+</head>
+<body>
+
+    <div class="top-nav">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Live Cam</a>
+    </div>
+    
+    <div class="monitor">
+        <div class="status">● LIVE FEED</div>
+        <i id="placeholderIcon" class="fa-solid fa-video-slash fa-2x" style="color:#222"></i>
+        <img id="liveStream" src="" style="display:none;">
+    </div>
+
+    <div class="controls-grid">
+        <button class="btn" onclick="send('cam_front')">
+            <i class="fa-solid fa-camera-rotate"></i> Front
+        </button>
+        <button class="btn" onclick="send('cam_back')">
+            <i class="fa-solid fa-camera"></i> Back
+        </button>
+        <button class="btn" onclick="send('mic_on')">
+            <i class="fa-solid fa-microphone"></i> Mic
+        </button>
+        <button class="btn btn-stop" onclick="send('stop')">
+            <i class="fa-solid fa-circle-stop"></i> Stop
+        </button>
+    </div>
+
+    <script>
+        function send(cmd) {
+            console.log("Sending command: " + cmd);
+            // Jab real connection banega tab placeholder hide hoga aur image dikhegi
+            if(cmd.includes('cam')){
+                document.getElementById('placeholderIcon').style.display = 'none';
+                document.getElementById('liveStream').style.display = 'block';
+                document.getElementById('liveStream').src = "https://via.placeholder.com/400x700?text=Connecting+Stream...";
+            } else if(cmd === 'stop'){
+                document.getElementById('placeholderIcon').style.display = 'block';
+                document.getElementById('liveStream').style.display = 'none';
+            }
+        }
+    </script>
+</body>
+</html>

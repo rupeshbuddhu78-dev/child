@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Audio Monitor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --accent: #00ff88; --bg: #0a0a0a; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; }
+        .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; }
+        .back-btn { color: white; text-decoration: none; font-size: 1.2rem; }
+        
+        .mic-container { height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* Pulse Animation for Mic */
+        .mic-circle {
+            width: 100px; height: 100px; background: rgba(0, 255, 136, 0.1);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            border: 2px solid var(--accent); position: relative;
+        }
+        .mic-circle.active { animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); } 70% { box-shadow: 0 0 0 30px rgba(0, 255, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); } }
+
+        /* Visualizer Bars */
+        .visualizer { display: flex; gap: 5px; height: 50px; align-items: center; margin-top: 30px; }
+        .bar { width: 5px; height: 10px; background: var(--accent); border-radius: 10px; transition: 0.1s; }
+
+        .controls { padding: 20px; display: flex; justify-content: center; gap: 20px; }
+        .btn { background: #222; border: 1px solid #333; color: white; padding: 15px 30px; border-radius: 30px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .btn.active { background: var(--accent); color: black; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <h3>Live Mic Monitor</h3>
+    </div>
+
+    <div class="mic-container">
+        <div class="mic-circle" id="micCircle">
+            <i class="fa-solid fa-microphone fa-3x"></i>
+        </div>
+        
+        <div class="visualizer" id="visualizer">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+        <p id="statusText" style="color: #666; margin-top: 20px;">Microphone Standby</p>
+    </div>
+
+    <div class="controls">
+        <button class="btn" id="startBtn" onclick="toggleMic()">
+            <i class="fa-solid fa-play"></i> Start Listening
+        </button>
+        <button class="btn" style="color: #ff4444;" onclick="stopMic()">
+            <i class="fa-solid fa-stop"></i> Stop
+        </button>
+    </div>
+
+    <script>
+        let isListening = false;
+        function toggleMic() {
+            isListening = true;
+            document.getElementById('micCircle').classList.add('active');
+            document.getElementById('startBtn').classList.add('active');
+            document.getElementById('statusText').innerText = "Streaming Audio Live...";
+            document.getElementById('statusText').style.color = "#00ff88";
+            // Visualizer animation logic
+            setInterval(() => {
+                if(isListening) {
+                    document.querySelectorAll('.bar').forEach(b => {
+                        b.style.height = Math.random() * 50 + "px";
+                    });
+                }
+            }, 150);
+        }
+
+        function stopMic() {
+            isListening = false;
+            document.getElementById('micCircle').classList.remove('active');
+            document.getElementById('startBtn').classList.remove('active');
+            document.getElementById('statusText').innerText = "Microphone Standby";
+            document.getElementById('statusText').style.color = "#666";
+            document.querySelectorAll('.bar').forEach(b => b.style.height = "10px");
+        }
+    </script>
+</body>
+</html>

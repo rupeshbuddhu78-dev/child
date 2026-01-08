@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installed Apps - Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #007bff; /* Blue for Apps */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #121212);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px;
+            padding: 25px;
+            border: 1px solid var(--glass-border);
+            height: fit-content;
+        }
+
+        /* HEADER */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-btn {
+            text-decoration: none;
+            color: white;
+            background: var(--glass-bg);
+            padding: 10px 15px;
+            border-radius: 50%;
+            border: 1px solid var(--glass-border);
+        }
+
+        .title { font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .title i { color: var(--accent); }
+
+        /* APP LIST */
+        .app-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .app-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 12px 18px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: 0.3s;
+        }
+
+        .app-card:hover {
+            border-color: var(--accent);
+            background: rgba(0, 123, 255, 0.05);
+        }
+
+        .app-icon-box {
+            width: 45px;
+            height: 45px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: var(--accent);
+        }
+
+        .app-info { flex: 1; }
+        .app-name { font-weight: bold; font-size: 1rem; margin-bottom: 2px; }
+        .app-package { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
+
+        .search-box {
+            width: 100%;
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            padding: 12px;
+            border-radius: 12px;
+            color: white;
+            margin-bottom: 20px;
+            outline: none;
+        }
+
+        .empty-state { text-align: center; padding: 50px; color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="title"><i class="fa-solid fa-layer-group"></i> Installed Apps</div>
+            <div style="width: 40px;"></div>
+        </div>
+
+        <input type="text" class="search-box" id="appSearch" placeholder="Search app name..." onkeyup="filterApps()">
+
+        <div id="app-list" class="app-list">
+            <div class="empty-state">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <p>Fetching Apps List...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", fetchApps);
+
+        function fetchApps() {
+            const deviceId = "Child_Phone_01";
+            fetch(`/api/apps/${deviceId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById("app-list");
+                    container.innerHTML = "";
+
+                    if (data.length === 0) {
+                        container.innerHTML = `<div class="empty-state"><p>No Apps Found</p></div>`;
+                        return;
+                    }
+
+                    data.forEach(app => {
+                        const card = document.createElement("div");
+                        card.className = "app-card";
+                        card.innerHTML = `
+                            <div class="app-icon-box">
+                                <i class="fa-solid fa-mobile-screen-button"></i>
+                            </div>
+                            <div class="app-info">
+                                <div class="app-name">${app.app_name}</div>
+                                <div class="app-package">${app.package_name}</div>
+                            </div>
+                        `;
+                        container.appendChild(card);
+                    });
+                })
+                .catch(err => {
+                    // Test ke liye 1-2 demo apps dikha raha hu
+                    document.getElementById("app-list").innerHTML = `
+                        <div class="app-card"><div class="app-icon-box"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i></div><div class="app-info"><div class="app-name">WhatsApp</div><div class="app-package">com.whatsapp</div></div></div>
+                        <div class="app-card"><div class="app-icon-box"><i class="fa-brands fa-instagram" style="color:#E1306C"></i></div><div class="app-info"><div class="app-name">Instagram</div><div class="app-package">com.instagram.android</div></div></div>
+                    `;
+                });
+        }
+
+        function filterApps() {
+            let input = document.getElementById('appSearch').value.toLowerCase();
+            let cards = document.getElementsByClassName('app-card');
+            for (let i = 0; i < cards.length; i++) {
+                let name = cards[i].querySelector(".app-name").innerText.toLowerCase();
+                cards[i].style.display = name.includes(input) ? "flex" : "none";
+            }
+        }
+    </script>
+</body>
+</html>

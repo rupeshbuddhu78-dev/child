@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Location - Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            background: #000;
+            color: white;
+            font-family: sans-serif;
+        }
+
+        .top-bar {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 10;
+            display: flex;
+            gap: 15px;
+        }
+
+        .card {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 10px 20px;
+            border-radius: 30px;
+            border: 1px solid #00ff88;
+        }
+
+        iframe {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+
+        .back-btn {
+            background: #00ff88;
+            color: black;
+            padding: 10px 15px;
+            border-radius: 50%;
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="top-bar">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="card"><i class="fa-solid fa-location-crosshairs"></i> <span id="coords">Fetching Location...</span>
+        </div>
+    </div>
+
+    <iframe id="map" src="https://maps.google.com/maps?q=0,0&z=2&output=embed"></iframe>
+
+    <script>
+        // Ye function server se aane wale lat/lng ko map pe dikhayega
+        function updateMap(lat, lng) {
+            document.getElementById('coords').innerText = lat + ", " + lng;
+            document.getElementById('map').src = `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+        }
+
+        // Example test
+        setTimeout(() => updateMap(28.6139, 77.2090), 3000);
+    </script>
+</body>
+
+</html>

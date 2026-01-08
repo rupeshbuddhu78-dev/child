@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Remote Screen Control</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --accent: #00ff88;
+            --danger: #ff3333;
+            --panel-bg: #1a1a1a;
+        }
+
+        body {
+            margin: 0;
+            background: #000;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        /* Top Header */
+        .top-nav {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            background: var(--panel-bg);
+            border-bottom: 1px solid #333;
+        }
+
+        /* Virtual Phone Frame */
+        .screen-container {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .phone-frame {
+            width: 300px;
+            height: 600px;
+            border: 8px solid #333;
+            border-radius: 40px;
+            background: #050505;
+            position: relative;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.1);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #screenStream {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: none;
+        }
+
+        .placeholder-text {
+            color: #444;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        /* Remote Control Navigation Buttons (Android Style) */
+        .nav-bar {
+            width: 100%;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.8);
+            position: absolute;
+            bottom: 0;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid #222;
+        }
+
+        .nav-item {
+            color: #666;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .nav-item:hover {
+            color: var(--accent);
+        }
+
+        /* Floating Side Controls */
+        .side-panel {
+            position: absolute;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: var(--panel-bg);
+            border: 1px solid #333;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .control-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .btn-red:hover {
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="top-nav">
+        <a href="index.html" style="color:white; text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Remote
+            Screen</a>
+        <div id="status" style="color: #666;">Status: <span style="color:var(--danger)">Offline</span></div>
+    </div>
+
+    <div class="screen-container">
+        <div class="phone-frame">
+            <div id="loader" class="placeholder-text">
+                <i class="fa-solid fa-display fa-3x"></i><br><br>
+                Waiting for Screen Share...
+            </div>
+            <img id="screenStream" src="">
+
+            <div class="nav-bar">
+                <div class="nav-item" onclick="sendRemote('key_recent')"><i class="fa-solid fa-square"></i></div>
+                <div class="nav-item" onclick="sendRemote('key_home')"><i class="fa-solid fa-circle"></i></div>
+                <div class="nav-item" onclick="sendRemote('key_back')"><i class="fa-solid fa-caret-left"
+                        style="font-size:1.8rem"></i></div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="control-btn" onclick="startScreen()" title="Start Casting"><i class="fa-solid fa-play"></i>
+            </div>
+            <div class="control-btn" onclick="sendRemote('volume_up')" title="Volume Up"><i
+                    class="fa-solid fa-volume-high"></i></div>
+            <div class="control-btn" onclick="sendRemote('volume_down')" title="Volume Down"><i
+                    class="fa-solid fa-volume-low"></i></div>
+            <div class="control-btn" onclick="sendRemote('lock_screen')" title="Lock Phone"><i
+                    class="fa-solid fa-lock"></i></div>
+            <div class="control-btn btn-red" onclick="stopScreen()" title="Stop Casting"><i
+                    class="fa-solid fa-stop"></i></div>
+        </div>
+    </div>
+
+    <script>
+        function startScreen() {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('screenStream').style.display = 'block';
+            document.getElementById('screenStream').src = "https://via.placeholder.com/300x600?text=Live+Screen+Streaming...";
+            document.getElementById('status').innerHTML = 'Status: <span style="color:var(--accent)">Live</span>';
+        }
+
+        function stopScreen() {
+            document.getElementById('loader').style.display = 'block';
+            document.getElementById('screenStream').style.display = 'none';
+            document.getElementById('status').innerHTML = 'Status: <span style="color:var(--danger)">Offline</span>';
+        }
+
+        function sendRemote(action) {
+            console.log("Sending Command: " + action);
+            // Ye command server ko jayegi jo target phone par perform hogi
+        }
+    </script>
+</body>
+
+</html>

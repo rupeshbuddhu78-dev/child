@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gallery - Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --accent: #00ff88;
+            --glass: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background: var(--bg);
+            color: white;
+            font-family: sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 15px;
+        }
+
+        .back-btn {
+            color: white;
+            font-size: 1.5rem;
+            text-decoration: none;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 15px;
+        }
+
+        .img-card {
+            aspect-ratio: 1;
+            background: var(--glass);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .img-card:hover {
+            border-color: var(--accent);
+            transform: scale(1.05);
+        }
+
+        .img-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* Full Screen Preview */
+        .preview-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .preview-modal img {
+            max-width: 90%;
+            max-height: 80%;
+            border-radius: 10px;
+        }
+
+        .close-pv {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 2rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <h2><i class="fa-solid fa-images" style="color:var(--accent)"></i> Device Gallery</h2>
+    </div>
+
+    <div class="gallery-grid" id="gallery">
+        <div class="img-card"><img src="https://via.placeholder.com/150" onclick="openPreview(this.src)"></div>
+    </div>
+
+    <div class="preview-modal" id="pvModal" onclick="this.style.display='none'">
+        <span class="close-pv">&times;</span>
+        <img id="pvImg" src="">
+    </div>
+
+    <script>
+        function openPreview(src) {
+            document.getElementById('pvImg').src = src;
+            document.getElementById('pvModal').style.display = 'flex';
+        }
+    </script>
+</body>
+
+</html>

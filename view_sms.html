@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMS Inbox - Admin Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #4caf50;
+            --accent-glow: rgba(76, 175, 80, 0.3);
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px;
+            padding: 25px; /* Thoda padding badhaya */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid var(--glass-border);
+            height: fit-content;
+        }
+
+        /* HEADER SECTION */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px; /* Gap badhaya */
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-btn {
+            text-decoration: none;
+            color: var(--text-main);
+            font-size: 1.2rem;
+            background: var(--glass-bg);
+            padding: 10px 15px;
+            border-radius: 50%;
+            transition: 0.3s;
+            border: 1px solid var(--glass-border);
+        }
+        .back-btn:hover { background: var(--accent); border-color: var(--accent); }
+
+        .title { font-size: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .title i { color: var(--accent); }
+
+        /* MESSAGE LIST */
+        .sms-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px; /* Card ke beech ka gap badhaya */
+        }
+
+        .sms-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 18px; /* Thoda aur round kiya */
+            padding: 20px; /* ✅ Andar ka gap badhaya */
+            transition: transform 0.2s;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .sms-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--accent);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+        }
+
+        /* Sender Info */
+        .sms-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            padding-bottom: 8px;
+            margin-bottom: 5px;
+        }
+        .sender {
+            font-weight: bold;
+            color: var(--accent);
+            font-size: 1.1rem; /* Naam thoda bada kiya */
+        }
+        .date {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Message Body - ✅ MAIN CHANGES YAHAN HAIN */
+        .message-body {
+            font-size: 1rem;
+            color: #e0e0e0;
+            line-height: 1.6; /* Lines ke beech space badhaya */
+            background: rgba(0,0,0,0.3);
+            padding: 15px; /* Text ke charo taraf space */
+            border-radius: 12px;
+            min-height: 60px; /* ✅ Kam se kam itni height rahegi */
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: var(--text-muted);
+        }
+        .empty-state i { font-size: 3.5rem; margin-bottom: 15px; opacity: 0.5; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="title"><i class="fa-solid fa-comments"></i> SMS Inbox</div>
+            <div style="width: 40px;"></div>
+        </div>
+
+        <div id="sms-list" class="sms-list">
+            <div class="empty-state">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <p>Loading Messages...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            fetchSMS();
+        });
+
+        function fetchSMS() {
+            const deviceId = "Child_Phone_01"; 
+
+            fetch(`/api/sms/${deviceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const listContainer = document.getElementById("sms-list");
+                    listContainer.innerHTML = ""; 
+
+                    if (data.length === 0) {
+                        listContainer.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fa-regular fa-envelope-open"></i>
+                                <p>No SMS Found</p>
+                            </div>`;
+                        return;
+                    }
+
+                    data.forEach(sms => {
+                        const smsCard = document.createElement("div");
+                        smsCard.className = "sms-card";
+                        
+                        smsCard.innerHTML = `
+                            <div class="sms-header">
+                                <span class="sender"><i class="fa-solid fa-user"></i> ${sms.address}</span>
+                                <span class="date">${sms.date}</span>
+                            </div>
+                            <div class="message-body">
+                                ${sms.body}
+                            </div>
+                        `;
+                        listContainer.appendChild(smsCard);
+                    });
+                })
+                .catch(err => {
+                    console.error("Error:", err);
+                    document.getElementById("sms-list").innerHTML = `
+                        <div class="empty-state" style="color: #ff4444;">
+                            <i class="fa-solid fa-circle-exclamation"></i>
+                            <p>Failed to load SMS</p>
+                        </div>`;
+                });
+        }
+    </script>
+
+</body>
+</html>
