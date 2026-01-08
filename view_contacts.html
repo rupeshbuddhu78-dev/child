@@ -89,7 +89,8 @@
     <script>
         // Server URL auto-detect karega
         const RENDER_URL = window.location.origin;
-        const DEVICE_ID = "M2103K19I";
+        // Agar server par Child_Phone_01 aa raha hai to yahi rehne do:
+const DEVICE_ID = 'Child_Phone_01';
 
         async function fetchContacts() {
             const container = document.getElementById("contactsContainer");
@@ -137,4 +138,5 @@
     </script>
 </body>
 </html>
+
 
