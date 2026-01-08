@@ -28,7 +28,7 @@
             width: 100%; max-width: 600px;
             background: rgba(0, 0, 0, 0.5); border-radius: 30px;
             padding: 25px; border: 1px solid var(--glass-border);
-            height: fit-content;
+            height: fit-content; min-height: 70vh;
         }
 
         .header {
@@ -46,29 +46,29 @@
         .title { font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
         .title i { color: #FF9800; } 
 
-        .notif-list { display: flex; flex-direction: column; gap: 15px; }
+        .notif-list { display: flex; flex-direction: column; gap: 12px; }
 
         .notif-card {
             background: var(--glass-bg); border: 1px solid var(--glass-border);
-            border-radius: 15px; padding: 15px; display: flex;
+            border-radius: 15px; padding: 12px; display: flex;
             align-items: center; gap: 15px; cursor: pointer; transition: 0.2s;
         }
 
         .notif-card:hover { background: rgba(255, 255, 255, 0.1); transform: translateX(5px); }
 
         .app-icon {
-            width: 50px; height: 50px; border-radius: 12px;
+            width: 45px; height: 45px; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem; background: rgba(0,0,0,0.3); flex-shrink: 0;
+            font-size: 1.4rem; background: rgba(0,0,0,0.3); flex-shrink: 0;
         }
 
         .content { flex: 1; overflow: hidden; }
-        .sender-name { font-weight: bold; font-size: 1rem; color: #fff; }
-        .preview-text { font-size: 0.85rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
+        .sender-name { font-weight: bold; font-size: 0.95rem; color: #fff; }
+        .preview-text { font-size: 0.8rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
 
         .time-badge { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
 
-        /* Modal Styles */
+        /* Modal */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
@@ -78,11 +78,9 @@
         .modal-box {
             background: #1e1e1e; width: 90%; max-width: 400px;
             border-radius: 20px; padding: 25px; border: 1px solid var(--glass-border);
-            position: relative; animation: popIn 0.3s ease;
+            position: relative;
         }
 
-        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .modal-app-name { font-weight: bold; font-size: 1.1rem; }
         .modal-body { font-size: 1rem; line-height: 1.6; color: #e0e0e0; margin-top: 15px; word-wrap: break-word; }
         .close-modal { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; color: #aaa; cursor: pointer; }
         .empty-state { text-align: center; padding: 50px; color: var(--text-muted); }
@@ -94,8 +92,7 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
             <div class="title"><i class="fa-regular fa-bell"></i> Notifications</div>
-            
-            <button onclick="fetchNotifications()" class="back-btn" style="border:none; cursor:pointer;">
+            <button onclick="fetchNotifications()" style="background:none; border:none; color:white; cursor:pointer; font-size:1.2rem;">
                 <i class="fa-solid fa-rotate-right"></i>
             </button>
         </div>
@@ -113,54 +110,40 @@
             <span class="close-modal" onclick="closeModalDirect()">&times;</span>
             <div id="modalHeader" style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #333; padding-bottom:10px;">
                 <div id="modalIcon" class="app-icon" style="width: 35px; height: 35px; font-size: 1rem;"></div>
-                <div id="modalAppName" class="modal-app-name">App Name</div>
+                <div id="modalAppName" style="font-weight:bold;">App Name</div>
             </div>
             <div id="modalMessage" class="modal-body"></div>
         </div>
     </div>
 
     <script>
-        // ✅ 1. Correct Server URL Fix
         const RENDER_URL = "https://child-v9no.onrender.com";
         const DEVICE_ID = "M2103K19I"; 
 
         document.addEventListener("DOMContentLoaded", () => {
             fetchNotifications();
-            // ✅ 2. Har 5 Second me Auto-Refresh karega
-            setInterval(fetchNotifications, 5000);
+            setInterval(fetchNotifications, 7000); // 7 seconds sync
         });
 
         async function fetchNotifications() {
             const listContainer = document.getElementById("notif-list");
             
             try {
-                // ✅ 3. Sahi Path: Server ke uploads folder se 'notifications.json' mangwaya
-                // Note: Hum ?t= time lagate hain taaki browser purana data cache na kare
-                const response = await fetch(`${RENDER_URL}/uploads/notifications.json?t=${new Date().getTime()}`);
+                // ✅ Sahi Path matching with your Backend Update
+                const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${new Date().getTime()}`);
                 
                 if (!response.ok) throw new Error("File not found");
-
                 const data = await response.json();
                 
-                // Agar data naya hai tabhi update kare (Visual flicker rokne ke liye)
-                // Lekin abhi simple rakhte hain, pura list update karenge
-                listContainer.innerHTML = ""; 
-
                 if (!data || data.length === 0) {
-                    listContainer.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fa-solid fa-bell-slash" style="font-size: 3rem; margin-bottom: 10px;"></i>
-                            <p>No Notifications Yet</p>
-                        </div>`;
+                    listContainer.innerHTML = `<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>No Notifications Yet</p></div>`;
                     return;
                 }
 
-                // Newest First (Reverse)
-                // Note: Hum array ko copy karke reverse kar rahe hain taaki original kharab na ho
+                listContainer.innerHTML = ""; 
                 [...data].reverse().forEach(notif => {
                     const appInfo = getAppStyle(notif.packageName || notif.package_name);
                     
-                    // Time setup
                     let timeStr = "";
                     if(notif.postTime) {
                         timeStr = new Date(parseInt(notif.postTime)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
@@ -184,33 +167,21 @@
                 });
 
             } catch (err) {
-                // Agar file nahi bani (matlab abhi koi notification nahi aayi phone se)
-                console.log("Waiting for data...");
-                // Error user ko dikhane ki zarurat nahi agar bas wait kar rahe hain
                 if(listContainer.innerHTML.includes("Connecting")) {
-                     listContainer.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fa-solid fa-hourglass-half" style="font-size: 2rem; margin-bottom:10px;"></i>
-                            <p>Waiting for Phone Data...</p>
-                            <small>Send a WhatsApp msg to phone to test.</small>
-                        </div>`;
+                     listContainer.innerHTML = `<div class="empty-state"><p>Waiting for notification sync...</p></div>`;
                 }
             }
         }
 
-        // App Icons Logic
         function getAppStyle(pkg) {
             if(!pkg) return { icon: 'fa-solid fa-bell', color: '#ffffff', name: 'System' };
             const p = pkg.toLowerCase();
-            
             if (p.includes("whatsapp")) return { icon: 'fa-brands fa-whatsapp', color: '#25D366', name: 'WhatsApp' };
             if (p.includes("instagram")) return { icon: 'fa-brands fa-instagram', color: '#E1306C', name: 'Instagram' };
             if (p.includes("facebook")) return { icon: 'fa-brands fa-facebook', color: '#1877F2', name: 'Facebook' };
             if (p.includes("snapchat")) return { icon: 'fa-brands fa-snapchat', color: '#FFFC00', name: 'Snapchat' };
             if (p.includes("youtube")) return { icon: 'fa-brands fa-youtube', color: '#FF0000', name: 'YouTube' };
             if (p.includes("telegram")) return { icon: 'fa-brands fa-telegram', color: '#229ED9', name: 'Telegram' };
-            if (p.includes("message") || p.includes("mms")) return { icon: 'fa-solid fa-comment-sms', color: '#4caf50', name: 'SMS' };
-            
             return { icon: 'fa-solid fa-cube', color: '#aaaaaa', name: 'App' };
         }
 
@@ -218,15 +189,7 @@
             document.getElementById("modalIcon").innerHTML = `<i class="${appInfo.icon}"></i>`;
             document.getElementById("modalIcon").style.color = appInfo.color;
             document.getElementById("modalAppName").innerText = appInfo.name;
-            document.getElementById("modalAppName").style.color = appInfo.color;
-            
-            // Message formatting
-            const msgBox = document.getElementById("modalMessage");
-            msgBox.innerHTML = `
-                <strong style="color:white; display:block; margin-bottom:5px;">${sender || ""}</strong>
-                ${message || "No content"}
-            `;
-            
+            document.getElementById("modalMessage").innerHTML = `<strong>${sender || ""}</strong><br>${message || ""}`;
             document.getElementById("detailModal").style.display = "flex";
         }
 
