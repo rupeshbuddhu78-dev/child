@@ -32,7 +32,6 @@
             border: 1px solid var(--glass-border);
         }
 
-        /* Status Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; }
         
@@ -44,7 +43,6 @@
         .dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
         .dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
 
-        /* Info Panel */
         .info-panel { display: flex; gap: 12px; margin-bottom: 20px; }
         .info-card {
             flex: 1; background: var(--glass-bg); padding: 12px;
@@ -53,14 +51,12 @@
         .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
         .value { font-size: 0.9rem; font-weight: 500; }
 
-        /* Battery Section */
         .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }
         .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
         .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
         .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
 
-        /* Grid Controls */
-        .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
         .control-btn {
             background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -70,6 +66,29 @@
         .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
         .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
         .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
+
+        /* Refresh Button Styling */
+        .refresh-area {
+            display: flex;
+            justify-content: center;
+            border-top: 1px solid var(--glass-border);
+            padding-top: 15px;
+        }
+        .btn-refresh {
+            background: #1a1a1a;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 10px 25px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: 0.3s;
+        }
+        .btn-refresh:active { transform: scale(0.95); }
+        .fa-spin-custom { animation: fa-spin 1s infinite linear; }
 
         .fa-whatsapp { color: #25D366; } .fa-instagram { color: #E1306C; } .fa-location-dot { color: #ff4444; }
     </style>
@@ -130,6 +149,12 @@
             <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
             <a href="view_apps.html" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
         </div>
+
+        <div class="refresh-area">
+            <button class="btn-refresh" onclick="manualRefresh()">
+                <i class="fa-solid fa-arrows-rotate" id="refreshIcon"></i> Force Refresh
+            </button>
+        </div>
     </div>
 
     <script>
@@ -138,11 +163,9 @@
             fetch('/api/device-status/Child_Phone_01')
                 .then(res => res.json())
                 .then(data => {
-                    // Update Device Name & Version
                     document.getElementById('deviceName').innerText = data.model || "Unknown Device";
                     document.getElementById('androidVer').innerText = "V" + (data.android_version || "--");
                     
-                    // Update Connection Status
                     const dot = document.getElementById('statusDot');
                     const statusText = document.getElementById('statusText');
                     if(data.isOnline) {
@@ -155,23 +178,29 @@
                         document.getElementById('networkType').innerText = "Offline";
                     }
 
-                    // Update Battery
                     const battery = data.battery || 0;
                     document.getElementById('batteryPercent').innerText = battery + "%";
                     document.getElementById('batteryFill').style.width = battery + "%";
                     document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging (" + data.batteryTemp + "°C)";
-                    
-                    // Battery Color change
                     document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
                 })
                 .catch(err => console.log("Waiting for server..."));
         }
 
-        // Poll server every 3 seconds for updates
+        // --- NEW: Manual Refresh Logic ---
+        function manualRefresh() {
+            const icon = document.getElementById('refreshIcon');
+            icon.classList.add('fa-spin'); // Start spinning
+            
+            updateDashboard(); // Fetch data immediately
+            
+            setTimeout(() => {
+                icon.classList.remove('fa-spin'); // Stop spinning after 1 second
+            }, 1000);
+        }
+
         setInterval(updateDashboard, 3000);
 
-        // Sound Mode Switcher
-        let currentMode = 0;
         function cycleSoundMode() {
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
