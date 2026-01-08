@@ -7,6 +7,24 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// --- 🛑 MAGIC: AUTO FOLDER CREATOR 🛑 ---
+// Ye code server start hone se pehle hi check karega
+// Agar folder nahi hai, to khud bana dega.
+const foldersToCreate = ['data', 'uploads'];
+
+foldersToCreate.forEach(folderName => {
+    const folderPath = path.join(__dirname, folderName);
+    if (!fs.existsSync(folderPath)) {
+        fs.mkdirSync(folderPath, { recursive: true });
+        console.log(`✅ MAGIC: '${folderName}' folder khud se ban gaya!`);
+    } else {
+        console.log(`👍 '${folderName}' folder pehle se hai.`);
+    }
+});
+// ----------------------------------------
+
+const DATA_DIR = path.join(__dirname, 'data');
+
 app.use(cors());
 
 // ZAROORI: Ye dono lines aapke @Field data ko read karengi
@@ -14,9 +32,6 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(express.static(__dirname));
-
-const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 
 let deviceState = {}; 
 
