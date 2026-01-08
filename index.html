@@ -80,7 +80,7 @@
         <div class="header">
             <div>
                 <i class="fa-solid fa-mobile-side"></i>
-                <span class="device-name" id="deviceName">Detecting...</span>
+                <span class="device-name" id="deviceName">M2103K19I</span>
             </div>
             <div class="status-badge">
                 <span id="statusDot" class="dot"></span>
@@ -135,36 +135,44 @@
     <script>
         // --- REAL-TIME DATA FETCHING ---
         function updateDashboard() {
-            fetch('/api/device-status/Child_Phone_01')
+            // YAHAN GALTI THI: 'Child_Phone_01' ki jagah 'M2103K19I' aur pura URL dala hai
+            fetch('https://child-v9no.onrender.com/api/device-status/M2103K19I')
                 .then(res => res.json())
                 .then(data => {
                     // Update Device Name & Version
-                    document.getElementById('deviceName').innerText = data.model || "Unknown Device";
+                    document.getElementById('deviceName').innerText = data.model || "M2103K19I";
                     document.getElementById('androidVer').innerText = "V" + (data.android_version || "--");
                     
                     // Update Connection Status
                     const dot = document.getElementById('statusDot');
                     const statusText = document.getElementById('statusText');
+                    
                     if(data.isOnline) {
                         dot.className = "dot online";
                         statusText.innerText = "Connected";
-                        document.getElementById('networkType').innerText = data.network || "WiFi/4G";
+                        document.getElementById('networkType').innerText = "Online";
+                        // Color bhi green kar diya
+                        statusText.style.color = "#4caf50";
                     } else {
                         dot.className = "dot offline";
                         statusText.innerText = "Disconnected";
                         document.getElementById('networkType').innerText = "Offline";
+                        statusText.style.color = "#ff4444";
                     }
 
                     // Update Battery
                     const battery = data.battery || 0;
                     document.getElementById('batteryPercent').innerText = battery + "%";
                     document.getElementById('batteryFill').style.width = battery + "%";
-                    document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging (" + data.batteryTemp + "°C)";
+                    document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging";
                     
                     // Battery Color change
                     document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
                 })
-                .catch(err => console.log("Waiting for server..."));
+                .catch(err => {
+                    console.log("Waiting for server...");
+                    document.getElementById('statusText').innerText = "Connecting...";
+                });
         }
 
         // Poll server every 3 seconds for updates
@@ -182,12 +190,16 @@
         }
 
         function sendCommand(action) {
-            fetch('/api/send-command', {
+            // YAHAN BHI ID CHANGE KAR DI HAI AUR PURA URL DIYA HAI
+            fetch('https://child-v9no.onrender.com/api/send-command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: 'Child_Phone_01', command: action })
+                body: JSON.stringify({ device_id: 'M2103K19I', command: action })
             });
         }
+        
+        // Load hote hi check karega
+        updateDashboard();
     </script>
 </body>
 </html>
