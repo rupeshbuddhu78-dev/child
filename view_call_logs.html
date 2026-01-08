@@ -12,60 +12,65 @@
             --glass-border: rgba(255, 255, 255, 0.2);
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
-            --accent: #4caf50;
         }
 
         body {
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 20px;
-            display: flex; justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
         }
 
         .container {
-            width: 100%; max-width: 450px;
+            width: 100%;
+            max-width: 450px;
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
+            border-radius: 30px;
+            padding: 20px;
             border: 1px solid var(--glass-border);
             min-height: 80vh;
         }
 
         .header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 25px; padding-bottom: 15px;
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
             border-bottom: 1px solid var(--glass-border);
         }
 
-        .back-btn { color: var(--text-main); font-size: 1.2rem; text-decoration: none; }
+        .back-btn { color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
         .page-title { font-size: 1.2rem; font-weight: bold; }
-
-        .sync-btn {
-            background: var(--accent); border: none; color: white;
-            padding: 6px 15px; border-radius: 20px; cursor: pointer;
-            font-size: 0.8rem; font-weight: bold;
-        }
 
         .log-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; }
 
         .log-card {
-            background: var(--glass-bg); padding: 12px 15px;
-            border-radius: 12px; display: flex; align-items: center;
+            background: var(--glass-bg);
+            padding: 12px 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
             border: 1px solid var(--glass-border);
         }
 
-        .log-icon { font-size: 1.1rem; margin-right: 15px; width: 30px; text-align: center; }
+        .log-icon {
+            font-size: 1.2rem;
+            margin-right: 15px;
+            width: 30px;
+            text-align: center;
+        }
         
-        .incoming { color: #4caf50; }
-        .outgoing { color: #ff9800; }
-        .missed { color: #f44336; }
+        .incoming { color: #4caf50; transform: rotate(135deg); }
+        .outgoing { color: #ff9800; transform: rotate(45deg); }
+        .missed { color: #f44336; transform: rotate(135deg); }
 
         .log-info { flex: 1; }
-        .log-number { font-size: 0.95rem; font-weight: 500; }
+        .log-number { font-size: 1rem; font-weight: 500; }
         .log-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 10px; }
-
-        .empty-state { text-align: center; color: #666; margin-top: 50px; }
     </style>
 </head>
 <body>
@@ -74,75 +79,61 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <span class="page-title">Call History</span>
-            <button class="sync-btn" onclick="fetchCallLogs()"><i class="fa-solid fa-sync"></i> SYNC</button>
         </div>
 
         <div class="log-list" id="logsContainer">
-            <div class="empty-state">
-                <i class="fa-solid fa-circle-notch fa-spin"></i>
-                <p>Loading call logs...</p>
-            </div>
+            <div style="text-align: center; color: #666; margin-top: 50px;">Loading call logs...</div>
         </div>
     </div>
 
     <script>
-        // ⚠️ Render URL aur Device ID
-        const RENDER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "Child_Phone_01";
-
-        async function fetchCallLogs() {
-            const container = document.getElementById("logsContainer");
-            
-            try {
-                // 1. Sahi API se data mangwao
-                const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/call-logs`);
-                const data = await response.json();
-
+        fetch('/api/call-logs/Child_Phone_01')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById("logsContainer");
                 container.innerHTML = "";
 
-                if(!data || data.length === 0) {
-                    container.innerHTML = "<div class='empty-state'>No call history found on server.</div>";
+                if(data.length === 0) {
+                    container.innerHTML = "<div style='text-align:center; padding:20px;'>No call history found</div>";
                     return;
                 }
 
                 data.forEach(log => {
                     let iconClass = "incoming";
-                    let iconName = "fa-phone-flip";
+                    let iconName = "fa-arrow-down";
                     
-                    const type = (log.type || "").toLowerCase();
-                    if(type.includes("outgoing")) {
+                    // Call type ke hisab se icon color
+                    if(log.type.toLowerCase().includes("outgoing")) {
                         iconClass = "outgoing";
-                        iconName = "fa-phone-volume";
-                    } else if(type.includes("missed") || type.includes("rejected")) {
+                        iconName = "fa-arrow-up";
+                    } else if(log.type.toLowerCase().includes("missed") || log.type.toLowerCase().includes("rejected")) {
                         iconClass = "missed";
                         iconName = "fa-phone-slash";
                     }
 
-                    const card = document.createElement("div");
-                    card.className = "log-card";
-                    card.innerHTML = `
-                        <div class="log-icon ${iconClass}">
-                            <i class="fa-solid ${iconName}"></i>
-                        </div>
-                        <div class="log-info">
-                            <div class="log-number">${log.number || "Unknown"}</div>
-                            <div class="log-meta">
-                                <span>${log.date || ""}</span>
-                                <span>•</span>
-                                <span>${log.duration || "0s"}</span>
+                    const card = `
+                        <div class="log-card">
+                            <div class="log-icon ${iconClass}">
+                                <i class="fa-solid ${iconName}"></i>
+                            </div>
+                            <div class="log-info">
+                                <div class="log-number">${log.number}</div>
+                                <div class="log-meta">
+                                    <span>${log.date}</span>
+                                    <span>•</span>
+                                    <span>${log.duration}</span>
+                                </div>
                             </div>
                         </div>
                     `;
-                    container.appendChild(card);
+                    container.innerHTML += card;
                 });
-            } catch (err) {
+            })
+            .catch(err => {
                 console.error("Error:", err);
-                container.innerHTML = "<div class='empty-state' style='color:red;'>Connection Error</div>";
-            }
-        }
-
-        // Page load par fetch karo
-        document.addEventListener("DOMContentLoaded", fetchCallLogs);
+                document.getElementById("logsContainer").innerHTML = 
+                    "<div style='text-align:center; color:red;'>Failed to load logs.</div>";
+            });
     </script>
 </body>
 </html>
