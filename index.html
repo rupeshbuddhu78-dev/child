@@ -32,7 +32,6 @@
             border: 1px solid var(--glass-border);
         }
 
-        /* Status Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; }
         
@@ -44,7 +43,6 @@
         .dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
         .dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
 
-        /* Info Panel */
         .info-panel { display: flex; gap: 12px; margin-bottom: 20px; }
         .info-card {
             flex: 1; background: var(--glass-bg); padding: 12px;
@@ -53,13 +51,11 @@
         .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
         .value { font-size: 0.9rem; font-weight: 500; }
 
-        /* Battery Section */
         .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }
         .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
         .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
         .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
 
-        /* Grid Controls */
         .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .control-btn {
             background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
@@ -79,7 +75,7 @@
     <div class="container">
         <div class="header">
             <div>
-                <i class="fa-solid fa-mobile-side"></i>
+                <i class="fa-solid fa-mobile-screen-button"></i>
                 <span class="device-name" id="deviceName">Detecting...</span>
             </div>
             <div class="status-badge">
@@ -111,12 +107,12 @@
         </div>
 
         <div class="controls-grid">
-            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
+            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-display"></i><span>Screen</span></a>
             <a href="view_camera.html" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
             <a href="view_audio.html" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
             <a href="view_location.html" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
             <a href="view_gallery.html" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
+            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-bell"></i><span>Notify</span></a>
             
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
@@ -133,44 +129,44 @@
     </div>
 
     <script>
-        // --- REAL-TIME DATA FETCHING ---
+        // ⚠️ YAHA APNA RENDER URL DAALO (HTTPS ke saath)
+        const RENDER_URL = "https://child-v9no.onrender.com"; 
+
         function updateDashboard() {
-            fetch('/api/device-status/Child_Phone_01')
+            // Full URL use kar rahe hain taaki connection error na aaye
+            fetch(`${RENDER_URL}/api/device-status/Child_Phone_01`)
                 .then(res => res.json())
                 .then(data => {
-                    // Update Device Name & Version
-                    document.getElementById('deviceName').innerText = data.model || "Unknown Device";
+                    document.getElementById('deviceName').innerText = data.model || "Child Phone";
                     document.getElementById('androidVer').innerText = "V" + (data.android_version || "--");
                     
-                    // Update Connection Status
                     const dot = document.getElementById('statusDot');
                     const statusText = document.getElementById('statusText');
+                    
                     if(data.isOnline) {
                         dot.className = "dot online";
                         statusText.innerText = "Connected";
-                        document.getElementById('networkType').innerText = data.network || "WiFi/4G";
+                        document.getElementById('networkType').innerText = "Online";
                     } else {
                         dot.className = "dot offline";
                         statusText.innerText = "Disconnected";
                         document.getElementById('networkType').innerText = "Offline";
                     }
 
-                    // Update Battery
                     const battery = data.battery || 0;
                     document.getElementById('batteryPercent').innerText = battery + "%";
                     document.getElementById('batteryFill').style.width = battery + "%";
-                    document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging (" + data.batteryTemp + "°C)";
-                    
-                    // Battery Color change
                     document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
+                    document.getElementById('batteryStatus').innerText = data.isOnline ? "Device is active" : "Last seen recently";
                 })
-                .catch(err => console.log("Waiting for server..."));
+                .catch(err => {
+                    console.log("Connecting to server...");
+                    document.getElementById('statusText').innerText = "Offline";
+                });
         }
 
-        // Poll server every 3 seconds for updates
-        setInterval(updateDashboard, 3000);
+        setInterval(updateDashboard, 4000);
 
-        // Sound Mode Switcher
         let currentMode = 0;
         function cycleSoundMode() {
             const icon = document.getElementById('soundIcon');
@@ -182,12 +178,17 @@
         }
 
         function sendCommand(action) {
-            fetch('/api/send-command', {
+            fetch(`${RENDER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: 'Child_Phone_01', command: action })
-            });
+            })
+            .then(res => console.log("Command sent: " + action))
+            .catch(err => console.error("Error sending command"));
         }
+
+        // Page load par pehli baar fetch karo
+        updateDashboard();
     </script>
 </body>
 </html>
