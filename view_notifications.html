@@ -118,25 +118,29 @@
 
     <script>
         const RENDER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "M2103K19I"; 
+        
+        // --- DYNAMIC ID LOGIC (Only this part changed) ---
+        const urlParams = new URLSearchParams(window.location.search);
+        let DEVICE_ID = urlParams.get('id'); 
+        if(!DEVICE_ID) { DEVICE_ID = "M2103K19I"; } // Fallback
 
         document.addEventListener("DOMContentLoaded", () => {
             fetchNotifications();
-            setInterval(fetchNotifications, 7000); // 7 seconds sync
+            setInterval(fetchNotifications, 7000); 
         });
 
         async function fetchNotifications() {
             const listContainer = document.getElementById("notif-list");
             
             try {
-                // ✅ Sahi Path matching with your Backend Update
+                // Fetching using the Dynamic Device ID
                 const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${new Date().getTime()}`);
                 
                 if (!response.ok) throw new Error("File not found");
                 const data = await response.json();
                 
                 if (!data || data.length === 0) {
-                    listContainer.innerHTML = `<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>No Notifications Yet</p></div>`;
+                    listContainer.innerHTML = `<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>No Notifications for ${DEVICE_ID}</p></div>`;
                     return;
                 }
 
@@ -168,7 +172,7 @@
 
             } catch (err) {
                 if(listContainer.innerHTML.includes("Connecting")) {
-                     listContainer.innerHTML = `<div class="empty-state"><p>Waiting for notification sync...</p></div>`;
+                     listContainer.innerHTML = `<div class="empty-state"><p>Waiting for notification sync (${DEVICE_ID})...</p></div>`;
                 }
             }
         }
