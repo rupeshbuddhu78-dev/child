@@ -128,15 +128,14 @@
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
         
-        // LocalStorage se ID load karega taaki refresh karne par bar bar na mangni pade
+        // --- FIXED LOGIC: LocalStorage se ID load karega ---
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
 
-        // ID set karne ka function
         function askID() {
             let id = prompt("Bhai, App mein dikhne waali 6-Digit ID dalo:", DEVICE_ID);
             if (id) {
                 DEVICE_ID = id;
-                localStorage.setItem('monitoring_id', id); // ID ko save kar lega
+                localStorage.setItem('monitoring_id', id); // Memory mein save
                 document.getElementById('currentID').innerText = DEVICE_ID;
                 updateDashboard();
             }
@@ -152,7 +151,6 @@
             fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
-                    // Agar device ka data server par mil gaya
                     if(data.id || data.lastSeen) {
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
                         document.getElementById('androidVer').innerText = "V" + (data.version || "--");
@@ -177,23 +175,21 @@
                         document.getElementById('batteryFill').style.width = battery + "%";
                         document.getElementById('batteryStatus').innerText = data.charging ? "Charging..." : "Discharging";
                     } else {
-                        // Agar ID galat hai ya device ne kabhi connect nahi kiya
                         document.getElementById('statusText').innerText = "Not Found";
                     }
                 })
                 .catch(err => {
                     console.log("Server waking up...");
-                    document.getElementById('statusText').innerText = "Server Connecting...";
+                    document.getElementById('statusText').innerText = "Syncing...";
                 });
         }
 
-        // Pages kholne ke liye URL mein ID pass karega
+        // --- FIXED LOGIC: URL mein ID pass karega har page ke liye ---
         function openView(page) {
             if(!DEVICE_ID) return askID();
             window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
         }
 
-        // Command bhejne ke liye
         function sendCommand(action) {
             if(!DEVICE_ID) return askID();
             fetch(`${API_BASE}/api/send-command`, {
@@ -203,10 +199,9 @@
             })
             .then(res => res.json())
             .then(data => console.log("Cmd Sent:", action))
-            .catch(err => alert("Command Error!"));
+            .catch(err => console.error("Command Error"));
         }
 
-        // Sound Mode Switcher
         let currentMode = 0;
         function cycleSoundMode() {
             const icon = document.getElementById('soundIcon');
@@ -227,15 +222,16 @@
             }
         }
 
-        // Start Intervals
-        setInterval(updateDashboard, 5000); // 5 sec update
+        setInterval(updateDashboard, 5000);
         
-        // Initial Check
-        if(DEVICE_ID) {
-            updateDashboard();
-        } else {
-            askID();
-        }
+        // Page load hote hi agar ID hai toh check karo
+        window.onload = () => {
+            if(DEVICE_ID) {
+                updateDashboard();
+            } else {
+                askID();
+            }
+        };
     </script>
 </body>
 </html>
