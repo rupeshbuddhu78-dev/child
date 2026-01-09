@@ -5,284 +5,428 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Notification Log</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #000000;
+            --card-bg: #161616;
+            --text-white: #ffffff;
+            --text-grey: #a0a0a0;
+            --border-color: #333;
+            --highlight: #4caf50;
+        }
 
-<style>
-:root{
-    --bg:#0f0f0f;
-    --glass:rgba(255,255,255,.08);
-    --border:rgba(255,255,255,.15);
-    --cyan:#00f3ff;
-}
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
-*{box-sizing:border-box;}
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-white);
+            height: 100vh; /* Pura screen cover karega */
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; /* Body scroll band */
+        }
 
-body{
-    margin:0;
-    min-height:100vh;
-    background:linear-gradient(45deg,#050505,#151515);
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    font-family:Segoe UI,sans-serif;
-    color:#fff;
-}
+        /* --- Main Phone Container --- */
+        .mobile-container {
+            width: 100%;
+            max-width: 600px;
+            background-color: #0a0a0a;
+            height: 100%; /* Full Height */
+            display: flex;
+            flex-direction: column; /* Upar se niche arrange karega */
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            position: relative;
+        }
 
-.container{
-    width:100%;
-    max-width:450px;
-    height:85vh;
-    background:rgba(0,0,0,.6);
-    border-radius:30px;
-    border:1px solid var(--border);
-    padding:20px;
+        /* --- 1. Header (Fixed) --- */
+        .header {
+            padding: 15px 20px;
+            background-color: rgba(20, 20, 20, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            flex-shrink: 0; /* Header kabhi nahi pichkega */
+        }
 
-    display:flex;
-    flex-direction:column;
-    overflow:hidden; /* 🔴 MOST IMPORTANT */
-}
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
 
-/* HEADER */
-.header{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding-bottom:15px;
-    border-bottom:1px solid var(--border);
-    flex-shrink:0;
-}
+        .title {
+            font-size: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
 
-.page-title{
-    color:var(--cyan);
-    font-weight:bold;
-    letter-spacing:1px;
-}
+        /* Filter Chips */
+        .filters-scroll {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            /* Scrollbar chupana */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        .filters-scroll::-webkit-scrollbar { display: none; }
 
-/* FILTERS */
-.filter-row{
-    display:flex;
-    gap:10px;
-    margin:15px 0;
-    overflow-x:auto;
-    flex-shrink:0;
-}
-.filter-row::-webkit-scrollbar{display:none;}
+        .chip {
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: 0.3s;
+        }
 
-.filter-btn{
-    background:var(--glass);
-    border:1px solid var(--border);
-    color:#aaa;
-    padding:6px 15px;
-    border-radius:20px;
-    font-size:.75rem;
-    cursor:pointer;
-    white-space:nowrap;
-}
-.filter-btn.active{
-    border-color:var(--cyan);
-    color:#fff;
-}
+        .chip.active {
+            background: #ffffff;
+            color: #000000;
+            border-color: #ffffff;
+            font-weight: 600;
+        }
 
-/* 🔴 SCROLL AREA */
-.notif-list{
-    flex:1;                 /* 🔥 take remaining space */
-    min-height:0;           /* 🔥 allow scrolling */
-    overflow-y:auto;
-    padding-right:5px;
-    -webkit-overflow-scrolling:touch;
-}
+        /* --- 2. Notification List (The Scrolling Part) --- */
+        .list-area {
+            flex-grow: 1;      /* Baki bachi jagah lega */
+            flex-basis: 0;     /* Flex bug fix */
+            min-height: 0;     /* 🔥 KEY FIX: Isse scroll enable hota hai */
+            overflow-y: auto;  /* Sirf yahan scroll hoga */
+            padding: 15px;
+            padding-bottom: 80px; /* Thoda extra space niche */
+        }
+        
+        /* Custom Scrollbar */
+        .list-area::-webkit-scrollbar { width: 4px; }
+        .list-area::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 
-/* SCROLLBAR */
-.notif-list::-webkit-scrollbar{width:6px;}
-.notif-list::-webkit-scrollbar-thumb{
-    background:#333;
-    border-radius:10px;
-}
+        /* --- 3. Card Design --- */
+        .notif-card {
+            background-color: var(--card-bg);
+            border: 1px solid #2a2a2a;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            cursor: pointer; /* Clickable dikhane ke liye */
+            transition: transform 0.1s, background 0.2s;
+        }
 
-/* CARD */
-.notif-card{
-    background:var(--glass);
-    border:1px solid var(--border);
-    border-radius:12px;
-    padding:12px;
-    display:flex;
-    gap:12px;
-    margin-bottom:10px;
-}
+        .notif-card:active {
+            transform: scale(0.98);
+            background-color: #252525;
+        }
 
-.app-icon{
-    width:36px;
-    height:36px;
-    border-radius:10px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:1.1rem;
-    flex-shrink:0;
-}
+        /* Icon Styling */
+        .icon-wrapper {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            flex-shrink: 0; /* Icon squash nahi hoga */
+        }
 
-.notif-content{flex:1;min-width:0;}
+        .style-whatsapp { background: rgba(37, 211, 102, 0.15); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.3); }
+        .style-facebook { background: rgba(24, 119, 242, 0.15); color: #1877F2; border: 1px solid rgba(24, 119, 242, 0.3); }
+        .style-instagram { background: rgba(225, 48, 108, 0.15); color: #E1306C; border: 1px solid rgba(225, 48, 108, 0.3); }
+        .style-default { background: #333; color: #fff; border: 1px solid #555; }
 
-.top-row{
-    display:flex;
-    justify-content:space-between;
-}
+        /* Text Styling */
+        .text-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
 
-.app-name{
-    font-size:.65rem;
-    color:var(--cyan);
-    font-weight:bold;
-}
+        .top-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3px;
+        }
 
-.time-badge{
-    font-size:.6rem;
-    color:#aaa;
-}
+        .sender-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 75%;
+        }
 
-.notif-title{
-    font-size:.9rem;
-    font-weight:bold;
-    white-space:nowrap;
-    overflow:hidden;
-    text-overflow:ellipsis;
-}
+        .time-text {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
 
-.notif-text{
-    font-size:.8rem;
-    color:#ccc;
-    line-height:1.3;
-}
+        .message-body {
+            font-size: 14px;
+            color: #a0a0a0;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
 
-/* COLORS */
-.whatsapp{background:rgba(37,211,102,.15);color:#25d366;border:1px solid #25d366;}
-.instagram{background:rgba(193,53,132,.15);color:#c13584;border:1px solid #c13584;}
-.facebook{background:rgba(24,119,242,.15);color:#1877f2;border:1px solid #1877f2;}
-.system{background:rgba(255,255,255,.1);border:1px solid #fff;}
-</style>
-      
+        .loading { text-align: center; color: #555; margin-top: 50px; }
+
+        /* --- 4. POPUP MODAL STYLES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none; /* Default Hidden */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-box {
+            background: #1e1e1e;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            padding: 25px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popUp {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 15px;
+            background: #333;
+            color: white;
+            border: none;
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center; align-items: center;
+        }
+
+        .modal-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .modal-title { font-size: 18px; font-weight: bold; color: white; margin-bottom: 5px; text-align: center; }
+        .modal-app { font-size: 12px; color: #4caf50; text-transform: uppercase; margin-bottom: 15px; text-align: center; font-weight: bold; letter-spacing: 1px; }
+        
+        .modal-message {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            color: #ddd;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #444;
+        }
+
+        .modal-time {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #777;
+            text-align: right;
+        }
+
+    </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="mobile-container">
+        
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <span class="page-title">Notification Log</span>
-            <div onclick="loadNotifications()" style="cursor: pointer; color: var(--cyan); font-size: 1.2rem;">
-                <i class="fa-solid fa-rotate"></i>
+            <div class="header-top">
+                <div class="title">
+                    <i class="fas fa-arrow-left" onclick="history.back()" style="cursor:pointer; margin-right:10px;"></i>
+                    Notifications
+                </div>
+                <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer; color:#4caf50;"></i>
+            </div>
+            <div class="filters-scroll">
+                <div class="chip active" onclick="setFilter('all', this)">All</div>
+                <div class="chip" onclick="setFilter('whatsapp', this)">WhatsApp</div>
+                <div class="chip" onclick="setFilter('instagram', this)">Instagram</div>
+                <div class="chip" onclick="setFilter('facebook', this)">Facebook</div>
             </div>
         </div>
 
-        <div class="filter-row">
-            <button class="filter-btn active" onclick="filterList('all', this)">All</button>
-            <button class="filter-btn" onclick="filterList('whatsapp', this)">WhatsApp</button>
-            <button class="filter-btn" onclick="filterList('instagram', this)">Instagram</button>
-            <button class="filter-btn" onclick="filterList('facebook', this)">Facebook</button>
-            <button class="filter-btn" onclick="filterList('other', this)">Others</button>
+        <div class="list-area" id="notifList">
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
         </div>
 
-        <div class="notif-list" id="notifContainer">
-            <div class="status-msg">
-                <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>
-                Connecting...
-            </div>
+    </div>
+
+    <div class="modal-overlay" id="popupModal" onclick="closeModal(event)">
+        <div class="modal-box">
+            <button class="close-btn" onclick="closeModal(event)"><i class="fas fa-times"></i></button>
+            <div class="modal-icon" id="mIcon"></div>
+            <div class="modal-title" id="mTitle">Sender Name</div>
+            <div class="modal-app" id="mApp">WHATSAPP</div>
+            <div class="modal-message" id="mMessage">Full message content goes here...</div>
+            <div class="modal-time" id="mTime">10:30 PM</div>
         </div>
     </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com';
         const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
+        const deviceId = urlParams.get('id');
+        const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
 
-        let allNotifications = []; 
+        let allData = [];
+        let currentFilter = 'all';
 
-        window.onload = () => {
-            if(!DEVICE_ID) {
-                document.getElementById('notifContainer').innerHTML = "<p class='status-msg'>ID Missing!</p>";
-                return;
-            }
-            loadNotifications();
-        };
-
-        async function loadNotifications() {
-            const container = document.getElementById("notifContainer");
-            container.innerHTML = "<div class='status-msg'><i class='fa-solid fa-spinner fa-spin'></i> Syncing...</div>";
-
+        // 1. Fetch Data
+        async function fetchData() {
             try {
-                const response = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/notifications?t=${Date.now()}`);
-                const data = await response.json();
-
-                if (!data || data.length === 0) {
-                    container.innerHTML = "<p class='status-msg'>No notifications yet.</p>";
+                if(!deviceId) {
+                    document.getElementById('notifList').innerHTML = "<div class='loading'>Device ID Missing</div>";
                     return;
                 }
-
-                // 🔴 IMPORTANT CHANGE: Sorting by Time (Newest First)
-                // b.postTime - a.postTime ka matlab hai jiska time bada (naya) hai wo pehle aayega.
-                allNotifications = data.sort((a, b) => b.postTime - a.postTime);
-                
-                renderList(allNotifications);
-
-            } catch (err) {
-                console.error(err);
-                container.innerHTML = "<p class='status-msg' style='color:#ff4444'>Offline / Error</p>";
-            }
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                allData = data.sort((a, b) => b.postTime - a.postTime);
+                renderList();
+            } catch (error) { console.error(error); }
         }
 
-        function renderList(data) {
-            const container = document.getElementById("notifContainer");
+        // 2. Render List
+        function renderList() {
+            const container = document.getElementById('notifList');
             container.innerHTML = "";
 
-            if(data.length === 0) {
-                container.innerHTML = "<p class='status-msg'>Empty List</p>";
+            let filteredData = allData;
+            if (currentFilter !== 'all') {
+                filteredData = allData.filter(item => 
+                    (item.appName || "").toLowerCase().includes(currentFilter) ||
+                    (item.packageName || "").toLowerCase().includes(currentFilter)
+                );
+            }
+
+            if (filteredData.length === 0) {
+                container.innerHTML = "<div class='loading'>No notifications found.</div>";
                 return;
             }
 
-            data.forEach(item => {
-                const app = getAppDetails(item.packageName);
-                const timeStr = new Date(parseInt(item.postTime)).toLocaleString([], { hour: '2-digit', minute:'2-digit', day:'numeric', month:'short' });
+            filteredData.forEach(item => {
+                const details = getAppDetails(item);
+                const timeStr = formatTime(item.postTime);
 
-                const card = document.createElement("div");
-                card.className = "notif-card";
+                // Create Card
+                const card = document.createElement('div');
+                card.className = 'notif-card';
                 card.innerHTML = `
-                    <div class="app-icon ${app.style}">
-                        <i class="${app.icon}"></i>
+                    <div class="icon-wrapper ${details.style}">
+                        ${details.icon}
                     </div>
-                    <div class="notif-content">
-                        <div class="top-row">
-                            <span class="app-name">${app.name}</span>
-                            <span class="time-badge">${timeStr}</span>
+                    <div class="text-content">
+                        <div class="top-line">
+                            <span class="sender-name">${item.title || "Notification"}</span>
+                            <span class="time-text">${timeStr}</span>
                         </div>
-                        <div class="notif-title">${item.title || 'Notification'}</div>
-                        <div class="notif-text">${item.text || ''}</div>
+                        <div class="message-body">${item.text || "Click to read more..."}</div>
                     </div>
                 `;
+
+                // 🔥 ON CLICK EVENT -> OPEN POPUP
+                card.onclick = () => openModal(item, details, timeStr);
+
                 container.appendChild(card);
             });
         }
 
-        function getAppDetails(pkg) {
-            pkg = (pkg || "").toLowerCase();
-            if (pkg.includes("whatsapp")) return { name: "WhatsApp", icon: "fa-brands fa-whatsapp", style: "whatsapp" };
-            if (pkg.includes("instagram")) return { name: "Instagram", icon: "fa-brands fa-instagram", style: "instagram" };
-            if (pkg.includes("facebook")) return { name: "Facebook", icon: "fa-brands fa-facebook-f", style: "facebook" };
-            return { name: "System", icon: "fa-solid fa-bell", style: "system" };
+        // Helper: Get App Icon & Colors
+        function getAppDetails(item) {
+            let key = (item.packageName || item.appName || "").toLowerCase();
+            if (key.includes("whatsapp")) return { style: 'style-whatsapp', icon: '<i class="fab fa-whatsapp"></i>', name: 'WhatsApp', color: '#25D366' };
+            if (key.includes("instagram")) return { style: 'style-instagram', icon: '<i class="fab fa-instagram"></i>', name: 'Instagram', color: '#E1306C' };
+            if (key.includes("facebook")) return { style: 'style-facebook', icon: '<i class="fab fa-facebook-f"></i>', name: 'Facebook', color: '#1877F2' };
+            return { style: 'style-default', icon: '<i class="fas fa-bell"></i>', name: 'System', color: '#ffffff' };
         }
 
-        function filterList(type, btn) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+        // Helper: Format Time
+        function formatTime(ms) {
+            if (!ms) return "Now";
+            let d = new Date(parseInt(ms));
+            return isNaN(d.getTime()) ? "Now" : d.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+        }
 
-            if (type === 'all') {
-                renderList(allNotifications);
-            } else if (type === 'other') {
-                renderList(allNotifications.filter(n => {
-                    const p = (n.packageName || "").toLowerCase();
-                    return !p.includes("whatsapp") && !p.includes("instagram") && !p.includes("facebook");
-                }));
-            } else {
-                renderList(allNotifications.filter(n => (n.packageName || "").toLowerCase().includes(type)));
+        // 3. Filter Logic
+        function setFilter(type, btn) {
+            currentFilter = type;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            renderList();
+        }
+
+        // --- POPUP LOGIC ---
+        function openModal(item, details, timeStr) {
+            const modal = document.getElementById('popupModal');
+            
+            // Set Content
+            document.getElementById('mTitle').innerText = item.title || "Notification";
+            document.getElementById('mApp').innerText = details.name;
+            document.getElementById('mApp').style.color = details.color;
+            document.getElementById('mMessage').innerText = item.text || "No content.";
+            document.getElementById('mTime').innerText = new Date(parseInt(item.postTime)).toLocaleString();
+            
+            // Set Icon
+            const iconBox = document.getElementById('mIcon');
+            iconBox.innerHTML = details.icon;
+            iconBox.style.color = details.color;
+
+            // Show
+            modal.style.display = 'flex';
+        }
+
+        function closeModal(e) {
+            // Close if clicked on overlay or close button
+            if (e.target === document.getElementById('popupModal') || e.target.closest('.close-btn')) {
+                document.getElementById('popupModal').style.display = 'none';
             }
         }
+
+        // Auto Load
+        fetchData();
+        setInterval(fetchData, 3000);
+
     </script>
 </body>
 </html>
-
