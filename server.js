@@ -22,10 +22,17 @@ app.use(express.static(__dirname));
 // Live RAM Memory to track online/offline and commands
 let devicesStatus = {}; 
 
+// --- 1. NEW ADDITION: Dashboard ko List Dikhane ke liye Route ---
+app.get('/api/admin/all-devices', (req, res) => {
+    res.json(devicesStatus);
+});
+
 // --- PHONE SIDE API (Phone yahan data bhejta hai) ---
 
 app.post('/api/status', (req, res) => {
-    let { device_id, model, battery, version, charging, lat, lon } = req.body;
+    // Yahan maine 'level' add kiya hai taaki battery sahi pakde
+    let { device_id, model, battery, level, version, charging, lat, lon } = req.body;
+    
     if (!device_id) return res.status(400).json({ error: "No ID provided" });
 
     const id = device_id.toString().trim().toUpperCase();
@@ -40,11 +47,14 @@ app.post('/api/status', (req, res) => {
     }
 
     // 3. Update Device Info in RAM
+    // FIX: Agar battery nahi aayi toh level use karo
+    let finalBattery = battery || level || 0;
+
     devicesStatus[id] = {
         ...devicesStatus[id], 
         id: id,
         model: model || devicesStatus[id]?.model || "Unknown Device",
-        battery: battery || 0,
+        battery: finalBattery, // Ab ye 0 nahi hoga
         version: version || "--",
         charging: (charging === 'true' || charging === true),
         lat: lat || devicesStatus[id]?.lat || 0,
@@ -151,8 +161,11 @@ app.post('/api/send-command', (req, res) => {
     const id = device_id.toUpperCase().trim();
     if (!devicesStatus[id]) devicesStatus[id] = { id: id };
     
-    devicesStatus[id].command = command;
-    console.log(`🚀 [CMD QUEUED] ${command} -> ${id}`);
+    // FIX: Agar dashboard "normal" bheje toh use "loud" kar do phone ke liye
+    let finalCommand = (command === "normal") ? "loud" : command;
+
+    devicesStatus[id].command = finalCommand;
+    console.log(`🚀 [CMD QUEUED] ${finalCommand} -> ${id}`);
     res.json({ status: "success" });
 });
 
