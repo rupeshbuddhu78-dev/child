@@ -209,3 +209,4 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
 
 // Start Server
 app.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT}`));
+
