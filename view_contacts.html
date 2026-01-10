@@ -38,7 +38,6 @@
             border-bottom: 1px solid var(--glass-border);
         }
 
-        /* --- NEW SEARCH BAR STYLES --- */
         .search-box {
             position: relative;
             margin-bottom: 15px;
@@ -46,14 +45,14 @@
 
         .search-input {
             width: 100%;
-            padding: 12px 15px 12px 40px; /* Left padding icon ke liye */
+            padding: 12px 15px 12px 40px;
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--glass-border);
             border-radius: 20px;
             color: white;
             font-size: 1rem;
             outline: none;
-            box-sizing: border-box; /* Input box bahar na nikle */
+            box-sizing: border-box;
             transition: 0.3s;
         }
 
@@ -64,12 +63,10 @@
 
         .search-icon {
             position: absolute;
-            left: 15px;
-            top: 50%;
+            left: 15px; top: 50%;
             transform: translateY(-50%);
             color: var(--text-muted);
         }
-        /* --------------------------- */
 
         #apiStatus {
             background: rgba(0, 243, 255, 0.05);
@@ -94,6 +91,13 @@
             border-radius: 15px; display: flex; align-items: center;
             border: 1px solid var(--glass-border);
             transition: transform 0.2s;
+            /* Ye zaroori hai smooth rendering ke liye */
+            contain: content; 
+        }
+        
+        /* Search ke time chupaane ke liye class */
+        .hidden {
+            display: none !important;
         }
 
         .contact-card:hover {
@@ -131,7 +135,7 @@
 
         <div class="search-box">
             <i class="fa-solid fa-search search-icon"></i>
-            <input type="text" id="searchInput" class="search-input" placeholder="Search name or number..." onkeyup="filterContacts()">
+            <input type="text" id="searchInput" class="search-input" placeholder="Search name or number..." oninput="filterContacts()">
         </div>
 
         <div class="contact-list" id="contactsContainer">
@@ -147,8 +151,6 @@
         const storageKey = `contacts_${DEVICE_ID}`;
         const statusEl = document.getElementById("apiStatus");
         let retryCount = 0;
-        
-        // GLOBAL VARIABLE TO STORE ALL CONTACTS
         let allContactsData = []; 
 
         function setStatus(msg, isError = false) {
@@ -162,7 +164,6 @@
                 return;
             }
             setStatus(`Device ID: ${DEVICE_ID} detected.`);
-            
             loadFromStorage();
             handleRefresh();
         });
@@ -170,26 +171,34 @@
         function loadFromStorage() {
             const saved = localStorage.getItem(storageKey);
             if (saved) {
-                allContactsData = JSON.parse(saved); // Save to global var
+                allContactsData = JSON.parse(saved);
                 renderContacts(allContactsData);
             }
         }
 
-        // --- NEW SEARCH FUNCTION ---
+        // --- 🔥 FAST SEARCH FUNCTION (NO RE-RENDERING) ---
+        // Hum ab HTML delete nahi kar rahe, bas 'hide' kar rahe hain
+        let searchTimeout;
         function filterContacts() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            
-            const filtered = allContactsData.filter(contact => {
-                const name = (contact.name || "").toLowerCase();
-                const num = (contact.number || contact.phone || "").toString();
+            // Thoda delay (debounce) taaki har letter pe load na ho
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const query = document.getElementById('searchInput').value.toLowerCase();
+                const cards = document.querySelectorAll('.contact-card');
                 
-                // Name ya Number dono mein se kisi mein bhi match ho
-                return name.includes(query) || num.includes(query);
-            });
-
-            renderContacts(filtered);
+                cards.forEach(card => {
+                    // Humne data-search attribute banaya hai taaki calculation fast ho
+                    const searchData = card.getAttribute('data-search');
+                    
+                    if (searchData && searchData.includes(query)) {
+                        card.classList.remove('hidden');
+                    } else {
+                        card.classList.add('hidden');
+                    }
+                });
+            }, 100); // 100ms ka delay smooth typing ke liye
         }
-        // --------------------------
+        // -----------------------------------------------
 
         function handleRefresh() {
             retryCount = 0;
@@ -227,13 +236,10 @@
                         return;
                     }
 
-                    // Data mil gaya - Store in Global & Local
                     allContactsData = data; 
                     localStorage.setItem(storageKey, JSON.stringify(data));
                     setStatus(`Successfully received ${data.length} contacts.`);
-                    
-                    // Filter call karein taaki agar kuch type kiya hua hai to wahi dikhe
-                    filterContacts(); 
+                    renderContacts(data);
                 })
                 .catch(err => setStatus("Connection failed: " + err.message, true))
                 .finally(() => {
@@ -241,27 +247,27 @@
                 });
         }
 
+        // --- 🔥 OPTIMIZED RENDER FUNCTION ---
         function renderContacts(data) {
             const container = document.getElementById("contactsContainer");
-            container.innerHTML = "";
             
-            if(data.length === 0) {
-                container.innerHTML = `<div style="text-align: center; color: #666; margin-top: 20px;">No contacts found matching search.</div>`;
-                return;
-            }
-
-            // Sort Alphabetically
+            // Step 1: Data ko Sort karo
             data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
+            // Step 2: HTML string mein pura data build karo (DOM update karne se fast hai)
+            let htmlBuffer = "";
+            
             data.forEach(contact => {
                 const name = contact.name || "Unknown";
                 const num = contact.number || contact.phone || "No Number";
-                
-                // Avatar ka letter
                 const firstLetter = name.charAt(0).toUpperCase();
+                
+                // Search ke liye pehle se string bana lo (lowercase mein)
+                const searchString = (name + " " + num).toLowerCase();
 
-                container.innerHTML += `
-                    <div class="contact-card">
+                // 'data-search' attribute mein search content store karo
+                htmlBuffer += `
+                    <div class="contact-card" data-search="${searchString}">
                         <div class="avatar">${firstLetter}</div>
                         <div class="info">
                             <div class="name">${name}</div>
@@ -269,6 +275,13 @@
                         </div>
                     </div>`;
             });
+
+            // Step 3: Ek baar mein inject karo (Browser freeze nahi hoga)
+            container.innerHTML = htmlBuffer;
+            
+            // Agar search box mein pehle se kuch likha hai to filter apply karo
+            const currentSearch = document.getElementById('searchInput').value;
+            if(currentSearch) filterContacts();
         }
     </script>
 </body>
