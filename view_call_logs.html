@@ -8,13 +8,13 @@
     <style>
         :root {
             --bg-color: #000000;
-            --glass-bg: rgba(28, 28, 30, 0.6); /* iPhone Dark Mode feel */
+            --glass-bg: rgba(28, 28, 30, 0.6);
             --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
-            --text-sub: #8e8e93; /* iOS Gray */
-            --incoming: #30d158; /* iOS Green */
-            --outgoing: #0a84ff; /* iOS Blue */
-            --missed: #ff453a;   /* iOS Red */
+            --text-sub: #8e8e93;
+            --incoming: #30d158;
+            --outgoing: #0a84ff;
+            --missed: #ff453a;
         }
 
         body {
@@ -30,7 +30,6 @@
             width: 100%; max-width: 480px;
             background: rgba(0, 0, 0, 0.2);
             border-radius: 40px; padding: 20px;
-            /* No visible border for cleaner look */
             min-height: 85vh;
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -56,11 +55,10 @@
         }
 
         .log-list { 
-            display: flex; flex-direction: column; gap: 0px; /* iOS lists have no gap usually */
+            display: flex; flex-direction: column; gap: 0px; 
             max-height: 650px; overflow-y: auto; 
         }
         
-        /* Hide scrollbar for cleaner look */
         .log-list::-webkit-scrollbar { width: 0px; background: transparent; }
 
         .log-card {
@@ -76,31 +74,35 @@
             font-size: 0.9rem; margin-right: 15px; width: 30px; height: 30px;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05); /* Slight background for icon */
         }
         
-        .log-icon.incoming { color: var(--text-sub); } /* iOS often uses neutral for history icons unless missed */
-        .log-icon.outgoing { color: var(--text-sub); }
+        .log-icon.incoming { color: var(--text-main); }
+        .log-icon.outgoing { color: var(--text-main); }
         .log-icon.missed { color: var(--missed); }
 
         .log-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
         
-        /* Typography Changes */
         .log-name { 
             font-size: 1.05rem; font-weight: 600; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             color: var(--text-main);
+            display: flex; align-items: center; gap: 6px;
         }
         
-        .log-name.is-missed { color: var(--missed); } /* Red text for missed calls */
+        .log-name.is-missed { color: var(--missed); }
+
+        /* Icon next to number/name */
+        .name-icon { font-size: 0.8rem; opacity: 0.7; }
 
         .log-details-row {
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 6px;
             font-size: 0.8rem; color: var(--text-sub); margin-top: 3px;
         }
 
         .log-type-icon { font-size: 0.7rem; }
 
-        /* Direct Call Button */
         .call-action {
             width: 40px; height: 40px;
             display: flex; align-items: center; justify-content: center;
@@ -133,7 +135,9 @@
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
         const storageKey = `calls_${DEVICE_ID}`;
-        const contactsKey = `contacts_${DEVICE_ID}`; // Is key se contacts uthayenge
+
+        // Global variable to store detected contacts
+        let cachedContacts = [];
 
         document.addEventListener("DOMContentLoaded", () => {
             if (!DEVICE_ID) {
@@ -141,13 +145,65 @@
                 window.location.href = "index.html";
                 return;
             }
+            
+            // 1. Pehle contacts dhoondo pure LocalStorage mein
+            detectContactsData();
+
             loadFromStorage();
             sendCommand();
             setTimeout(fetchLogs, 2000); 
-            setInterval(fetchLogs, 10000); // 10 sec auto-refresh
+            setInterval(fetchLogs, 10000);
         });
 
-        // 1. HELPERS: Date Formatting (Today/Yesterday)
+        // --- NEW: AUTO DETECT CONTACTS ---
+        function detectContactsData() {
+            console.log("Searching for contacts in LocalStorage...");
+            try {
+                // LocalStorage ki saari keys check karenge
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    // Agar key mein 'contact' likha hai
+                    if (key.toLowerCase().includes("contact")) {
+                        const rawData = localStorage.getItem(key);
+                        if (rawData) {
+                            const parsed = JSON.parse(rawData);
+                            // Check karo ki ye array hai aur isme name/phone hai kya
+                            if (Array.isArray(parsed) && parsed.length > 0 && (parsed[0].name || parsed[0].phone)) {
+                                console.log(`Contacts found in key: ${key}`);
+                                cachedContacts = parsed; // Contacts mil gaye!
+                                return;
+                            }
+                        }
+                    }
+                }
+                console.log("No contacts found in LocalStorage.");
+            } catch (e) {
+                console.error("Error detecting contacts:", e);
+            }
+        }
+
+        // --- NAME MATCHING LOGIC ---
+        function findContactName(phoneNumber) {
+            if (!cachedContacts || cachedContacts.length === 0) return null;
+            
+            try {
+                // Phone number se non-digit hatao (spaces, dashes, +91 etc)
+                const cleanLogNum = phoneNumber.replace(/\D/g, '').slice(-10); 
+
+                const match = cachedContacts.find(c => {
+                    if(!c.phone && !c.number) return false;
+                    const contactPhone = c.phone || c.number || ""; // Kabhi phone hota hai, kabhi number
+                    const cleanContactNum = contactPhone.toString().replace(/\D/g, '').slice(-10);
+                    return cleanContactNum === cleanLogNum;
+                });
+
+                return match ? (match.name || match.display_name) : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // --- DATE FORMATTER ---
         function formatSmartDate(timestamp) {
             if (!timestamp) return "Unknown";
             const date = new Date(parseInt(timestamp));
@@ -166,30 +222,6 @@
             }
         }
 
-        // 2. HELPERS: Name Matcher
-        function findContactName(phoneNumber) {
-            try {
-                const storedContacts = localStorage.getItem(contactsKey);
-                if (!storedContacts) return null;
-                
-                const contacts = JSON.parse(storedContacts);
-                // Clean the log number (remove spaces/dashes for comparison)
-                const cleanLogNum = phoneNumber.replace(/\D/g, '').slice(-10); 
-
-                // Check contacts
-                const match = contacts.find(c => {
-                    if(!c.phone) return false;
-                    const cleanContactNum = c.phone.replace(/\D/g, '').slice(-10);
-                    return cleanContactNum === cleanLogNum;
-                });
-
-                return match ? match.name : null;
-            } catch (e) {
-                console.error("Error matching contacts", e);
-                return null;
-            }
-        }
-
         function loadFromStorage() {
             const savedData = localStorage.getItem(storageKey);
             if (savedData) {
@@ -198,7 +230,7 @@
                 document.getElementById("logsContainer").innerHTML = `
                     <div class="status-msg">
                         <i class="fa-solid fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 10px;"></i>
-                        <p>Loading History...</p>
+                        <p>Loading Call History...</p>
                     </div>`;
             }
         }
@@ -208,64 +240,69 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'call_logs' })
-            }).then(() => console.log("Command Sent"));
+            });
         }
 
         function fetchLogs() {
-            const btn = document.getElementById("refreshBtn");
-            if(btn) btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
-
             fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${new Date().getTime()}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.length > 0) {
                         localStorage.setItem(storageKey, JSON.stringify(data));
+                        // Har bar refresh pe naye contacts bhi check kar lo (in case user ne contacts page abhi khola ho)
+                        detectContactsData();
                         renderLogs(data);
                     }
                 })
-                .catch(err => console.log("Fetch error"))
-                .finally(() => {
-                    if(btn) btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
-                });
+                .catch(err => console.log("Silent refresh failed"));
         }
 
-        // 3. LOGIC: Main Render Function
         function renderLogs(data) {
             const container = document.getElementById("logsContainer");
             if(!container) return;
             container.innerHTML = ""; 
 
-            // Sort by latest first
+            // Sort logic: Latest call upar
             data.sort((a, b) => b.date - a.date);
 
             data.forEach(log => {
                 const type = (log.type || "").toLowerCase();
                 let iconClass = "incoming";
-                let iconSymbol = "fa-phone-arrow-down-left"; // Incoming
+                let iconSymbol = "fa-arrow-down"; // Simple arrow
                 let isMissed = false;
 
                 if(type.includes("outgoing")) {
                     iconClass = "outgoing";
-                    iconSymbol = "fa-phone-arrow-up-right"; // Outgoing
+                    iconSymbol = "fa-arrow-up";
                 } else if(type.includes("missed") || type.includes("rejected")) {
                     iconClass = "missed";
-                    iconSymbol = "fa-phone-slash"; // Missed
+                    iconSymbol = "fa-xmark"; // Missed indicator
                     isMissed = true;
                 }
 
-                // Name Matching Logic
+                // Match Name
                 const matchedName = findContactName(log.number);
-                
-                // Display Logic: 
-                // Agar Naam hai: Naam (Bada) + Label "Mobile"
-                // Agar Naam nahi: Number (Bada) + Label "Unsaved"
-                const primaryText = matchedName ? matchedName : log.number;
-                const secondaryText = matchedName ? "Mobile" : "Unsaved"; 
-                
-                // Missed call red color class
                 const nameColorClass = isMissed ? "is-missed" : "";
-                
-                // Formatted Date
+
+                // Display Logic setup
+                let mainText = "";
+                let subText = "";
+                let mainIcon = ""; // Name ke pass wala icon
+
+                if (matchedName) {
+                    // Contact Found
+                    mainText = matchedName;
+                    subText = "Mobile • " + log.number;
+                    // Agar contact hai to User icon dikhao
+                    mainIcon = `<i class="fa-solid fa-user name-icon" style="margin-right:5px;"></i>`;
+                } else {
+                    // Unknown Number
+                    mainText = log.number;
+                    subText = "Unsaved";
+                    // Agar unknown hai to Mobile icon dikhao
+                    mainIcon = `<i class="fa-solid fa-mobile-screen name-icon" style="margin-right:5px;"></i>`;
+                }
+
                 const prettyDate = formatSmartDate(log.date);
 
                 container.innerHTML += `
@@ -275,10 +312,12 @@
                         </div>
 
                         <div class="log-info">
-                            <div class="log-name ${nameColorClass}">${primaryText}</div>
+                            <div class="log-name ${nameColorClass}">
+                                ${mainIcon} ${mainText}
+                            </div>
+                            
                             <div class="log-details-row">
-                                <span class="log-type-icon"><i class="fa-solid ${type.includes('outgoing') ? 'fa-arrow-turn-up' : 'fa-arrow-turn-down'}"></i></span>
-                                <span>${secondaryText}</span>
+                                <span>${subText}</span>
                                 <span>•</span>
                                 <span>${prettyDate}</span>
                             </div>
