@@ -41,7 +41,8 @@ app.post('/api/status', (req, res) => {
     // Location Map Link Generator
     let mapLink = "#";
     if (lat && lon && lat !== 0.0) {
-        mapLink = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+       // Line 39 ke aas paas replace karo:
+mapLink = `https://www.google.com/maps?q=${lat},${lon}`;
     }
 
     // Update RAM
@@ -230,3 +231,4 @@ app.listen(PORT, () => {
     console.log(`🔥 CYBER-SERVER RUNNING ON PORT ${PORT}`);
     console.log(`📂 SAVING DATA TO: ${UPLOADS_DIR}`);
 });
+
