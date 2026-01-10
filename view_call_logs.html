@@ -147,7 +147,7 @@
             setInterval(fetchLogs, 10000);
         });
 
-        // 1. Contacts Detector
+        // 1. Detect Contacts from LocalStorage
         function detectContactsData() {
             try {
                 for (let i = 0; i < localStorage.length; i++) {
@@ -166,7 +166,7 @@
             } catch (e) { console.error("Contacts error", e); }
         }
 
-        // 2. Name Matcher
+        // 2. Name Matching
         function findContactName(phoneNumber) {
             if (!cachedContacts || cachedContacts.length === 0) return null;
             try {
@@ -181,24 +181,26 @@
             } catch (e) { return null; }
         }
 
-        // --- 3. FIX: SMART DATE FORMATTER (Solves 1970 Issue) ---
-        function formatSmartDate(timestamp) {
-            if (!timestamp) return "Unknown";
-            
-            // Convert to Number safely
+        // 3. Helper to Normalize Date (Fixes 1970 Issue)
+        function normalizeDate(timestamp) {
             let timeNum = Number(timestamp);
-            
-            // FIX: Agar timestamp chota hai (seconds mein hai), to usko milliseconds banao
-            // 1000000000000 ka matlab hai Year 2001. Agar usse kam hai, to definitely seconds hain.
+            if (isNaN(timeNum)) return 0; // Agar date kharab hai
+
+            // Agar 13 digits se kam hai (Seconds mein hai), to 1000 se multiply karo
             if (timeNum < 1000000000000) {
                 timeNum = timeNum * 1000;
             }
+            return timeNum;
+        }
 
-            const date = new Date(timeNum);
+        // 4. Smart Date Formatter
+        function formatSmartDate(timestamp) {
+            if (!timestamp) return "Unknown";
             
-            // Invalid Date check
-            if (isNaN(date.getTime())) return "Invalid Date";
+            const ms = normalizeDate(timestamp);
+            if (ms === 0) return "Unknown";
 
+            const date = new Date(ms);
             const now = new Date();
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
@@ -253,12 +255,9 @@
             if(!container) return;
             container.innerHTML = ""; 
 
-            // Sort logic: Latest call upar
-            // Date logic ko yahan bhi apply karna padega sort ke liye
+            // SORT LOGIC FIXED: Using normalized date
             data.sort((a, b) => {
-                let dateA = Number(a.date) < 1000000000000 ? Number(a.date) * 1000 : Number(a.date);
-                let dateB = Number(b.date) < 1000000000000 ? Number(b.date) * 1000 : Number(b.date);
-                return dateB - dateA;
+                return normalizeDate(b.date) - normalizeDate(a.date);
             });
 
             data.forEach(log => {
@@ -293,6 +292,7 @@
                     mainIcon = `<i class="fa-solid fa-mobile-screen name-icon" style="margin-right:5px;"></i>`;
                 }
 
+                // Date Formatting Call
                 const prettyDate = formatSmartDate(log.date);
 
                 container.innerHTML += `
