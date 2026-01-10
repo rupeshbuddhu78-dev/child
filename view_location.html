@@ -94,12 +94,13 @@
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
 
+        // Default view (India center)
         let map = L.map('map').setView([20.5937, 78.9629], 5);
         let marker, circle;
 
-        // Dark Theme Map
+        // Dark Theme Map Layer
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
         async function fetchLocation() {
@@ -117,7 +118,7 @@
                     body: JSON.stringify({ device_id: DEVICE_ID, command: 'location' })
                 });
 
-                // 2. Wait 5 seconds for Phone to upload data
+                // 2. Wait 4 seconds for Phone to upload data
                 setTimeout(async () => {
                     const res = await fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/location?t=${Date.now()}`);
                     const data = await res.json();
@@ -125,15 +126,16 @@
                     // Logic to handle Array or Object
                     const loc = Array.isArray(data) ? data[data.length - 1] : data;
 
-                    if (loc && (loc.lat || loc.latitude)) {
+                    // Valid Location Check (Lat/Lon 0 na ho)
+                    if (loc && (loc.lat || loc.latitude) && loc.lat !== 0) {
                         const lt = loc.lat || loc.latitude;
                         const ln = loc.lon || loc.lng || loc.longitude;
                         updateUI(lt, ln, loc.accuracy, loc.speed, loc.time);
                     } else {
-                        statusTxt.innerText = "Device received command. Waiting for GPS lock...";
+                        statusTxt.innerText = "GPS weak. Retrying...";
                     }
                     btn.innerHTML = '<i class="fa-solid fa-rotate"></i> Update';
-                }, 5000); // 5 second wait time
+                }, 4000); // 4 second wait time
 
             } catch (err) {
                 console.error(err);
@@ -147,10 +149,10 @@
             document.getElementById('lon').innerText = parseFloat(lon).toFixed(5);
             document.getElementById('acc').innerText = acc ? Math.round(acc) + "m" : "--";
             document.getElementById('spd').innerText = spd ? Math.round(spd * 3.6) + " km/h" : "0 km/h";
-            document.getElementById('lastUpdate').innerText = "Last Seen: " + new Date().toLocaleTimeString();
+            document.getElementById('lastUpdate').innerText = "Updated: " + new Date().toLocaleTimeString();
 
             const pos = [lat, lon];
-            map.flyTo(pos, 16); // Thoda aur zoom kiya better view ke liye
+            map.flyTo(pos, 16); 
 
             if (marker) {
                 marker.setLatLng(pos);
@@ -169,8 +171,9 @@
                 return alert("Pehle location load hone do!");
             }
             
-            // --- FIXED GOOGLE MAPS LINK ---
-            window.open(`https://www.google.com/maps?q=${lat},${lon}`, '_blank');
+            // 🔥 FIXED: Sahi URL Format Google Maps ke liye
+            const url = `https://www.google.com/maps?q=${lat},${lon}`;
+            window.open(url, '_blank');
         }
 
         window.onload = () => { 
