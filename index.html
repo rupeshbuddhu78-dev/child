@@ -23,22 +23,31 @@
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
             font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 20px;
+            margin: 0; 
+            padding: 15px; /* Thora padding kam kiya phone ke liye */
             display: flex; flex-direction: column; align-items: center;
             min-height: 100vh;
             touch-action: pan-y; 
         }
         
-        /* --- MAIN ADJUSTMENT FOR COMPACT LOOK --- */
+        /* --- SMART CONTAINER (The Fix) --- */
         .container {
             width: 100%; 
-            /* Width ko 380px kiya taaki desktop par buttons chhote dikhein */
-            max-width: 380px; 
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
+            border-radius: 25px; 
+            padding: 15px;
             border: 1px solid var(--glass-border);
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-sizing: border-box; /* Padding andar hi adjust hogi */
+        }
+
+        /* Laptop/PC ke liye Rule: */
+        @media (min-width: 600px) {
+            .container {
+                max-width: 380px; /* Laptop par size limit rahega */
+                padding: 20px;
+            }
         }
 
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -51,13 +60,14 @@
         .dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
         .dot.offline { background: var(--offline); box-shadow: 0 0 8px var(--offline); }
         
-        .info-panel { display: flex; gap: 10px; margin-bottom: 15px; }
+        .info-panel { display: flex; gap: 8px; margin-bottom: 15px; }
         .info-card {
-            flex: 1; background: var(--glass-bg); padding: 10px;
+            flex: 1; background: var(--glass-bg); padding: 8px 10px;
             border-radius: 12px; border: 1px solid var(--glass-border);
+            text-align: center;
         }
         .label { font-size: 0.6rem; color: var(--text-muted); letter-spacing: 1px; margin-bottom: 4px; }
-        .value { font-size: 0.85rem; font-weight: 500; }
+        .value { font-size: 0.8rem; font-weight: 500; white-space: nowrap;}
         
         .battery-details { background: rgba(255,255,255,0.03); border-radius: 12px; padding: 12px; margin-bottom: 15px; }
         .battery-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.8rem; }
@@ -69,20 +79,25 @@
             text-decoration: underline; cursor: pointer; margin-bottom: 20px; display: block;
         }
 
-        /* --- COMPACT GRID --- */
+        /* --- RESPONSIVE GRID --- */
         .controls-grid { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
-            /* Height 70px kar di (pehle 80-85 thi) */
-            grid-auto-rows: 70px; 
-            /* Gap 10px rakha taaki tight aur neat lage */
-            gap: 10px; 
+            /* Phone ke liye Gap thora kam taki buttons chipke nahi */
+            gap: 8px; 
+            /* Height auto-adjust hogi */
+            grid-auto-rows: minmax(75px, auto); 
+        }
+
+        /* Laptop par thora loose rakhne ke liye */
+        @media (min-width: 600px) {
+            .controls-grid { gap: 10px; grid-auto-rows: 70px; }
         }
 
         .slider-card {
             grid-row: span 2; 
             background: var(--slider-bg);
-            border-radius: 18px;
+            border-radius: 16px;
             position: relative;
             overflow: hidden;
             display: flex;
@@ -90,10 +105,7 @@
             justify-content: center;
             border: 1px solid var(--glass-border);
             touch-action: none;
-            
-            /* Slider width 70% rakhi hai column width ki */
-            width: 70%; 
-            margin: 0 auto; 
+            width: 100%; 
         }
 
         .slider-fill {
@@ -103,7 +115,7 @@
         }
 
         .slider-icon {
-            position: absolute; bottom: 15px; font-size: 1.1rem; z-index: 5;
+            position: absolute; bottom: 12px; font-size: 1rem; z-index: 5;
             color: #555; transition: color 0.2s; pointer-events: none;
         }
 
@@ -115,18 +127,19 @@
         }
         
         .control-btn {
-            background: var(--glass-bg); border-radius: 16px; 
-            /* Aspect ratio hata diya taaki row height follow kare */
-            height: 100%; 
+            background: var(--glass-bg); border-radius: 14px; 
+            height: 100%; width: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 1px solid var(--glass-border); cursor: pointer;
             transition: 0.2s; text-decoration: none; color: var(--text-main);
             overflow: hidden;
+            padding: 5px 0; /* Padding di taki content kinare se na chipke */
         }
-        .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
+        .control-btn:active { transform: scale(0.95); background: rgba(255,255,255,0.2); }
+        .control-btn:hover { border-color: var(--accent); }
         
-        /* Icons aur Text size chhota kiya */
-        .control-btn i { font-size: 1.1rem; margin-bottom: 5px; }
+        /* Font size adjust kiya phone ke liye */
+        .control-btn i { font-size: 1.1rem; margin-bottom: 6px; }
         .control-btn span { font-size: 0.55rem; text-align: center; color: #bbb; white-space: nowrap; }
 
         .control-btn.active-state { background: rgba(255, 255, 255, 0.9); color: #000; }
