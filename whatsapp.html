@@ -3,32 +3,55 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WhatsApp Clone</title>
+    <title>WhatsApp</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { margin: 0; background-color: #111b21; font-family: Helvetica, Arial, sans-serif; color: #e9edef; height: 100vh; overflow: hidden; }
-        
+        /* --- WHATSAPP DARK THEME CSS --- */
+        body { 
+            margin: 0; 
+            background-color: #111b21; 
+            font-family: Helvetica, Arial, sans-serif; 
+            color: #e9edef; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex;
+            justify-content: center; /* Desktop par center rakhne ke liye */
+        }
+
+        /* Container to manage view on Desktop */
+        .app-container {
+            width: 100%;
+            height: 100%;
+            max-width: 450px; /* Desktop par mobile view maintain karne ke liye */
+            background-color: #111b21;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
         /* --- VIEW 1: CONTACT LIST STYLE --- */
-        #contactListView { display: flex; flex-direction: column; height: 100%; }
+        #contactListView { display: flex; flex-direction: column; height: 100%; width: 100%; }
         
         .main-header {
             padding: 15px; display: flex; justify-content: space-between; align-items: center;
-            background-color: #202c33; border-bottom: 1px solid #333;
+            background-color: #202c33; border-bottom: 1px solid #2a3942; z-index: 5;
         }
-        .app-title { font-size: 1.2rem; font-weight: bold; color: #aebac1; }
+        .app-title { font-size: 1.3rem; font-weight: bold; color: #8696a0; }
         .top-icons { display: flex; gap: 20px; color: #aebac1; font-size: 1.1rem; }
 
         .contact-list { flex: 1; overflow-y: auto; }
+        
         .contact-item {
             display: flex; align-items: center; padding: 12px 15px; cursor: pointer;
-            border-bottom: 1px solid #202c33; transition: 0.2s;
+            transition: 0.2s;
         }
         .contact-item:active { background: #202c33; }
         
-        .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #667781; display: flex; justify-content: center; align-items: center; margin-right: 15px; overflow: hidden; }
+        .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #667781; display: flex; justify-content: center; align-items: center; margin-right: 15px; overflow: hidden; color: #fff; font-size: 1.2rem; }
         .dp-circle img { width: 100%; height: 100%; object-fit: cover; }
         
-        .contact-info { flex: 1; }
+        .contact-info { flex: 1; border-bottom: 1px solid #202c33; padding-bottom: 12px; }
         .row-top { display: flex; justify-content: space-between; margin-bottom: 4px; }
         .name { font-size: 1rem; font-weight: 500; color: #e9edef; }
         .time { font-size: 0.75rem; color: #8696a0; }
@@ -44,98 +67,128 @@
         .chat-header {
             background-color: #202c33; padding: 10px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #2a3942;
         }
-        .back-arrow { font-size: 1.2rem; color: #aebac1; padding: 5px; cursor: pointer; }
+        .back-arrow { font-size: 1.2rem; color: #aebac1; padding: 8px; cursor: pointer; border-radius: 50%; }
+        .back-arrow:active { background-color: rgba(255,255,255,0.1); }
         
         .chat-area {
             flex: 1; padding: 15px; overflow-y: auto;
+            /* WhatsApp Dark Background Pattern */
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-size: contain; background-color: #0b141a; 
+            background-size: 400px; background-color: #0b141a; 
         }
 
-        .message { max-width: 75%; margin-bottom: 8px; padding: 6px 10px 8px 9px; border-radius: 8px; font-size: 0.9rem; position: relative; clear: both; }
+        .message { max-width: 75%; margin-bottom: 8px; padding: 6px 10px 8px 9px; border-radius: 8px; font-size: 0.9rem; position: relative; clear: both; line-height: 1.3; }
+        
         .msg-left { background-color: #202c33; float: left; border-top-left-radius: 0; }
         .msg-right { background-color: #005c4b; float: right; border-top-right-radius: 0; margin-left: auto; }
-        .msg-time { font-size: 0.65rem; color: #aebac1; float: right; margin-top: 5px; margin-left: 8px; }
+        
+        .msg-time { font-size: 0.65rem; color: #aebac1; float: right; margin-top: 5px; margin-left: 8px; display: flex; align-items: center; gap: 3px; }
 
-        .chat-footer { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 10px; }
-        .fake-input { flex: 1; background: #2a3942; padding: 10px; border-radius: 20px; color: #8696a0; font-size: 0.9rem; }
+        .chat-footer { background-color: #202c33; padding: 8px 10px; display: flex; align-items: center; gap: 10px; }
+        .fake-input { flex: 1; background: #2a3942; padding: 10px 15px; border-radius: 20px; color: #8696a0; font-size: 0.95rem; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #374045; border-radius: 2px; }
     </style>
 </head>
 <body>
 
-    <div id="contactListView">
-        <div class="main-header">
-            <span class="app-title">WhatsApp</span>
-            <div class="top-icons">
-                <i class="fa-solid fa-camera"></i>
-                <i class="fa-solid fa-magnifying-glass"></i>
-                <i class="fa-solid fa-ellipsis-vertical"></i>
-            </div>
-        </div>
+    <div class="app-container">
         
-        <div class="contact-list" id="contactsContainer"></div>
-    </div>
-
-    <div id="chatDetailView">
-        <div class="chat-header">
-            <i class="fa-solid fa-arrow-left back-arrow" onclick="closeChat()"></i>
-            <div class="dp-circle" style="width: 35px; height: 35px;">
-                <i class="fa-solid fa-user"></i>
+        <div id="contactListView">
+            <div class="main-header">
+                <span class="app-title">WhatsApp</span>
+                <div class="top-icons">
+                    <i class="fa-solid fa-camera"></i>
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <i class="fa-solid fa-ellipsis-vertical"></i>
+                </div>
             </div>
-            <div style="flex: 1;">
-                <h3 id="headerName" style="margin:0; font-size: 1rem;">User</h3>
-                <p style="margin:0; font-size: 0.7rem; color: #aebac1;">Online</p>
-            </div>
-            <i class="fa-solid fa-phone" style="color: #aebac1; margin-right: 15px;"></i>
-            <i class="fa-solid fa-ellipsis-vertical" style="color: #aebac1;"></i>
+            
+            <div class="contact-list" id="contactsContainer">
+                </div>
         </div>
 
-        <div class="chat-area" id="messagesContainer">
+        <div id="chatDetailView">
+            <div class="chat-header">
+                <i class="fa-solid fa-arrow-left back-arrow" onclick="closeChat()"></i>
+                <div class="dp-circle" style="width: 35px; height: 35px; margin-right: 10px;">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div style="flex: 1;">
+                    <h3 id="headerName" style="margin:0; font-size: 1rem; font-weight: 500;">User</h3>
+                    <p style="margin:0; font-size: 0.75rem; color: #aebac1;">Online</p>
+                </div>
+                <i class="fa-solid fa-video" style="color: #aebac1; margin-right: 20px;"></i>
+                <i class="fa-solid fa-phone" style="color: #aebac1; margin-right: 15px;"></i>
+                <i class="fa-solid fa-ellipsis-vertical" style="color: #aebac1;"></i>
             </div>
 
-        <div class="chat-footer">
-            <i class="fa-solid fa-plus" style="color: #8696a0; font-size: 1.2rem;"></i>
-            <div class="fake-input">Message</div>
-            <i class="fa-solid fa-microphone" style="color: #8696a0; font-size: 1.2rem;"></i>
+            <div class="chat-area" id="messagesContainer">
+                </div>
+
+            <div class="chat-footer">
+                <i class="fa-solid fa-plus" style="color: #8696a0; font-size: 1.2rem;"></i>
+                <div class="fake-input">Message</div>
+                <i class="fa-solid fa-microphone" style="color: #8696a0; font-size: 1.2rem;"></i>
+            </div>
         </div>
+
     </div>
 
     <script>
-        // --- DATA STRUCTURE ---
-        // Asal mein ye data Database se aayega.
-        // Har contact ki ek ID, Naam, aur unke Messages ki list hai.
-        const allChats = [
-            {
-                id: 1,
-                name: "Papa",
-                time: "10:30 AM",
-                lastMsg: "Ghar kab aaoge?",
-                messages: [
-                    { side: 'right', text: 'Mai coaching me hu', time: '10:00 AM' },
-                    { side: 'left', text: 'Ghar kab aaoge?', time: '10:30 AM' }
-                ]
-            },
-            {
-                id: 2,
-                name: "Rahul (Dost)",
-                time: "Yesterday",
-                lastMsg: "Bhai notes bhej de",
-                messages: [
-                    { side: 'left', text: 'Sun bhai', time: '9:00 PM' },
-                    { side: 'left', text: 'Bhai notes bhej de physics ke', time: '9:01 PM' },
-                    { side: 'right', text: 'Ruk photo khich ke bhejta hu', time: '9:15 PM' }
-                ]
-            },
-            {
-                id: 3,
-                name: "Unknown Number",
-                time: "Yesterday",
-                lastMsg: "Call me urgent",
-                messages: [
-                    { side: 'left', text: 'Call me urgent', time: '8:00 PM' }
-                ]
-            }
-        ];
+        // --- MULTI-USER ID LOGIC ---
+
+        // 1. Dashboard se set ki hui ID uthao
+        const DEVICE_ID = localStorage.getItem('monitoring_id');
+
+        // Security: Agar bina ID ke khola to wapas bhejo
+        if (!DEVICE_ID) {
+            alert("No Device ID Found. Redirecting to Dashboard...");
+            window.location.href = 'index.html'; // Yahan apni main file ka naam check kar lena
+        }
+
+        // 2. Us ID ke liye unique storage key banao
+        const STORAGE_KEY = `whatsapp_data_${DEVICE_ID}`;
+
+        // 3. LocalStorage se Data Load karo
+        let storedData = localStorage.getItem(STORAGE_KEY);
+        let allChats = [];
+
+        if (storedData) {
+            allChats = JSON.parse(storedData);
+        } else {
+            // --- DUMMY DATA FOR TESTING (Agar naya ID hai) ---
+            console.log(`New Device ID: ${DEVICE_ID}. Creating dummy data.`);
+            allChats = [
+                {
+                    id: 1, name: "Papa", time: "10:30 AM", lastMsg: "Ghar aaja",
+                    messages: [
+                        { side: 'right', text: 'Mai coaching me hu', time: '10:00 AM' },
+                        { side: 'left', text: 'Ghar aaja urgent hai', time: '10:30 AM' }
+                    ]
+                },
+                {
+                    id: 2, name: "Rahul (Target: " + DEVICE_ID + ")", // ID dikhegi taaki confirm ho
+                    time: "Yesterday", lastMsg: "Notes bhej",
+                    messages: [
+                        { side: 'left', text: 'Bhai physics ke notes bhej de', time: '9:00 PM' },
+                        { side: 'right', text: 'Ruk abhi bhejta hu', time: '9:05 PM' }
+                    ]
+                },
+                {
+                    id: 3, name: "Unknown", time: "Yesterday", lastMsg: "Call me",
+                    messages: [
+                        { side: 'left', text: 'Call me back', time: '8:00 PM' }
+                    ]
+                }
+            ];
+            // Save dummy data so next time it persists
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(allChats));
+        }
+
+        // --- UI RENDER LOGIC ---
 
         const contactListDiv = document.getElementById('contactsContainer');
         const chatViewDiv = document.getElementById('chatDetailView');
@@ -143,9 +196,15 @@
         const msgsDiv = document.getElementById('messagesContainer');
         const headerName = document.getElementById('headerName');
 
-        // 1. LIST RENDER KARNA (Page khulte hi ye chalega)
+        // Function 1: List ko screen par dikhana
         function renderContactList() {
             contactListDiv.innerHTML = "";
+            
+            if (allChats.length === 0) {
+                contactListDiv.innerHTML = "<p style='text-align:center; padding:20px; color:#888'>No chats available</p>";
+                return;
+            }
+
             allChats.forEach(contact => {
                 contactListDiv.innerHTML += `
                     <div class="contact-item" onclick="openChat(${contact.id})">
@@ -162,43 +221,47 @@
             });
         }
 
-        // 2. CHAT OPEN KARNA (Jab kisi naam pe click ho)
+        // Function 2: Chat open karna (Click par)
         function openChat(id) {
-            // Data dhundo ID ke hisab se
+            // ID match karke sahi user dhundo
             const contact = allChats.find(c => c.id === id);
             
             if(contact) {
-                // Header set karo
+                // Header naam set karo
                 headerName.innerText = contact.name;
                 
-                // Messages saaf karo aur naye bharo
+                // Messages ka dabba saaf karo
                 msgsDiv.innerHTML = "";
+                
+                // Messages bharo
                 contact.messages.forEach(msg => {
                     let msgClass = msg.side === 'right' ? 'msg-right' : 'msg-left';
+                    let tick = msg.side === 'right' ? '<i class="fa-solid fa-check-double" style="color:#53bdeb; margin-left:3px;"></i>' : '';
+                    
                     msgsDiv.innerHTML += `
                         <div class="message ${msgClass}">
                             ${msg.text}
-                            <span class="msg-time">${msg.time}</span>
+                            <span class="msg-time">${msg.time} ${tick}</span>
                         </div>
                     `;
                 });
 
-                // View Switch Karo
-                listViewDiv.style.display = 'none'; // List chupao
-                chatViewDiv.style.display = 'flex'; // Chat dikhao
+                // Views switch karo (List chupaao, Chat dikhao)
+                listViewDiv.style.display = 'none';
+                chatViewDiv.style.display = 'flex';
                 
-                // Scroll to bottom
+                // Scroll to bottom automatic
                 msgsDiv.scrollTop = msgsDiv.scrollHeight;
             }
         }
 
-        // 3. BACK JANA (List pe wapas)
+        // Function 3: Back button (Chat band karna)
         function closeChat() {
-            chatViewDiv.style.display = 'none'; // Chat chupao
-            listViewDiv.style.display = 'flex'; // List dikhao
+            chatViewDiv.style.display = 'none';
+            listViewDiv.style.display = 'flex';
         }
 
-        // Start
+        // App start hone par list dikhao
         renderContactList();
 
     </script>
