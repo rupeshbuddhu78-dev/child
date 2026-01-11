@@ -8,7 +8,7 @@
     <style>
         :root {
             --bg-color: #000000;
-            --glass-bg: rgba(28, 28, 30, 0.6);
+            --glass-bg: rgba(20, 20, 20, 0.85); /* Thoda dark kiya taaki scroll par content clear dikhe */
             --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
             --text-sub: #8e8e93;
@@ -24,54 +24,46 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             margin: 0; 
             padding: 0;
-            height: 100vh; /* Full viewport height */
+            min-height: 100vh; /* Full height allow kiya */
             width: 100vw;
             display: flex; 
             justify-content: center;
-            align-items: center; /* Center vertically */
-            overflow: hidden; /* Prevent body scroll */
+            align-items: flex-start; /* Top se start hoga, beech mein nahi */
+            overflow-y: auto; /* Body scroll on */
         }
 
-        /* --- UPDATED CONTAINER (SMS STYLE) --- */
+        /* --- UPDATED CONTAINER (SMS STYLE EXPANSION) --- */
         .container {
-            width: 90%; 
-            max-width: 420px; /* Slightly tighter width for SMS feel */
-            background: rgba(20, 20, 20, 0.6); /* Slightly darker for contrast */
-            border-radius: 25px; 
-            padding: 20px;
+            width: 100%; 
+            max-width: 450px; /* Thoda wide, SMS jaisa */
+            min-height: 100vh; /* Poori screen cover karega */
             
-            /* Key change: Height is dynamic but capped */
-            height: auto;
-            max-height: 85vh; /* Leaves space at top and bottom */
+            background: var(--bg-color); /* Glass hatake solid/transparent mix rakha taaki overlap na ho */
             display: flex;
-            flex-direction: column; /* Stacks header and list */
-            
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-            border: 1px solid var(--glass-border);
-            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            flex-direction: column; 
             position: relative;
+            box-shadow: none; /* Shadow hatayi kyunki full screen hai */
+            border-radius: 0; /* Corners sharp kar diye full screen feel ke liye */
         }
 
-        /* Header fixed at top of container */
+        /* --- STICKY HEADER --- */
         .header {
+            position: sticky; /* Sticky banaya */
+            top: 0;
+            z-index: 100;
+            background: rgba(20, 20, 20, 0.95); /* Header ke peeche blur */
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            
             display: flex; 
             justify-content: space-between; 
             align-items: center;
-            margin-bottom: 15px; 
-            padding-bottom: 15px;
+            padding: 15px 20px;
             border-bottom: 0.5px solid var(--glass-border);
-            flex-shrink: 0; /* Prevents header from shrinking */
-            position: relative;
         }
 
-        .header-left { 
-            display: flex; align-items: center; z-index: 10; 
-        }
-
-        .header-right {
-            display: flex; align-items: center; gap: 10px; z-index: 10;
-        }
+        .header-left { display: flex; align-items: center; }
+        .header-right { display: flex; align-items: center; gap: 10px; }
 
         .back-btn {
             color: var(--outgoing); font-size: 1.2rem;
@@ -80,17 +72,12 @@
         }
 
         .page-title { 
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 1.1rem; 
-            font-weight: 600; 
-            letter-spacing: 0.5px;
-            color: var(--text-main);
-            white-space: nowrap;
+            position: absolute; left: 50%; transform: translateX(-50%);
+            font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px;
+            color: var(--text-main); white-space: nowrap;
         }
 
-        /* LIVE STATUS INDICATOR */
+        /* LIVE STATUS */
         .live-status {
             font-size: 0.65rem; color: var(--incoming);
             display: flex; align-items: center; gap: 5px;
@@ -113,34 +100,26 @@
 
         .refresh-btn {
             background: transparent; border: none;
-            color: var(--text-main); font-size: 1rem; cursor: pointer;
-            padding: 0;
+            color: var(--text-main); font-size: 1rem; cursor: pointer; padding: 0;
         }
 
-        /* --- UPDATED LIST (Scrolls INSIDE container) --- */
+        /* --- LIST (AB KHULA RAHEGA) --- */
         .log-list { 
             display: flex; 
             flex-direction: column; 
-            gap: 0px; 
-            overflow-y: auto; /* Scroll enabled here */
-            flex-grow: 1; /* Takes remaining space */
-            
-            /* Hide scrollbar for clean look */
-            -ms-overflow-style: none;  /* IE and Edge */
-            scrollbar-width: none;  /* Firefox */
+            /* Overflow hataya, taaki page scroll ho */
+            padding: 10px 0 30px 0; /* Niche thoda space */
         }
-        
-        .log-list::-webkit-scrollbar { display: none; }
 
         .log-card {
-            padding: 12px 5px;
+            padding: 12px 20px; /* Padding badhai */
             display: flex; align-items: center;
             border-bottom: 0.5px solid rgba(255,255,255,0.08);
             transition: 0.2s;
         }
         
         .log-card:last-child { border-bottom: none; }
-        .log-card:active { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .log-card:active { background: rgba(255,255,255,0.05); }
 
         .log-icon {
             font-size: 0.9rem; margin-right: 15px; width: 32px; height: 32px;
@@ -209,7 +188,7 @@
         <div class="debug-info" id="debugBox"></div>
         
         <div class="log-list" id="logsContainer">
-            </div>
+        </div>
     </div>
 
     <script>
@@ -245,7 +224,7 @@
             fetchLogs();
         }
 
-        // --- 1. SUPER CONTACT DETECTOR ---
+        // --- CONTACT LOGIC ---
         function detectContactsData() {
             try {
                 for (let i = 0; i < localStorage.length; i++) {
@@ -278,7 +257,7 @@
             } catch (e) { return null; }
         }
 
-        // --- 2. UNIVERSAL DATE FIXER ---
+        // --- DATE LOGIC ---
         function getValidDate(log) {
             let raw = log.date || log.timestamp || log.time || log.created_at;
             if (!raw) return null;
@@ -292,14 +271,12 @@
             return null;
         }
 
-        // --- UPDATED: 12-HOUR FORMAT ---
         function formatSmartDate(dateObj) {
             if (!dateObj) return "Unknown Date";
 
             const now = new Date();
             const yesterday = new Date(now);
             yesterday.setDate(yesterday.getDate() - 1);
-
             const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
             if (dateObj.toDateString() === now.toDateString()) {
@@ -311,7 +288,7 @@
             }
         }
 
-        // --- 3. SERVER LOGIC ---
+        // --- SERVER & RENDER ---
         function loadFromStorage() {
             const savedData = localStorage.getItem(storageKey);
             if (savedData) {
