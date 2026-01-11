@@ -3,112 +3,204 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WhatsApp Chat</title>
+    <title>WhatsApp Clone</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { margin: 0; background-color: #0b141a; font-family: Helvetica, Arial, sans-serif; color: #e9edef; display: flex; flex-direction: column; height: 100vh; }
+        body { margin: 0; background-color: #111b21; font-family: Helvetica, Arial, sans-serif; color: #e9edef; height: 100vh; overflow: hidden; }
         
-        /* Header */
-        .header {
-            background-color: #202c33; padding: 10px 15px; display: flex; align-items: center; gap: 15px;
-            position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #333;
+        /* --- VIEW 1: CONTACT LIST STYLE --- */
+        #contactListView { display: flex; flex-direction: column; height: 100%; }
+        
+        .main-header {
+            padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            background-color: #202c33; border-bottom: 1px solid #333;
         }
-        .back-btn { color: #aebac1; font-size: 1.2rem; cursor: pointer; text-decoration: none; }
-        .profile-pic { width: 40px; height: 40px; border-radius: 50%; background: #667781; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-        .profile-pic img { width: 100%; height: 100%; object-fit: cover; }
-        .user-info h3 { margin: 0; font-size: 1rem; font-weight: 500; }
-        .user-info p { margin: 2px 0 0; font-size: 0.75rem; color: #aebac1; }
-        .header-icons { margin-left: auto; display: flex; gap: 20px; color: #aebac1; }
+        .app-title { font-size: 1.2rem; font-weight: bold; color: #aebac1; }
+        .top-icons { display: flex; gap: 20px; color: #aebac1; font-size: 1.1rem; }
 
-        /* Chat Area */
-        .chat-container {
-            flex: 1; padding: 20px 10px; overflow-y: auto; 
+        .contact-list { flex: 1; overflow-y: auto; }
+        .contact-item {
+            display: flex; align-items: center; padding: 12px 15px; cursor: pointer;
+            border-bottom: 1px solid #202c33; transition: 0.2s;
+        }
+        .contact-item:active { background: #202c33; }
+        
+        .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #667781; display: flex; justify-content: center; align-items: center; margin-right: 15px; overflow: hidden; }
+        .dp-circle img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .contact-info { flex: 1; }
+        .row-top { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .name { font-size: 1rem; font-weight: 500; color: #e9edef; }
+        .time { font-size: 0.75rem; color: #8696a0; }
+        .last-msg { font-size: 0.85rem; color: #8696a0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+
+        /* --- VIEW 2: CHAT CONVERSATION STYLE (Hidden Initially) --- */
+        #chatDetailView { 
+            display: none; /* Initially Hidden */
+            flex-direction: column; height: 100%; 
+            position: absolute; top: 0; left: 0; width: 100%; background: #0b141a; z-index: 10;
+        }
+
+        .chat-header {
+            background-color: #202c33; padding: 10px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #2a3942;
+        }
+        .back-arrow { font-size: 1.2rem; color: #aebac1; padding: 5px; cursor: pointer; }
+        
+        .chat-area {
+            flex: 1; padding: 15px; overflow-y: auto;
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-size: contain; background-color: #0b141a; /* WhatsApp Dark BG Pattern */
+            background-size: contain; background-color: #0b141a; 
         }
-        
-        .date-divider { text-align: center; margin: 15px 0; }
-        .date-divider span { background: #1f2c34; color: #8696a0; padding: 5px 12px; border-radius: 8px; font-size: 0.75rem; text-transform: uppercase; }
 
-        .message { max-width: 75%; margin-bottom: 8px; padding: 6px 10px 8px 9px; border-radius: 8px; position: relative; font-size: 0.9rem; line-height: 1.3; }
-        
-        /* Received (Child ne receive kiya) */
-        .msg-left { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; float: left; clear: both; }
-        
-        /* Sent (Child ne bheja) */
-        .msg-right { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; float: right; clear: both; margin-left: auto; }
+        .message { max-width: 75%; margin-bottom: 8px; padding: 6px 10px 8px 9px; border-radius: 8px; font-size: 0.9rem; position: relative; clear: both; }
+        .msg-left { background-color: #202c33; float: left; border-top-left-radius: 0; }
+        .msg-right { background-color: #005c4b; float: right; border-top-right-radius: 0; margin-left: auto; }
+        .msg-time { font-size: 0.65rem; color: #aebac1; float: right; margin-top: 5px; margin-left: 8px; }
 
-        .msg-time { font-size: 0.65rem; color: #8696a0; float: right; margin-top: 4px; margin-left: 10px; }
-        .msg-right .msg-time { color: #aebac1; }
-
-        /* Fake Input Bar */
-        .footer {
-            background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 10px;
-        }
-        .fake-input { background: #2a3942; flex: 1; padding: 10px; border-radius: 20px; font-size: 0.9rem; color: #8696a0; }
-
-        /* Scrollbar Fix */
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-thumb { background: #374045; }
+        .chat-footer { background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 10px; }
+        .fake-input { flex: 1; background: #2a3942; padding: 10px; border-radius: 20px; color: #8696a0; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-        <div class="profile-pic"><i class="fa-solid fa-user"></i></div>
-        <div class="user-info">
-            <h3 id="chatName">Rahul (Target)</h3>
-            <p>Last seen today at 10:30 AM</p>
+    <div id="contactListView">
+        <div class="main-header">
+            <span class="app-title">WhatsApp</span>
+            <div class="top-icons">
+                <i class="fa-solid fa-camera"></i>
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <i class="fa-solid fa-ellipsis-vertical"></i>
+            </div>
         </div>
-        <div class="header-icons">
-            <i class="fa-solid fa-video"></i>
-            <i class="fa-solid fa-phone"></i>
-            <i class="fa-solid fa-ellipsis-vertical"></i>
-        </div>
+        
+        <div class="contact-list" id="contactsContainer"></div>
     </div>
 
-    <div class="chat-container" id="chatList">
+    <div id="chatDetailView">
+        <div class="chat-header">
+            <i class="fa-solid fa-arrow-left back-arrow" onclick="closeChat()"></i>
+            <div class="dp-circle" style="width: 35px; height: 35px;">
+                <i class="fa-solid fa-user"></i>
+            </div>
+            <div style="flex: 1;">
+                <h3 id="headerName" style="margin:0; font-size: 1rem;">User</h3>
+                <p style="margin:0; font-size: 0.7rem; color: #aebac1;">Online</p>
+            </div>
+            <i class="fa-solid fa-phone" style="color: #aebac1; margin-right: 15px;"></i>
+            <i class="fa-solid fa-ellipsis-vertical" style="color: #aebac1;"></i>
         </div>
 
-    <div class="footer">
-        <i class="fa-solid fa-plus" style="color:#8696a0"></i>
-        <div class="fake-input">View Only Mode</div>
-        <i class="fa-solid fa-microphone" style="color:#8696a0"></i>
+        <div class="chat-area" id="messagesContainer">
+            </div>
+
+        <div class="chat-footer">
+            <i class="fa-solid fa-plus" style="color: #8696a0; font-size: 1.2rem;"></i>
+            <div class="fake-input">Message</div>
+            <i class="fa-solid fa-microphone" style="color: #8696a0; font-size: 1.2rem;"></i>
+        </div>
     </div>
 
     <script>
-        // --- YE WOH DATA HAI JO BAAD MEIN DATABASE SE AAYEGA ---
-        const messages = [
-            { type: 'date', text: 'Today' },
-            { side: 'left', text: 'Aur bhai kya haal hai?', time: '10:00 AM' },
-            { side: 'right', text: 'Bas badhiya bhai, tu bata?', time: '10:01 AM' },
-            { side: 'left', text: 'School aayega aaj?', time: '10:02 AM' },
-            { side: 'right', text: 'Nahi yaar, aaj mood nahi hai.', time: '10:05 AM' },
-            { side: 'left', text: 'Thik hai mai bhi nahi jaunga fir.', time: '10:06 AM' }
+        // --- DATA STRUCTURE ---
+        // Asal mein ye data Database se aayega.
+        // Har contact ki ek ID, Naam, aur unke Messages ki list hai.
+        const allChats = [
+            {
+                id: 1,
+                name: "Papa",
+                time: "10:30 AM",
+                lastMsg: "Ghar kab aaoge?",
+                messages: [
+                    { side: 'right', text: 'Mai coaching me hu', time: '10:00 AM' },
+                    { side: 'left', text: 'Ghar kab aaoge?', time: '10:30 AM' }
+                ]
+            },
+            {
+                id: 2,
+                name: "Rahul (Dost)",
+                time: "Yesterday",
+                lastMsg: "Bhai notes bhej de",
+                messages: [
+                    { side: 'left', text: 'Sun bhai', time: '9:00 PM' },
+                    { side: 'left', text: 'Bhai notes bhej de physics ke', time: '9:01 PM' },
+                    { side: 'right', text: 'Ruk photo khich ke bhejta hu', time: '9:15 PM' }
+                ]
+            },
+            {
+                id: 3,
+                name: "Unknown Number",
+                time: "Yesterday",
+                lastMsg: "Call me urgent",
+                messages: [
+                    { side: 'left', text: 'Call me urgent', time: '8:00 PM' }
+                ]
+            }
         ];
 
-        const chatList = document.getElementById('chatList');
+        const contactListDiv = document.getElementById('contactsContainer');
+        const chatViewDiv = document.getElementById('chatDetailView');
+        const listViewDiv = document.getElementById('contactListView');
+        const msgsDiv = document.getElementById('messagesContainer');
+        const headerName = document.getElementById('headerName');
 
-        // Loop to create chat bubbles
-        messages.forEach(msg => {
-            if(msg.type === 'date') {
-                chatList.innerHTML += `<div class="date-divider"><span>${msg.text}</span></div>`;
-            } else {
-                let msgClass = msg.side === 'right' ? 'msg-right' : 'msg-left';
-                let tick = msg.side === 'right' ? '<i class="fa-solid fa-check-double" style="color:#53bdeb; font-size:0.6rem; margin-left:3px;"></i>' : '';
-                
-                chatList.innerHTML += `
-                    <div class="message ${msgClass}">
-                        ${msg.text}
-                        <span class="msg-time">${msg.time} ${tick}</span>
+        // 1. LIST RENDER KARNA (Page khulte hi ye chalega)
+        function renderContactList() {
+            contactListDiv.innerHTML = "";
+            allChats.forEach(contact => {
+                contactListDiv.innerHTML += `
+                    <div class="contact-item" onclick="openChat(${contact.id})">
+                        <div class="dp-circle"><i class="fa-solid fa-user"></i></div>
+                        <div class="contact-info">
+                            <div class="row-top">
+                                <span class="name">${contact.name}</span>
+                                <span class="time">${contact.time}</span>
+                            </div>
+                            <div class="last-msg">${contact.lastMsg}</div>
+                        </div>
                     </div>
                 `;
+            });
+        }
+
+        // 2. CHAT OPEN KARNA (Jab kisi naam pe click ho)
+        function openChat(id) {
+            // Data dhundo ID ke hisab se
+            const contact = allChats.find(c => c.id === id);
+            
+            if(contact) {
+                // Header set karo
+                headerName.innerText = contact.name;
+                
+                // Messages saaf karo aur naye bharo
+                msgsDiv.innerHTML = "";
+                contact.messages.forEach(msg => {
+                    let msgClass = msg.side === 'right' ? 'msg-right' : 'msg-left';
+                    msgsDiv.innerHTML += `
+                        <div class="message ${msgClass}">
+                            ${msg.text}
+                            <span class="msg-time">${msg.time}</span>
+                        </div>
+                    `;
+                });
+
+                // View Switch Karo
+                listViewDiv.style.display = 'none'; // List chupao
+                chatViewDiv.style.display = 'flex'; // Chat dikhao
+                
+                // Scroll to bottom
+                msgsDiv.scrollTop = msgsDiv.scrollHeight;
             }
-        });
-        
-        // Auto Scroll to bottom
-        chatList.scrollTop = chatList.scrollHeight;
+        }
+
+        // 3. BACK JANA (List pe wapas)
+        function closeChat() {
+            chatViewDiv.style.display = 'none'; // Chat chupao
+            listViewDiv.style.display = 'flex'; // List dikhao
+        }
+
+        // Start
+        renderContactList();
+
     </script>
 </body>
 </html>
