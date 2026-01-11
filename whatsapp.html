@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>WhatsApp Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; background-color: #0b141a; font-family: Helvetica, Arial, sans-serif; color: #e9edef; display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Header */
+        .header {
+            background-color: #202c33; padding: 10px 15px; display: flex; align-items: center; gap: 15px;
+            position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #333;
+        }
+        .back-btn { color: #aebac1; font-size: 1.2rem; cursor: pointer; text-decoration: none; }
+        .profile-pic { width: 40px; height: 40px; border-radius: 50%; background: #667781; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+        .profile-pic img { width: 100%; height: 100%; object-fit: cover; }
+        .user-info h3 { margin: 0; font-size: 1rem; font-weight: 500; }
+        .user-info p { margin: 2px 0 0; font-size: 0.75rem; color: #aebac1; }
+        .header-icons { margin-left: auto; display: flex; gap: 20px; color: #aebac1; }
+
+        /* Chat Area */
+        .chat-container {
+            flex: 1; padding: 20px 10px; overflow-y: auto; 
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
+            background-size: contain; background-color: #0b141a; /* WhatsApp Dark BG Pattern */
+        }
+        
+        .date-divider { text-align: center; margin: 15px 0; }
+        .date-divider span { background: #1f2c34; color: #8696a0; padding: 5px 12px; border-radius: 8px; font-size: 0.75rem; text-transform: uppercase; }
+
+        .message { max-width: 75%; margin-bottom: 8px; padding: 6px 10px 8px 9px; border-radius: 8px; position: relative; font-size: 0.9rem; line-height: 1.3; }
+        
+        /* Received (Child ne receive kiya) */
+        .msg-left { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; float: left; clear: both; }
+        
+        /* Sent (Child ne bheja) */
+        .msg-right { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; float: right; clear: both; margin-left: auto; }
+
+        .msg-time { font-size: 0.65rem; color: #8696a0; float: right; margin-top: 4px; margin-left: 10px; }
+        .msg-right .msg-time { color: #aebac1; }
+
+        /* Fake Input Bar */
+        .footer {
+            background-color: #202c33; padding: 10px; display: flex; align-items: center; gap: 10px;
+        }
+        .fake-input { background: #2a3942; flex: 1; padding: 10px; border-radius: 20px; font-size: 0.9rem; color: #8696a0; }
+
+        /* Scrollbar Fix */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: #374045; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="profile-pic"><i class="fa-solid fa-user"></i></div>
+        <div class="user-info">
+            <h3 id="chatName">Rahul (Target)</h3>
+            <p>Last seen today at 10:30 AM</p>
+        </div>
+        <div class="header-icons">
+            <i class="fa-solid fa-video"></i>
+            <i class="fa-solid fa-phone"></i>
+            <i class="fa-solid fa-ellipsis-vertical"></i>
+        </div>
+    </div>
+
+    <div class="chat-container" id="chatList">
+        </div>
+
+    <div class="footer">
+        <i class="fa-solid fa-plus" style="color:#8696a0"></i>
+        <div class="fake-input">View Only Mode</div>
+        <i class="fa-solid fa-microphone" style="color:#8696a0"></i>
+    </div>
+
+    <script>
+        // --- YE WOH DATA HAI JO BAAD MEIN DATABASE SE AAYEGA ---
+        const messages = [
+            { type: 'date', text: 'Today' },
+            { side: 'left', text: 'Aur bhai kya haal hai?', time: '10:00 AM' },
+            { side: 'right', text: 'Bas badhiya bhai, tu bata?', time: '10:01 AM' },
+            { side: 'left', text: 'School aayega aaj?', time: '10:02 AM' },
+            { side: 'right', text: 'Nahi yaar, aaj mood nahi hai.', time: '10:05 AM' },
+            { side: 'left', text: 'Thik hai mai bhi nahi jaunga fir.', time: '10:06 AM' }
+        ];
+
+        const chatList = document.getElementById('chatList');
+
+        // Loop to create chat bubbles
+        messages.forEach(msg => {
+            if(msg.type === 'date') {
+                chatList.innerHTML += `<div class="date-divider"><span>${msg.text}</span></div>`;
+            } else {
+                let msgClass = msg.side === 'right' ? 'msg-right' : 'msg-left';
+                let tick = msg.side === 'right' ? '<i class="fa-solid fa-check-double" style="color:#53bdeb; font-size:0.6rem; margin-left:3px;"></i>' : '';
+                
+                chatList.innerHTML += `
+                    <div class="message ${msgClass}">
+                        ${msg.text}
+                        <span class="msg-time">${msg.time} ${tick}</span>
+                    </div>
+                `;
+            }
+        });
+        
+        // Auto Scroll to bottom
+        chatList.scrollTop = chatList.scrollHeight;
+    </script>
+</body>
+</html>

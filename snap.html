@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Snapchat Chat</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { margin: 0; background-color: #121212; font-family: 'Avenir', Helvetica, sans-serif; color: #fff; display: flex; flex-direction: column; height: 100vh; }
+
+        .header {
+            padding: 10px 15px; border-bottom: 1px solid #333; display: flex; align-items: center; gap: 10px;
+        }
+        .back-btn { color: #fff; font-size: 1.5rem; text-decoration: none; cursor: pointer; }
+        .bitmoji { width: 45px; height: 45px; border-radius: 50%; background: #ffd600; overflow: hidden; display: flex; justify-content: center; align-items: flex-end; }
+        .bitmoji i { font-size: 30px; color: #333; margin-bottom: -5px; }
+        .header-text h2 { margin: 0; font-size: 1.1rem; }
+        .header-text p { margin: 0; font-size: 0.7rem; color: #00b0ff; font-weight: bold; }
+
+        .chat-body { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+
+        .chat-msg {
+            display: flex; flex-direction: column; max-width: 80%;
+            border-left: 3px solid transparent; padding-left: 8px;
+        }
+
+        /* Received (Snap Blue Line style) */
+        .received { align-self: flex-start; border-left-color: #00b0ff; }
+        .received .sender-name { font-size: 0.7rem; color: #00b0ff; margin-bottom: 2px; }
+        
+        /* Sent (Snap Red Line style) */
+        .sent { align-self: flex-end; align-items: flex-end; border-left: none; border-right: 3px solid #ff1744; padding-left: 0; padding-right: 8px; }
+        .sent .sender-name { font-size: 0.7rem; color: #ff1744; margin-bottom: 2px; }
+
+        .text-bubble { font-size: 1rem; color: #eee; }
+        .saved-bg { background: rgba(50, 50, 50, 0.5); padding: 5px 10px; border-radius: 8px; display: inline-block; }
+
+        .time-label { text-align: center; color: #555; font-size: 0.65rem; margin: 10px 0; text-transform: uppercase; letter-spacing: 1px; }
+
+        .footer { padding: 10px; display: flex; align-items: center; gap: 10px; background: #000; }
+        .pill-input { flex: 1; background: #222; height: 40px; border-radius: 20px; display: flex; align-items: center; padding: 0 15px; color: #777; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+        <div class="bitmoji"><i class="fa-solid fa-user"></i></div>
+        <div class="header-text">
+            <h2>Bestie ❤️</h2>
+            <p>CHATTING WITH YOU</p>
+        </div>
+    </div>
+
+    <div class="chat-body" id="snapBody">
+        </div>
+
+    <div class="footer">
+        <div class="pill-input">Send a chat</div>
+        <i class="fa-solid fa-face-smile" style="color:#ffd600; font-size:1.5rem"></i>
+    </div>
+
+    <script>
+        const snapData = [
+            { type: 'time', text: 'Yesterday' },
+            { side: 'in', name: 'Bestie', text: 'Snap received', isSnap: true },
+            { side: 'out', name: 'Me', text: 'Opened just now', isSnap: true },
+            { type: 'time', text: 'Today' },
+            { side: 'in', name: 'Bestie', text: 'Are we going out?' },
+            { side: 'out', name: 'Me', text: 'Yes, I am ready!' },
+            { side: 'in', name: 'Bestie', text: 'Cool, picking you up.', saved: true }
+        ];
+
+        const box = document.getElementById('snapBody');
+
+        snapData.forEach(item => {
+            if(item.type === 'time') {
+                box.innerHTML += `<div class="time-label">${item.text}</div>`;
+            } else {
+                let alignClass = item.side === 'in' ? 'received' : 'sent';
+                let content = item.text;
+                
+                // Agar saved message hai to grey background
+                if(item.saved) content = `<span class="saved-bg">${item.text}</span>`;
+                
+                // Agar actual Snap hai (Red/Purple square)
+                if(item.isSnap) {
+                    let color = item.side === 'in' ? '#ff1744' : '#00b0ff'; // Simple representation
+                    content = `<span style="font-style:italic; color:${color}">■ New Snap</span>`;
+                }
+
+                box.innerHTML += `
+                    <div class="chat-msg ${alignClass}">
+                        <span class="sender-name">${item.name}</span>
+                        <div class="text-bubble">${content}</div>
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
