@@ -67,7 +67,7 @@
             width: 6px; height: 6px; background-color: var(--incoming);
             border-radius: 50%;
             box-shadow: 0 0 5px var(--incoming);
-            animation: pulse 1.5s infinite;
+            animation: pulse 1.0s infinite; /* Faster Pulse */
         }
 
         @keyframes pulse {
@@ -124,17 +124,17 @@
             font-size: 1rem; font-weight: 600; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             color: var(--text-main);
-            max-width: 50%; /* Name limit taaki date na kategi */
+            max-width: 50%;
         }
         
         .log-name.is-missed { color: var(--missed); }
 
-        /* Date Style: 11 Jan, 12:30 PM */
+        /* Date Style */
         .log-date {
             font-size: 0.75rem; 
             color: var(--text-sub);
             white-space: nowrap;
-            margin-left: auto; /* Right align */
+            margin-left: auto;
         }
 
         /* Bottom Row: Number only */
@@ -198,9 +198,11 @@
             startLiveUpdates();
         });
 
+        // --- FAST LIVE UPDATE (1.5 SECONDS) ---
         function startLiveUpdates() {
             fetchLogs();
-            refreshInterval = setInterval(() => { fetchLogs(); }, 3000);
+            // Yahan 3000 ki jagah 1500 kar diya hai (FAST)
+            refreshInterval = setInterval(() => { fetchLogs(); }, 1500); 
         }
 
         function manualRefresh() {
@@ -241,31 +243,46 @@
             } catch (e) { return null; }
         }
 
-        // --- LIVE DATE LOGIC ---
+        // --- DATE PARSING (FIXED FOR 11 JAN vs 1 NOV) ---
         function getValidDate(log) {
-            // Server se timestamp ya date string uthata hai
             let raw = log.date || log.timestamp || log.time || log.created_at;
             if (!raw) return null;
-            let dateObj = new Date(raw);
-            if (!isNaN(dateObj.getTime())) return dateObj;
+
+            // Step 1: Check Number (Timestamp)
             let num = Number(raw);
             if (!isNaN(num)) {
                 if (num < 1000000000000) num *= 1000;
                 return new Date(num);
             }
+
+            // Step 2: Check String (Fix for "11/01" -> Jan vs Nov)
+            if (typeof raw === "string") {
+                // Agar date format DD/MM/YYYY hai (slashes ya dashes ke sath)
+                // Hum usko MM/DD/YYYY bana denge taaki '11/01' 11 Jan bane (na ki 1 Nov)
+                const dateParts = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(.*)$/);
+                if (dateParts) {
+                    const day = parseInt(dateParts[1]);
+                    const month = parseInt(dateParts[2]);
+                    const year = parseInt(dateParts[3]);
+                    const timePart = dateParts[4] || "";
+                    
+                    // Force Format: Month/Day/Year (Standard JS)
+                    return new Date(`${month}/${day}/${year}${timePart}`);
+                }
+                
+                // Normal Date Parsing fallback
+                let d = new Date(raw);
+                if (!isNaN(d.getTime())) return d;
+            }
+
             return null;
         }
 
-        // Ye function date ko "11 Jan, 2:30 PM" banata hai
-        // Ye automatic hai, jo date server bhejega wahi dikhayega
         function formatCompactDate(dateObj) {
             if (!dateObj) return "";
             
-            // Day: 11
             const day = dateObj.getDate();
-            // Month: Jan
             const month = dateObj.toLocaleString('en-US', { month: 'short' });
-            // Time: 2:30 PM (12 hour format)
             const time = dateObj.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
 
             return `${day} ${month}, ${time}`;
@@ -338,7 +355,6 @@
                 let mainText = matchedName ? matchedName : log.number;
                 let subText = matchedName ? log.number : "Unsaved";
                 
-                // Live Date formatting call
                 const dateStr = formatCompactDate(log._validDate);
 
                 html += `
