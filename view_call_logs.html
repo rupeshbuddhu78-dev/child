@@ -8,8 +8,6 @@
     <style>
         :root {
             --bg-color: #000000;
-            --glass-bg: rgba(20, 20, 20, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
             --text-sub: #8e8e93;
             --incoming: #30d158;
@@ -42,7 +40,7 @@
             position: relative;
         }
 
-        /* --- HEADER --- */
+        /* --- STICKY HEADER --- */
         .header {
             position: sticky;
             top: 0;
@@ -54,7 +52,7 @@
             justify-content: space-between; 
             align-items: center;
             padding: 15px 20px;
-            border-bottom: 0.5px solid var(--glass-border);
+            border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
         }
 
         .header-left { display: flex; align-items: center; }
@@ -115,7 +113,7 @@
         .log-card:active { background: rgba(255,255,255,0.05); }
 
         .log-icon {
-            font-size: 0.85rem; margin-right: 15px; width: 32px; height: 32px;
+            font-size: 0.9rem; margin-right: 15px; width: 32px; height: 32px;
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             border-radius: 50%;
@@ -133,14 +131,14 @@
             display: flex; 
             flex-direction: column; 
             justify-content: center; 
-            gap: 2px; /* Gap between Name and Number */
+            gap: 2px;
         }
         
-        /* Top Row: Name + Date */
+        /* Top Row: Name + Date/Time */
         .log-top-row {
             display: flex; 
             justify-content: space-between; 
-            align-items: center;
+            align-items: baseline; /* Align text properly */
             width: 100%;
         }
 
@@ -148,31 +146,23 @@
             font-size: 1rem; font-weight: 600; 
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             color: var(--text-main);
-            max-width: 70%; /* Name ko limit kiya taaki Date na dabe */
+            max-width: 55%; /* Name jyada bada na ho */
         }
         
         .log-name.is-missed { color: var(--missed); }
 
-        /* Compact Date Style */
+        /* Compact Date & Time Style */
         .log-date {
             font-size: 0.75rem; 
             color: var(--text-sub);
             white-space: nowrap;
-            margin-left: 10px;
+            margin-left: auto; /* Right side push karega */
         }
 
         /* Bottom Row: Number only */
         .log-details-row {
             display: flex; align-items: center;
-            font-size: 0.8rem; color: var(--text-sub);
-            width: 100%;
-        }
-
-        /* Truncate Number if too long */
-        .log-number-text {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            font-size: 0.85rem; color: var(--text-sub);
             width: 100%;
         }
 
@@ -281,7 +271,7 @@
             } catch (e) { return null; }
         }
 
-        // --- NEW SHORT DATE LOGIC (1 Jan) ---
+        // --- NEW DATE LOGIC (1 Jan + 12:30 PM) ---
         function getValidDate(log) {
             let raw = log.date || log.timestamp || log.time || log.created_at;
             if (!raw) return null;
@@ -295,21 +285,17 @@
             return null;
         }
 
-        function formatCompactDate(dateObj) {
+        function formatDateTime(dateObj) {
             if (!dateObj) return "";
-            const now = new Date();
             
-            // Check if Today
-            if (dateObj.toDateString() === now.toDateString()) {
-                // Agar aaj hai toh time dikha do ya sirf "Today"
-                // User requirement: "1 Jan" style. But "Today" is clearer.
-                // Let's stick to short Date: "11 Jan" for everything.
-            }
+            // Date Part: "11 Jan"
+            const day = dateObj.getDate();
+            const month = dateObj.toLocaleString('en-US', { month: 'short' });
             
-            const day = dateObj.getDate(); // 1, 12, etc.
-            const month = dateObj.toLocaleString('en-US', { month: 'short' }); // Jan, Feb
-            
-            return `${day} ${month}`;
+            // Time Part: "2:30 PM"
+            const time = dateObj.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+
+            return `${day} ${month}, ${time}`;
         }
 
         // --- SERVER & RENDER ---
@@ -376,12 +362,11 @@
                 const matchedName = findContactName(log.number);
                 const nameColorClass = isMissed ? "is-missed" : "";
 
-                // Logic: Agar name hai, toh name upar, number niche.
-                // Agar name nahi hai, toh number upar, "Unsaved" niche.
                 let mainText = matchedName ? matchedName : log.number;
                 let subText = matchedName ? log.number : "Unsaved Number";
                 
-                const shortDate = formatCompactDate(log._validDate);
+                // Formats: "11 Jan, 2:30 PM"
+                const dateTimeStr = formatDateTime(log._validDate);
 
                 html += `
                     <div class="log-card">
@@ -392,11 +377,11 @@
                         <div class="log-info">
                             <div class="log-top-row">
                                 <span class="log-name ${nameColorClass}">${mainText}</span>
-                                <span class="log-date">${shortDate}</span>
+                                <span class="log-date">${dateTimeStr}</span>
                             </div>
                             
                             <div class="log-details-row">
-                                <span class="log-number-text">${subText}</span>
+                                <span>${subText}</span>
                             </div>
                         </div>
 
