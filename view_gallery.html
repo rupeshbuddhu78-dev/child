@@ -3,202 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloud Gallery</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <title>Gallery Viewer</title>
     <style>
-        :root {
-            --bg-color: #0f0f0f;
-            --card-bg: #1a1a1a;
-            --accent: #00f3ff; /* Cyan Color */
+        body { background-color: #121212; color: white; font-family: sans-serif; text-align: center; }
+        h2 { margin-top: 20px; color: #00f3ff; }
+        .gallery-container {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 10px;
         }
-        body {
-            background-color: var(--bg-color);
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0; padding: 20px;
-            text-align: center;
+        .gallery-img {
+            width: 150px; height: 150px; object-fit: cover;
+            border-radius: 10px; border: 2px solid #333;
+            cursor: pointer; transition: 0.3s;
         }
-        .container { max-width: 500px; margin: auto; }
+        .gallery-img:hover { transform: scale(1.05); border-color: #00f3ff; }
         
-        /* Header Design */
-        .header {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; padding-bottom: 15px; 
-            border-bottom: 1px solid #333;
-        }
-        .back-btn {
-            color: white; font-size: 1.2rem; text-decoration: none;
-            background: #333; width: 35px; height: 35px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-        }
-        h3 { margin: 0; letter-spacing: 1px; color: var(--accent); }
-
-        /* Gallery Grid Layout */
-        .gallery-grid {
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); /* 3 Photos per row */
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-        .img-card {
-            aspect-ratio: 1/1; 
-            background: var(--card-bg); 
-            border-radius: 10px; 
-            overflow: hidden;
-            border: 1px solid #333; 
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .img-card:active { transform: scale(0.95); }
-        .img-card img { width: 100%; height: 100%; object-fit: cover; }
-
-        /* Load More Button */
-        .load-more-btn {
-            background: var(--accent); color: black; border: none;
-            padding: 12px 30px; border-radius: 25px; 
-            font-weight: bold; cursor: pointer; font-size: 14px;
-            margin-top: 10px; width: 80%; 
-            display: none; /* Hidden shuru mein */
-            box-shadow: 0 0 10px rgba(0, 243, 255, 0.3);
-        }
-        .load-more-btn:disabled { background: #555; color: #888; box-shadow: none; }
-
-        /* Full Screen Image Modal */
-        .modal {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); display: none;
-            align-items: center; justify-content: center; z-index: 1000;
-        }
-        .modal img { max-width: 100%; max-height: 80%; border-radius: 5px; box-shadow: 0 0 20px rgba(0,243,255,0.2); }
-        .close-modal {
-            position: absolute; top: 20px; right: 20px; color: white;
-            font-size: 30px; cursor: pointer; padding: 10px;
-        }
-        
-        /* Status Message */
-        #statusMsg { color: #888; margin-top: 20px; font-size: 14px; }
+        /* Modal (Popup) for full image */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); }
+        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 90%; margin-top: 50px; border-radius: 10px; }
+        .close { position: absolute; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <h3><i class="fa-regular fa-images"></i> Gallery</h3>
-            <div style="width: 35px;"></div>
-        </div>
+    <h2 id="status">Loading Photos...</h2>
+    <button onclick="location.reload()" style="padding:10px; background:#00f3ff; border:none; border-radius:5px; cursor:pointer;">🔄 Refresh</button>
+    
+    <div class="gallery-container" id="gallery"></div>
 
-        <div id="statusMsg">Connecting to Cloud...</div>
-
-        <div class="gallery-grid" id="galleryContainer"></div>
-
-        <button id="loadMoreBtn" class="load-more-btn" onclick="loadPhotos()">Load More Photos</button>
-    </div>
-
-    <div class="modal" id="modal" onclick="this.style.display='none'">
-        <span class="close-modal">&times;</span>
-        <img id="modalImg" src="">
+    <div id="myModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="img01">
     </div>
 
     <script>
-        // --- CONFIGURATION ---
-        // Tumhara fixed Render URL
-        const SERVER_URL = "https://child-v9no.onrender.com";
-
-        // URL se Device ID nikalo (e.g. ?id=DEVICE123)
         const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
+        const deviceId = urlParams.get('id');
 
-        let nextCursor = null; // Agle page ka token
-        let isLoading = false;
-
-        // Start Logic
-        window.onload = () => {
-            if(!DEVICE_ID) {
-                document.getElementById("statusMsg").innerHTML = "<span style='color:red'>Error: Device ID missing!</span>";
-                return;
-            }
-            loadPhotos();
-        };
-
-        // --- FETCH PHOTOS FUNCTION ---
-        async function loadPhotos() {
-            if (isLoading) return;
-            isLoading = true;
-            
-            const btn = document.getElementById("loadMoreBtn");
-            const status = document.getElementById("statusMsg");
-            const container = document.getElementById("galleryContainer");
-
-            // UI Update
-            if(nextCursor) btn.innerText = "Loading...";
-            else status.innerText = "Checking Storage...";
-
-            try {
-                // API URL banana
-                let url = `${SERVER_URL}/api/gallery-list/${DEVICE_ID}`;
-                if (nextCursor) {
-                    url += `?next_cursor=${nextCursor}`;
-                }
-
-                // Server Call
-                const res = await fetch(url);
-                const data = await res.json();
-
-                // Check Data
-                if (data.photos && data.photos.length > 0) {
-                    status.style.display = 'none'; // Message chupao
-                    renderGallery(data.photos);
-                    
-                    // Setup Next Page
-                    nextCursor = data.next_cursor;
-                    
-                    if (nextCursor) {
-                        btn.style.display = "inline-block";
-                        btn.innerText = "Load More";
-                        btn.disabled = false;
-                    } else {
-                        btn.style.display = "none"; // List khatam
-                        // Ek chota message niche add kar sakte ho agar chaho
-                    }
-                } else {
-                    // Agar pehli baar me hi koi photo nahi mili
-                    if(container.children.length === 0) {
-                        status.innerText = "No photos found in Cloud Storage.";
-                        status.style.display = 'block';
-                    }
-                    btn.style.display = "none";
-                }
-
-            } catch (err) {
-                console.error(err);
-                status.innerText = "Server Error or Offline.";
-                status.style.color = "red";
-                btn.innerText = "Try Again";
-            }
-            isLoading = false;
+        if (!deviceId) {
+            document.getElementById('status').innerText = "❌ No Device ID Provided";
+        } else {
+            fetchPhotos();
         }
 
-        // --- RENDER PHOTOS ---
-        function renderGallery(photoUrls) {
-            const container = document.getElementById("galleryContainer");
-            
-            photoUrls.forEach(url => {
-                const div = document.createElement('div');
-                div.className = 'img-card';
-                
-                // Image Tag
-                div.innerHTML = `<img src="${url}" loading="lazy">`;
-                
-                // Click Event (Open Full Screen)
-                div.onclick = () => {
-                    document.getElementById('modalImg').src = url;
-                    document.getElementById('modal').style.display = 'flex';
-                };
-                
-                container.appendChild(div);
-            });
+        function fetchPhotos() {
+            // Server se data mango
+            fetch(`https://child-v9no.onrender.com/api/device-data/${deviceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    const galleryDiv = document.getElementById('gallery');
+                    const status = document.getElementById('status');
+                    galleryDiv.innerHTML = ""; // Clear purana
+
+                    // Check karo data hai ya nahi
+                    if (data && data.gallery && data.gallery.length > 0) {
+                        status.innerText = `📸 Found ${data.gallery.length} Photos`;
+                        
+                        // Ulti loop chalao taki nayi photo pehle dikhe
+                        data.gallery.slice().reverse().forEach(imgUrl => {
+                            let img = document.createElement('img');
+                            img.src = imgUrl;
+                            img.className = "gallery-img";
+                            img.onclick = function() { openModal(imgUrl); };
+                            galleryDiv.appendChild(img);
+                        });
+                    } else {
+                        status.innerText = "📂 No Photos Yet (Try sending 'Gallery' command again)";
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    document.getElementById('status').innerText = "Error loading data.";
+                });
+        }
+
+        // Modal Functions
+        function openModal(src) {
+            document.getElementById('myModal').style.display = "block";
+            document.getElementById('img01').src = src;
+        }
+        function closeModal() {
+            document.getElementById('myModal').style.display = "none";
         }
     </script>
+
 </body>
 </html>
