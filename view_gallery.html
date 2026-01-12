@@ -3,77 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gallery Viewer</title>
+    <title>Premium Gallery</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { background-color: #121212; color: white; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
-        h2 { color: #00f3ff; margin-bottom: 20px; }
-        
-        button { padding: 10px 20px; background: #00f3ff; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin-bottom: 20px; }
-        button:hover { background: #00c4cc; }
+        /* --- PREMIUM DARK DESIGN --- */
+        body { 
+            background-color: #0f172a; /* Deep Blue-Black */
+            color: #f1f5f9; 
+            font-family: 'Segoe UI', sans-serif; 
+            text-align: center; 
+            margin: 0; padding: 20px; 
+        }
 
+        h2 { color: #38bdf8; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 5px; }
+        p#status { color: #94a3b8; font-size: 0.9rem; margin-bottom: 25px; }
+
+        /* Buttons */
+        .btn {
+            padding: 12px 24px; 
+            background: linear-gradient(135deg, #0ea5e9, #2563eb); 
+            color: white; border: none; border-radius: 30px; 
+            font-weight: bold; cursor: pointer; 
+            box-shadow: 0 4px 15px rgba(14, 165, 233, 0.4);
+            transition: 0.3s;
+            display: inline-flex; align-items: center; gap: 8px;
+            font-size: 1rem;
+        }
+        .btn:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6); }
+        
+        .controls { margin-bottom: 20px; }
+
+        /* Gallery Grid */
         .gallery-container {
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 15px;
+            max-width: 1000px;
+            margin: auto;
+            padding-bottom: 20px;
         }
         
         .gallery-img {
-            width: 150px; height: 150px; object-fit: cover;
-            border-radius: 10px; border: 2px solid #333;
+            width: 100%; height: 150px; object-fit: cover;
+            border-radius: 12px; 
+            border: 2px solid #1e293b;
             cursor: pointer; transition: 0.3s;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         }
-        .gallery-img:hover { transform: scale(1.05); border-color: #00f3ff; }
+        .gallery-img:hover { transform: scale(1.03); border-color: #38bdf8; }
+
+        /* Load More Button Area */
+        #loadMoreContainer { margin: 30px 0; display: none; }
+        .btn-secondary { background: #334155; box-shadow: none; }
+        .btn-secondary:hover { background: #475569; }
         
-        /* Modal (Popup) */
-        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.9); }
-        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 90%; margin-top: 50px; border-radius: 10px; }
-        .close { position: absolute; top: 20px; right: 35px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; }
+        /* Modal (Full Screen) */
+        .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.95); backdrop-filter: blur(5px); }
+        .modal-content { margin: auto; display: block; max-width: 90%; max-height: 80vh; margin-top: 60px; border-radius: 10px; box-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+        
+        .modal-actions {
+            margin-top: 20px; display: flex; justify-content: center; gap: 15px;
+        }
+
+        .close { position: absolute; top: 20px; right: 30px; color: #fff; font-size: 40px; cursor: pointer; transition: 0.2s; }
+        .close:hover { color: #38bdf8; }
     </style>
 </head>
 <body>
 
-    <h2 id="status">Loading Photos...</h2>
-    <button onclick="loadGallery()">🔄 Refresh Gallery</button>
+    <h2 id="title">Gallery Viewer</h2>
+    <p id="status">Waiting for connection...</p>
+
+    <div class="controls">
+        <button class="btn" onclick="location.reload()">
+            <i class="fas fa-sync-alt"></i> Refresh
+        </button>
+    </div>
     
     <div class="gallery-container" id="gallery"></div>
+
+    <div id="loadMoreContainer">
+        <button class="btn btn-secondary" onclick="loadGallery(true)">
+            <i class="fas fa-arrow-circle-down"></i> Load More
+        </button>
+    </div>
 
     <div id="myModal" class="modal">
         <span class="close" onclick="closeModal()">&times;</span>
         <img class="modal-content" id="img01">
+        
+        <div class="modal-actions">
+            <a id="downloadLink" href="#" target="_blank" class="btn">
+                <i class="fas fa-download"></i> Download HD
+            </a>
+        </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
+        
+        // Pagination Token (Next page ka address)
+        let nextCursor = null; 
 
         if (!deviceId) {
             document.getElementById('status').innerText = "❌ No Device ID Provided";
         } else {
-            loadGallery();
+            document.getElementById('title').innerText = `Device: ${deviceId}`;
+            loadGallery(false); // False matlab pehli baar load kar rahe hain
         }
 
-        function loadGallery() {
+        function loadGallery(isLoadMore) {
             const status = document.getElementById('status');
             const galleryDiv = document.getElementById('gallery');
+            const loadMoreContainer = document.getElementById('loadMoreContainer');
             
-            status.innerText = "⏳ Connecting to Cloud...";
-            galleryDiv.innerHTML = ""; // Clear old photos
+            if (!isLoadMore) {
+                status.innerText = "⏳ Connecting to Cloud...";
+                galleryDiv.innerHTML = ""; 
+            } else {
+                status.innerText = "⏳ Loading more photos...";
+            }
 
-            // ✅ YAHAN UPDATE KIYA HAI (Sahi Link)
-            fetch(`https://child-v9no.onrender.com/api/gallery-list/${deviceId}`)
+            // URL banana (Pagination ke saath)
+            let apiUrl = `https://child-v9no.onrender.com/api/gallery-list/${deviceId}`;
+            if (isLoadMore && nextCursor) {
+                apiUrl += `?next_cursor=${nextCursor}`;
+            }
+
+            fetch(apiUrl)
                 .then(response => response.json())
                 .then(data => {
-                    // ✅ YAHAN UPDATE KIYA HAI (Sahi Data Name: photos)
                     if (data && data.photos && data.photos.length > 0) {
-                        status.innerText = `📸 Found ${data.photos.length} Photos`;
+                        status.innerText = `✅ Gallery Updated`;
                         
                         data.photos.forEach(imgUrl => {
                             let img = document.createElement('img');
-                            img.src = imgUrl;
+                            img.src = imgUrl; // Chhoti photo grid ke liye
                             img.className = "gallery-img";
+                            img.loading = "lazy"; // Fast loading trick
                             img.onclick = function() { openModal(imgUrl); };
                             galleryDiv.appendChild(img);
                         });
+
+                        // Agla page check karna
+                        nextCursor = data.next_cursor;
+                        if (nextCursor) {
+                            loadMoreContainer.style.display = "block"; // Button dikhao
+                        } else {
+                            loadMoreContainer.style.display = "none"; // Button chupao
+                        }
+
                     } else {
-                        status.innerText = "📂 No Photos Found (Try sending 'Gallery' command)";
+                        if(!isLoadMore) status.innerText = "📂 No Photos Found (Try sending 'Gallery' command)";
+                        loadMoreContainer.style.display = "none";
                     }
                 })
                 .catch(err => {
@@ -82,13 +165,26 @@
                 });
         }
 
-        // Modal Functions
+        // Modal Open (Download Logic)
         function openModal(src) {
             document.getElementById('myModal').style.display = "block";
             document.getElementById('img01').src = src;
+            
+            // Download Link Set Karna
+            const dlBtn = document.getElementById('downloadLink');
+            dlBtn.href = src;
+            dlBtn.download = "Photo_" + Date.now() + ".jpg"; // Naam dena
         }
+
         function closeModal() {
             document.getElementById('myModal').style.display = "none";
+        }
+        
+        // Photo ke bahar click karne par band ho jaye
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('myModal')) {
+                closeModal();
+            }
         }
     </script>
 
