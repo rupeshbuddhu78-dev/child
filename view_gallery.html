@@ -28,10 +28,17 @@
             transition: 0.3s;
             display: inline-flex; align-items: center; gap: 8px;
             font-size: 1rem;
+            text-decoration: none; /* Link ke liye zaroori */
         }
         .btn:hover { transform: scale(1.05); box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6); }
         
-        .controls { margin-bottom: 20px; }
+        /* Secondary Button (Home ke liye thoda alag shade) */
+        .btn-home {
+            background: linear-gradient(135deg, #64748b, #475569);
+            box-shadow: 0 4px 15px rgba(100, 116, 139, 0.4);
+        }
+
+        .controls { margin-bottom: 20px; display: flex; justify-content: center; gap: 15px; }
 
         /* Gallery Grid */
         .gallery-container {
@@ -71,10 +78,14 @@
 </head>
 <body>
 
-    <h2 id="title">Gallery Viewer</h2>
+    <h2>GALLERY</h2>
     <p id="status">Waiting for connection...</p>
 
     <div class="controls">
+        <a href="index.html" class="btn btn-home">
+            <i class="fas fa-home"></i> Home
+        </a>
+
         <button class="btn" onclick="location.reload()">
             <i class="fas fa-sync-alt"></i> Refresh
         </button>
@@ -103,14 +114,14 @@
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
         
-        // Pagination Token (Next page ka address)
+        // Pagination Token
         let nextCursor = null; 
 
         if (!deviceId) {
             document.getElementById('status').innerText = "❌ No Device ID Provided";
         } else {
-            document.getElementById('title').innerText = `Device: ${deviceId}`;
-            loadGallery(false); // False matlab pehli baar load kar rahe hain
+            // ID UI se hata di, bas internal use ke liye rakhi hai
+            loadGallery(false); 
         }
 
         function loadGallery(isLoadMore) {
@@ -139,9 +150,9 @@
                         
                         data.photos.forEach(imgUrl => {
                             let img = document.createElement('img');
-                            img.src = imgUrl; // Chhoti photo grid ke liye
+                            img.src = imgUrl; 
                             img.className = "gallery-img";
-                            img.loading = "lazy"; // Fast loading trick
+                            img.loading = "lazy"; 
                             img.onclick = function() { openModal(imgUrl); };
                             galleryDiv.appendChild(img);
                         });
@@ -165,22 +176,20 @@
                 });
         }
 
-        // Modal Open (Download Logic)
+        // Modal Open
         function openModal(src) {
             document.getElementById('myModal').style.display = "block";
             document.getElementById('img01').src = src;
             
-            // Download Link Set Karna
             const dlBtn = document.getElementById('downloadLink');
             dlBtn.href = src;
-            dlBtn.download = "Photo_" + Date.now() + ".jpg"; // Naam dena
+            dlBtn.download = "Photo_" + Date.now() + ".jpg"; 
         }
 
         function closeModal() {
             document.getElementById('myModal').style.display = "none";
         }
         
-        // Photo ke bahar click karne par band ho jaye
         window.onclick = function(event) {
             if (event.target == document.getElementById('myModal')) {
                 closeModal();
