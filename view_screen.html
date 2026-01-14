@@ -172,6 +172,13 @@
                 x: 0, y: 0
             });
         }
+        
+        socket.on("screen-data", (data) => {
+    console.log("Data aaya!"); // <--- Ye line console me dikhni chahiye
+    if (data.room === currentDeviceId) {
+        // ... baki code
+    }
+});
 
         // Send Click
         function sendClick(event) {
@@ -193,3 +200,4 @@
     </script>
 </body>
 </html>
+
