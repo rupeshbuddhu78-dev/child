@@ -76,6 +76,7 @@
         .style-whatsapp { background: rgba(37, 211, 102, 0.15); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.3); }
         .style-facebook { background: rgba(24, 119, 242, 0.15); color: #1877F2; border: 1px solid rgba(24, 119, 242, 0.3); }
         .style-instagram { background: rgba(225, 48, 108, 0.15); color: #E1306C; border: 1px solid rgba(225, 48, 108, 0.3); }
+        .style-snapchat { background: rgba(255, 252, 0, 0.15); color: #FFFC00; border: 1px solid rgba(255, 252, 0, 0.3); }
         .style-default { background: #333; color: #fff; border: 1px solid #555; }
 
         .text-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
@@ -150,7 +151,7 @@
                 <div class="chip active" onclick="setFilter('all', this)">All</div>
                 <div class="chip" onclick="setFilter('whatsapp', this)">WhatsApp</div>
                 <div class="chip" onclick="setFilter('instagram', this)">Instagram</div>
-                <div class="chip" onclick="setFilter('facebook', this)">Facebook</div>
+                <div class="chip" onclick="setFilter('snapchat', this)">Snapchat</div>
             </div>
         </div>
 
@@ -171,7 +172,7 @@
             </div>
 
             <div class="modal-scroll-area" id="mContent">
-                </div>
+            </div>
         </div>
     </div>
 
@@ -190,21 +191,47 @@
                 const res = await fetch(API_URL);
                 const rawData = await res.json();
                 
-                // Duplicate Remover
-                const seen = new Set();
-                const uniqueData = [];
-                // Sort Newest First
-                rawData.sort((a, b) => b.postTime - a.postTime);
+                // --- SMART FILTERING LOGIC ---
+                // 1. Sort by Oldest First (to process in order)
+                rawData.sort((a, b) => a.postTime - b.postTime);
+
+                const cleanData = [];
 
                 rawData.forEach(item => {
-                    const uniqueKey = `${item.title}-${item.text}-${item.postTime}`;
-                    if (!seen.has(uniqueKey)) {
-                        seen.add(uniqueKey);
-                        uniqueData.push(item);
+                    const title = item.title || "";
+                    const text = item.text || "";
+                    const time = item.postTime;
+
+                    // Check duplicate against the LAST item added
+                    if (cleanData.length > 0) {
+                        const lastItem = cleanData[cleanData.length - 1];
+                        const lastTitle = lastItem.title || "";
+                        const lastText = lastItem.text || "";
+                        const timeDiff = Math.abs(time - lastItem.postTime);
+
+                        // Only compare if same person and within 5 seconds
+                        if (title === lastTitle && timeDiff < 5000) {
+                            
+                            // 1. Exact Duplicate (Repeated message) -> SKIP
+                            if (text === lastText) {
+                                return; 
+                            }
+
+                            // 2. Summary Logic (The "Combined" message issue)
+                            // If new message CONTAINS the old message, it is likely a summary.
+                            // User wants to REMOVE the summary.
+                            if (text.includes(lastText) && text.length > lastText.length) {
+                                return; // Skip this combined summary
+                            }
+                        }
                     }
+                    
+                    // If passed checks, add it
+                    cleanData.push(item);
                 });
 
-                allData = uniqueData;
+                // Reverse back to Newest First for display
+                allData = cleanData.reverse();
                 renderList();
 
             } catch (error) { console.error(error); }
@@ -230,11 +257,8 @@
             }
 
             // --- GROUPING LOGIC START ---
-            // We want to Group WhatsApp messages by Sender Name.
-            // Other apps remain individual.
-            
             const displayList = [];
-            const waGroups = {}; // Map: "SenderName" -> Object with list of messages
+            const waGroups = {}; 
 
             filteredData.forEach(item => {
                 const details = getAppDetails(item);
@@ -244,22 +268,18 @@
                     const sender = item.title || "Unknown";
                     
                     if (!waGroups[sender]) {
-                        // Create new group object
                         const groupObj = {
                             isGroup: true,
                             title: sender,
-                            messages: [], // Will hold all msgs from this person
+                            messages: [], 
                             latestTime: item.postTime,
                             details: details
                         };
                         waGroups[sender] = groupObj;
                         displayList.push(groupObj);
                     }
-                    
-                    // Add message to group
                     waGroups[sender].messages.push(item);
                 } else {
-                    // Non-WA items added directly
                     displayList.push({
                         isGroup: false,
                         ...item,
@@ -269,7 +289,7 @@
                 }
             });
 
-            // Sort the final display list by latest time (Newest on top)
+            // Sort by latest time
             displayList.sort((a, b) => b.latestTime - a.latestTime);
 
             // --- RENDER LOGIC ---
@@ -278,13 +298,11 @@
                 card.className = 'notif-card';
 
                 if (obj.isGroup) {
-                    // IT IS A WHATSAPP GROUP CARD
-                    const msgs = obj.messages; // All messages from this person
+                    // WHATSAPP GROUP CARD
+                    const msgs = obj.messages; 
                     const count = msgs.length;
-                    const latestMsg = msgs[0]; // Since we sorted rawData desc, 0 is newest
+                    const latestMsg = msgs[0]; 
                     const timeStr = formatTime(latestMsg.postTime);
-
-                    // Badge logic (only if > 1 message)
                     const badgeHtml = count > 1 ? `<span class="badge">${count}</span>` : '';
 
                     card.innerHTML = `
@@ -300,11 +318,10 @@
                             <div class="message-body">${latestMsg.text}</div>
                         </div>
                     `;
-                    // Pass ALL messages to modal
                     card.onclick = () => openModal(obj.title, obj.details, msgs);
 
                 } else {
-                    // NORMAL CARD (Instagram, FB, etc.)
+                    // NORMAL CARD
                     const timeStr = formatTime(obj.postTime);
                     card.innerHTML = `
                         <div class="icon-wrapper ${obj.details.style}">
@@ -318,7 +335,6 @@
                             <div class="message-body">${obj.text}</div>
                         </div>
                     `;
-                    // Pass SINGLE message as array to reuse logic
                     card.onclick = () => openModal(obj.title, obj.details, [obj]);
                 }
 
@@ -326,12 +342,13 @@
             });
         }
 
-        // Helper: App Details
+        // Helper: App Details (Added Snapchat)
         function getAppDetails(item) {
             let key = (item.packageName || item.appName || "").toLowerCase();
             if (key.includes("whatsapp")) return { style: 'style-whatsapp', icon: '<i class="fab fa-whatsapp"></i>', name: 'WhatsApp', color: '#25D366' };
             if (key.includes("instagram")) return { style: 'style-instagram', icon: '<i class="fab fa-instagram"></i>', name: 'Instagram', color: '#E1306C' };
             if (key.includes("facebook")) return { style: 'style-facebook', icon: '<i class="fab fa-facebook-f"></i>', name: 'Facebook', color: '#1877F2' };
+            if (key.includes("snapchat")) return { style: 'style-snapchat', icon: '<i class="fab fa-snapchat-ghost"></i>', name: 'Snapchat', color: '#FFFC00' };
             return { style: 'style-default', icon: '<i class="fas fa-bell"></i>', name: 'System', color: '#ffffff' };
         }
 
@@ -349,11 +366,10 @@
             renderList();
         }
 
-        // --- NEW MODAL LOGIC (Supports List) ---
+        // --- MODAL LOGIC ---
         function openModal(title, details, messages) {
             const modal = document.getElementById('popupModal');
             
-            // Header Info
             document.getElementById('mTitle').innerText = title || "Notification";
             document.getElementById('mApp').innerText = details.name;
             document.getElementById('mApp').style.color = details.color;
@@ -362,12 +378,10 @@
             iconBox.innerHTML = details.icon;
             iconBox.style.color = details.color;
 
-            // Render Messages List
             const contentBox = document.getElementById('mContent');
-            contentBox.innerHTML = ""; // Clear old
+            contentBox.innerHTML = ""; 
 
-            // Loop through messages (Newest is index 0, but for chat we usually want Oldest -> Newest)
-            // Let's reverse for display so it reads like a chat (Top = Oldest, Bottom = Newest)
+            // Show Oldest -> Newest in chat
             const chatOrder = [...messages].reverse();
 
             chatOrder.forEach(msg => {
@@ -382,7 +396,6 @@
                 contentBox.appendChild(bubble);
             });
 
-            // Scroll to bottom
             setTimeout(() => {
                 contentBox.scrollTop = contentBox.scrollHeight;
             }, 10);
