@@ -77,12 +77,21 @@
         .style-facebook { background: rgba(24, 119, 242, 0.15); color: #1877F2; border: 1px solid rgba(24, 119, 242, 0.3); }
         .style-instagram { background: rgba(225, 48, 108, 0.15); color: #E1306C; border: 1px solid rgba(225, 48, 108, 0.3); }
         .style-snapchat { background: rgba(255, 252, 0, 0.15); color: #FFFC00; border: 1px solid rgba(255, 252, 0, 0.3); }
+        
+        /* New Styles for Zomato, Paytm, PhonePe */
+        .style-zomato { background: rgba(203, 32, 45, 0.15); color: #cb202d; border: 1px solid rgba(203, 32, 45, 0.3); }
+        .style-paytm { background: rgba(0, 186, 242, 0.15); color: #00baf2; border: 1px solid rgba(0, 186, 242, 0.3); }
+        .style-phonepe { background: rgba(103, 57, 183, 0.15); color: #6739b7; border: 1px solid rgba(103, 57, 183, 0.3); }
+        
         .style-default { background: #333; color: #fff; border: 1px solid #555; }
 
         .text-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .top-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
-        .sender-name { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%; }
-        .time-text { font-size: 12px; color: #666; font-weight: 500; }
+        .top-line { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 3px; }
+        .sender-name { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; }
+        
+        /* Updated Time Text Style for Date+Time */
+        .time-text { font-size: 11px; color: #777; font-weight: 500; text-align: right; max-width: 35%; line-height: 1.2; }
+        
         .message-body { font-size: 14px; color: #a0a0a0; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 
         .badge {
@@ -184,7 +193,7 @@
         let allData = [];
         let currentFilter = 'all';
 
-        // 1. Fetch Data
+        // 1. Fetch Data (Duplicate & Summary Logic Unchanged)
         async function fetchData() {
             try {
                 if(!deviceId) return;
@@ -192,7 +201,6 @@
                 const rawData = await res.json();
                 
                 // --- SMART FILTERING LOGIC ---
-                // 1. Sort by Oldest First (to process in order)
                 rawData.sort((a, b) => a.postTime - b.postTime);
 
                 const cleanData = [];
@@ -202,47 +210,31 @@
                     const text = item.text || "";
                     const time = item.postTime;
 
-                    // Check duplicate against the LAST item added
                     if (cleanData.length > 0) {
                         const lastItem = cleanData[cleanData.length - 1];
                         const lastTitle = lastItem.title || "";
                         const lastText = lastItem.text || "";
                         const timeDiff = Math.abs(time - lastItem.postTime);
 
-                        // Only compare if same person and within 5 seconds
                         if (title === lastTitle && timeDiff < 5000) {
-                            
-                            // 1. Exact Duplicate (Repeated message) -> SKIP
-                            if (text === lastText) {
-                                return; 
-                            }
-
-                            // 2. Summary Logic (The "Combined" message issue)
-                            // If new message CONTAINS the old message, it is likely a summary.
-                            // User wants to REMOVE the summary.
-                            if (text.includes(lastText) && text.length > lastText.length) {
-                                return; // Skip this combined summary
-                            }
+                            if (text === lastText) return; 
+                            if (text.includes(lastText) && text.length > lastText.length) return; 
                         }
                     }
-                    
-                    // If passed checks, add it
                     cleanData.push(item);
                 });
 
-                // Reverse back to Newest First for display
                 allData = cleanData.reverse();
                 renderList();
 
             } catch (error) { console.error(error); }
         }
 
-        // 2. Render List with GROUPING Logic
+        // 2. Render List
         function renderList() {
             const container = document.getElementById('notifList');
             container.innerHTML = "";
 
-            // Filter by App Name
             let filteredData = allData;
             if (currentFilter !== 'all') {
                 filteredData = allData.filter(item => 
@@ -256,14 +248,14 @@
                 return;
             }
 
-            // --- GROUPING LOGIC START ---
             const displayList = [];
             const waGroups = {}; 
 
             filteredData.forEach(item => {
                 const details = getAppDetails(item);
-                const isWA = details.name === 'WhatsApp';
+                const isWA = details.name === 'WhatsApp' || details.name === 'WhatsApp Call';
 
+                // Group WhatsApp (Messages & Calls)
                 if (isWA) {
                     const sender = item.title || "Unknown";
                     
@@ -278,6 +270,10 @@
                         waGroups[sender] = groupObj;
                         displayList.push(groupObj);
                     }
+                    // Update icon if the LATEST one is a call
+                    if(details.name === 'WhatsApp Call') {
+                        waGroups[sender].details = details; 
+                    }
                     waGroups[sender].messages.push(item);
                 } else {
                     displayList.push({
@@ -289,16 +285,13 @@
                 }
             });
 
-            // Sort by latest time
             displayList.sort((a, b) => b.latestTime - a.latestTime);
 
-            // --- RENDER LOGIC ---
             displayList.forEach(obj => {
                 const card = document.createElement('div');
                 card.className = 'notif-card';
 
                 if (obj.isGroup) {
-                    // WHATSAPP GROUP CARD
                     const msgs = obj.messages; 
                     const count = msgs.length;
                     const latestMsg = msgs[0]; 
@@ -321,7 +314,6 @@
                     card.onclick = () => openModal(obj.title, obj.details, msgs);
 
                 } else {
-                    // NORMAL CARD
                     const timeStr = formatTime(obj.postTime);
                     card.innerHTML = `
                         <div class="icon-wrapper ${obj.details.style}">
@@ -342,21 +334,52 @@
             });
         }
 
-        // Helper: App Details (Added Snapchat)
+        // Helper: App Details (Updated for Zomato, Paytm, PhonePe, Calls)
         function getAppDetails(item) {
             let key = (item.packageName || item.appName || "").toLowerCase();
-            if (key.includes("whatsapp")) return { style: 'style-whatsapp', icon: '<i class="fab fa-whatsapp"></i>', name: 'WhatsApp', color: '#25D366' };
+            let title = (item.title || "").toLowerCase();
+            let text = (item.text || "").toLowerCase();
+
+            // Check if it's a Call (Keywords in title/text)
+            let isCall = title.includes("incoming call") || title.includes("missed call") || text.includes("missed voice call") || text.includes("missed video call");
+            const callIcon = '<i class="fas fa-phone"></i>';
+
+            // Zomato
+            if (key.includes("zomato")) return { style: 'style-zomato', icon: '<i class="fas fa-utensils"></i>', name: 'Zomato', color: '#cb202d' };
+            // Paytm
+            if (key.includes("paytm")) return { style: 'style-paytm', icon: '<i class="fas fa-wallet"></i>', name: 'Paytm', color: '#00baf2' };
+            // PhonePe
+            if (key.includes("phonepe")) return { style: 'style-phonepe', icon: '<i class="fas fa-rupee-sign"></i>', name: 'PhonePe', color: '#6739b7' };
+
+            // WhatsApp
+            if (key.includes("whatsapp")) {
+                if (isCall) return { style: 'style-whatsapp', icon: callIcon, name: 'WhatsApp Call', color: '#25D366' };
+                return { style: 'style-whatsapp', icon: '<i class="fab fa-whatsapp"></i>', name: 'WhatsApp', color: '#25D366' };
+            }
+
             if (key.includes("instagram")) return { style: 'style-instagram', icon: '<i class="fab fa-instagram"></i>', name: 'Instagram', color: '#E1306C' };
             if (key.includes("facebook")) return { style: 'style-facebook', icon: '<i class="fab fa-facebook-f"></i>', name: 'Facebook', color: '#1877F2' };
             if (key.includes("snapchat")) return { style: 'style-snapchat', icon: '<i class="fab fa-snapchat-ghost"></i>', name: 'Snapchat', color: '#FFFC00' };
+            
+            // Generic Phone/Dialer
+            if (key.includes("dialer") || key.includes("telecom") || key.includes("android.phone")) {
+                return { style: 'style-default', icon: callIcon, name: 'Phone', color: '#ffffff' };
+            }
+
             return { style: 'style-default', icon: '<i class="fas fa-bell"></i>', name: 'System', color: '#ffffff' };
         }
 
-        // Helper: Time
+        // Helper: Time (Updated to 24 Hour + Date)
         function formatTime(ms) {
             if (!ms) return "Now";
             let d = new Date(parseInt(ms));
-            return isNaN(d.getTime()) ? "Now" : d.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+            if (isNaN(d.getTime())) return "Now";
+            
+            // Format: DD/MM HH:MM (24-hour)
+            // e.g., 14/01 15:30
+            const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' });
+            const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute:'2-digit', hour12: false });
+            return `${dateStr} ${timeStr}`;
         }
 
         function setFilter(type, btn) {
@@ -366,7 +389,7 @@
             renderList();
         }
 
-        // --- MODAL LOGIC ---
+        // --- MODAL LOGIC (Unchanged visual, just time format) ---
         function openModal(title, details, messages) {
             const modal = document.getElementById('popupModal');
             
@@ -381,13 +404,13 @@
             const contentBox = document.getElementById('mContent');
             contentBox.innerHTML = ""; 
 
-            // Show Oldest -> Newest in chat
             const chatOrder = [...messages].reverse();
 
             chatOrder.forEach(msg => {
                 const bubble = document.createElement('div');
                 bubble.className = 'chat-bubble';
-                const t = new Date(parseInt(msg.postTime)).toLocaleString();
+                // Modal Time also updated to full string
+                const t = new Date(parseInt(msg.postTime)).toLocaleString('en-GB', { hour12: false });
                 
                 bubble.innerHTML = `
                     ${msg.text}
