@@ -1,7 +1,7 @@
 {
   "name": "child-tracking-server",
   "version": "1.0.0",
-  "description": "Server for Child App",
+  "description": "Server for Child App with Live Control",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -11,9 +11,10 @@
     "cors": "^2.8.5",
     "body-parser": "^1.20.2",
     "cloudinary": "^1.41.0",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^1.4.5-lts.1",
+    "socket.io": "^4.7.4"
   },
   "engines": {
-    "node": ">=14.x"
+    "node": ">=16.x"
   }
 }
