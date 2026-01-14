@@ -3,126 +3,305 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Universal Notification Log</title>
+    <title>Notification Log</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-color: #000000;
-            --card-bg: #111;
-            --border: #222;
-            --text-main: #eee;
-            --text-sub: #888;
+            --card-bg: #161616;
+            --text-white: #ffffff;
+            --text-grey: #a0a0a0;
+            --border-color: #333;
+            --highlight: #4caf50;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
 
         body {
             background-color: var(--bg-color);
-            color: var(--text-main);
-            height: 100vh;
+            color: var(--text-white);
+            height: 100vh; /* Pura screen cover karega */
+            width: 100vw;
             display: flex;
             justify-content: center;
-            overflow: hidden;
+            align-items: center;
+            overflow: hidden; /* Body scroll band */
         }
 
-        .container {
+        /* --- Main Phone Container --- */
+        .mobile-container {
             width: 100%;
             max-width: 600px;
+            background-color: #0a0a0a;
+            height: 100%; /* Full Height */
             display: flex;
-            flex-direction: column;
-            border-left: 1px solid var(--border);
-            border-right: 1px solid var(--border);
+            flex-direction: column; /* Upar se niche arrange karega */
+            border-left: 1px solid var(--border-color);
+            border-right: 1px solid var(--border-color);
             position: relative;
         }
 
-        /* --- Header --- */
+        /* --- 1. Header (Fixed) --- */
         .header {
-            padding: 20px;
-            background: rgba(10, 10, 10, 0.95);
-            border-bottom: 1px solid var(--border);
+            padding: 15px 20px;
+            background-color: rgba(20, 20, 20, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            flex-shrink: 0; /* Header kabhi nahi pichkega */
+        }
+
+        .header-top {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            z-index: 10;
+            margin-bottom: 15px;
         }
 
-        .header h2 { font-size: 18px; display: flex; align-items: center; gap: 10px; font-weight: 600; }
-        .badge-count { background: #333; color: #fff; font-size: 12px; padding: 2px 8px; border-radius: 10px; border: 1px solid #444; }
-
-        /* --- List Area --- */
-        .log-list {
-            flex: 1;
-            overflow-y: auto;
-            padding: 15px;
+        .title {
+            font-size: 20px;
+            font-weight: 700;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            align-items: center;
+            gap: 10px;
         }
 
-        /* Scrollbar styling */
-        .log-list::-webkit-scrollbar { width: 4px; }
-        .log-list::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
-
-        /* --- Notification Card --- */
-        .card {
-            background: var(--card-bg);
-            border: 1px solid var(--border);
-            border-radius: 16px;
-            padding: 15px;
+        /* Filter Chips */
+        .filters-scroll {
             display: flex;
-            align-items: flex-start;
-            gap: 15px;
-            /* Animation hataya taaki refresh pe hile nahi, sirf naya aane pe dikhega */
-            transition: background 0.2s;
+            gap: 10px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+            /* Scrollbar chupana */
+            scrollbar-width: none; 
+            -ms-overflow-style: none;
+        }
+        .filters-scroll::-webkit-scrollbar { display: none; }
+
+        .chip {
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .chip.active {
+            background: #ffffff;
+            color: #000000;
+            border-color: #ffffff;
+            font-weight: 600;
+        }
+
+        /* --- 2. Notification List (The Scrolling Part) --- */
+        .list-area {
+            flex-grow: 1;      /* Baki bachi jagah lega */
+            flex-basis: 0;     /* Flex bug fix */
+            min-height: 0;     /* 🔥 KEY FIX: Isse scroll enable hota hai */
+            overflow-y: auto;  /* Sirf yahan scroll hoga */
+            padding: 15px;
+            padding-bottom: 80px; /* Thoda extra space niche */
         }
         
-        .card:hover { background: #161616; }
+        /* Custom Scrollbar */
+        .list-area::-webkit-scrollbar { width: 4px; }
+        .list-area::-webkit-scrollbar-thumb { background: #333; border-radius: 10px; }
 
-        /* Icon Box */
-        .app-icon {
-            width: 42px; height: 42px;
+        /* --- 3. Card Design --- */
+        .notif-card {
+            background-color: var(--card-bg);
+            border: 1px solid #2a2a2a;
+            border-radius: 14px;
+            padding: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            cursor: pointer; /* Clickable dikhane ke liye */
+            transition: transform 0.1s, background 0.2s;
+        }
+
+        .notif-card:active {
+            transform: scale(0.98);
+            background-color: #252525;
+        }
+
+        /* Icon Styling */
+        .icon-wrapper {
+            width: 42px;
+            height: 42px;
             border-radius: 12px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 18px;
-            flex-shrink: 0;
-            background: #222;
-            color: #fff;
+            font-size: 20px;
+            flex-shrink: 0; /* Icon squash nahi hoga */
         }
 
-        /* Text Content */
-        .content { flex: 1; overflow: hidden; }
+        .style-whatsapp { background: rgba(37, 211, 102, 0.15); color: #25D366; border: 1px solid rgba(37, 211, 102, 0.3); }
+        .style-facebook { background: rgba(24, 119, 242, 0.15); color: #1877F2; border: 1px solid rgba(24, 119, 242, 0.3); }
+        .style-instagram { background: rgba(225, 48, 108, 0.15); color: #E1306C; border: 1px solid rgba(225, 48, 108, 0.3); }
+        .style-default { background: #333; color: #fff; border: 1px solid #555; }
+
+        /* Text Styling */
+        .text-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3px;
+        }
+
+        .sender-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 75%;
+        }
+
+        .time-text {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .message-body {
+            font-size: 14px;
+            color: #a0a0a0;
+            line-height: 1.3;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .loading { text-align: center; color: #555; margin-top: 50px; }
+
+        /* --- 4. POPUP MODAL STYLES --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: none; /* Default Hidden */
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal-box {
+            background: #1e1e1e;
+            width: 100%;
+            max-width: 400px;
+            border-radius: 20px;
+            border: 1px solid #333;
+            padding: 25px;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: popUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        @keyframes popUp {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 15px;
+            background: #333;
+            color: white;
+            border: none;
+            width: 30px; height: 30px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            justify-content: center; align-items: center;
+        }
+
+        .modal-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .modal-title { font-size: 18px; font-weight: bold; color: white; margin-bottom: 5px; text-align: center; }
+        .modal-app { font-size: 12px; color: #4caf50; text-transform: uppercase; margin-bottom: 15px; text-align: center; font-weight: bold; letter-spacing: 1px; }
         
-        .row-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .app-name { font-size: 11px; text-transform: uppercase; font-weight: bold; letter-spacing: 0.5px; color: #666; }
-        .time { font-size: 11px; color: #555; }
+        .modal-message {
+            background: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            color: #ddd;
+            font-size: 14px;
+            line-height: 1.5;
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #444;
+        }
 
-        .title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .msg-text { font-size: 13.5px; color: #aaa; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-
-        /* Loading/Empty State */
-        .empty-state { text-align: center; color: #444; margin-top: 60px; font-size: 14px; }
-        .loader { color: #444; font-size: 20px; margin-bottom: 10px; }
+        .modal-time {
+            margin-top: 15px;
+            font-size: 12px;
+            color: #777;
+            text-align: right;
+        }
 
     </style>
 </head>
 <body>
 
-    <div class="container">
+    <div class="mobile-container">
+        
         <div class="header">
-            <h2>
-                <i class="fas fa-bell" style="color:#eee;"></i> System Log
-                <span class="badge-count" id="countBadge">0</span>
-            </h2>
-            <i class="fas fa-circle" id="liveIndicator" style="font-size: 10px; color: #4caf50;" title="Live"></i>
+            <div class="header-top">
+                <div class="title">
+                    <i class="fas fa-arrow-left" onclick="history.back()" style="cursor:pointer; margin-right:10px;"></i>
+                    Notifications
+                </div>
+                <i class="fas fa-sync-alt" onclick="fetchData()" style="cursor:pointer; color:#4caf50;"></i>
+            </div>
+            <div class="filters-scroll">
+                <div class="chip active" onclick="setFilter('all', this)">All</div>
+                <div class="chip" onclick="setFilter('whatsapp', this)">WhatsApp</div>
+                <div class="chip" onclick="setFilter('instagram', this)">Instagram</div>
+                <div class="chip" onclick="setFilter('facebook', this)">Facebook</div>
+            </div>
         </div>
 
-        <div class="log-list" id="logContainer">
-            <div class="empty-state">
-                <i class="fas fa-spinner fa-spin loader"></i><br>
-                Connecting...
-            </div>
+        <div class="list-area" id="notifList">
+            <div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+        </div>
+
+    </div>
+
+    <div class="modal-overlay" id="popupModal" onclick="closeModal(event)">
+        <div class="modal-box">
+            <button class="close-btn" onclick="closeModal(event)"><i class="fas fa-times"></i></button>
+            <div class="modal-icon" id="mIcon"></div>
+            <div class="modal-title" id="mTitle">Sender Name</div>
+            <div class="modal-app" id="mApp">WHATSAPP</div>
+            <div class="modal-message" id="mMessage">Full message content goes here...</div>
+            <div class="modal-time" id="mTime">10:30 PM</div>
         </div>
     </div>
 
@@ -131,117 +310,121 @@
         const deviceId = urlParams.get('id');
         const API_URL = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
 
-        // Is variable me hum purana data save karenge compare karne ke liye
-        let lastKnownDataString = ""; 
+        let allData = [];
+        let currentFilter = 'all';
 
-        // --- 1. ICON & COLOR MAP ---
-        const appMap = [
-            // Social (WhatsApp Removed from here)
-            { keys: ['instagram'], icon: 'fa-instagram', color: '#E1306C', bg: 'rgba(225, 48, 108, 0.1)' },
-            { keys: ['facebook', 'fb'], icon: 'fa-facebook-f', color: '#1877F2', bg: 'rgba(24, 119, 242, 0.1)' },
-            { keys: ['snapchat'], icon: 'fa-snapchat', color: '#FFFC00', bg: 'rgba(255, 252, 0, 0.1)' },
-            { keys: ['telegram'], icon: 'fa-telegram', color: '#0088cc', bg: 'rgba(0, 136, 204, 0.1)' },
-            { keys: ['sms', 'message'], icon: 'fa-comment-alt', color: '#4caf50', bg: 'rgba(76, 175, 80, 0.1)' },
-            
-            // Payment
-            { keys: ['gpay', 'google pay', 'wallet'], icon: 'fa-google-pay', color: '#fff', bg: '#4285F4' },
-            { keys: ['phonepe', 'paytm', 'navi', 'bhim', 'upi'], icon: 'fa-rupee-sign', color: '#673ab7', bg: 'rgba(103, 58, 183, 0.1)' },
-
-            // Shopping
-            { keys: ['blinkit', 'amazon', 'flipkart', 'jiomart', 'myntra', 'zomato', 'swiggy'], icon: 'fa-shopping-bag', color: '#ff9800', bg: 'rgba(255, 152, 0, 0.1)' },
-
-            // Travel
-            { keys: ['uber', 'ola', 'rapido', 'map'], icon: 'fa-map-marker-alt', color: '#f44336', bg: 'rgba(244, 67, 54, 0.1)' },
-
-            // Tech/Email
-            { keys: ['gmail', 'mail'], icon: 'fa-envelope', color: '#ea4335', bg: 'rgba(234, 67, 53, 0.1)' },
-            { keys: ['youtube', 'video'], icon: 'fa-play', color: '#f00', bg: 'rgba(255, 0, 0, 0.1)' },
-        ];
-
-        function getStyle(appName, pkgName) {
-            const searchText = (appName + " " + pkgName).toLowerCase();
-            for (let item of appMap) {
-                if (item.keys.some(k => searchText.includes(k))) return item;
-            }
-            return { icon: 'fa-bell', color: '#aaa', bg: '#222' }; // Default
-        }
-
-        // --- 2. FETCH DATA WITHOUT BLINKING ---
+        // 1. Fetch Data
         async function fetchData() {
-            if (!deviceId) return;
-
             try {
+                if(!deviceId) {
+                    document.getElementById('notifList').innerHTML = "<div class='loading'>Device ID Missing</div>";
+                    return;
+                }
                 const res = await fetch(API_URL);
                 const data = await res.json();
-                
-                // STEP A: WhatsApp Filter (Is line se WhatsApp gayab)
-                const filteredData = data.filter(item => {
-                    const name = (item.appName || "").toLowerCase();
-                    const pkg = (item.packageName || "").toLowerCase();
-                    // Agar app name ya package name me 'whatsapp' hai, to FALSE return karo (matlab list se hata do)
-                    return !name.includes("whatsapp") && !pkg.includes("whatsapp");
-                });
-
-                // Sort: Newest First
-                filteredData.sort((a, b) => b.postTime - a.postTime);
-
-                // STEP B: Anti-Blink Logic
-                // Hum check karenge ki kya naya data purane data se alag hai?
-                // Agar same hai, to hum return kar denge (Kuch nahi karenge).
-                const currentDataString = JSON.stringify(filteredData);
-                
-                if (currentDataString === lastKnownDataString) {
-                    // Data same hai -> No Change -> No Blink
-                    return; 
-                }
-
-                // Agar yahan aaye, matlab naya data aaya hai. Update karo.
-                lastKnownDataString = currentDataString;
-                renderList(filteredData);
-
-            } catch (error) {
-                console.error("API Error", error);
-            }
+                allData = data.sort((a, b) => b.postTime - a.postTime);
+                renderList();
+            } catch (error) { console.error(error); }
         }
 
-        function renderList(data) {
-            const container = document.getElementById('logContainer');
-            document.getElementById('countBadge').innerText = data.length;
+        // 2. Render List
+        function renderList() {
+            const container = document.getElementById('notifList');
+            container.innerHTML = "";
 
-            if(data.length === 0) {
-                container.innerHTML = `<div class="empty-state">No other notifications</div>`;
+            let filteredData = allData;
+            if (currentFilter !== 'all') {
+                filteredData = allData.filter(item => 
+                    (item.appName || "").toLowerCase().includes(currentFilter) ||
+                    (item.packageName || "").toLowerCase().includes(currentFilter)
+                );
+            }
+
+            if (filteredData.length === 0) {
+                container.innerHTML = "<div class='loading'>No notifications found.</div>";
                 return;
             }
 
-            let html = "";
-            data.forEach(item => {
-                const style = getStyle(item.appName || "", item.packageName || "");
-                const timeStr = new Date(parseInt(item.postTime)).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                
-                html += `
-                    <div class="card">
-                        <div class="app-icon" style="color: ${style.color}; background: ${style.bg}; border: 1px solid ${style.color}20;">
-                            <i class="${style.icon}"></i>
+            filteredData.forEach(item => {
+                const details = getAppDetails(item);
+                const timeStr = formatTime(item.postTime);
+
+                // Create Card
+                const card = document.createElement('div');
+                card.className = 'notif-card';
+                card.innerHTML = `
+                    <div class="icon-wrapper ${details.style}">
+                        ${details.icon}
+                    </div>
+                    <div class="text-content">
+                        <div class="top-line">
+                            <span class="sender-name">${item.title || "Notification"}</span>
+                            <span class="time-text">${timeStr}</span>
                         </div>
-                        <div class="content">
-                            <div class="row-top">
-                                <span class="app-name" style="color:${style.color}">${item.appName || "APP"}</span>
-                                <span class="time">${timeStr}</span>
-                            </div>
-                            <div class="title">${item.title || "Notification"}</div>
-                            <div class="msg-text">${item.text || ""}</div>
-                        </div>
+                        <div class="message-body">${item.text || "Click to read more..."}</div>
                     </div>
                 `;
-            });
 
-            container.innerHTML = html;
+                // 🔥 ON CLICK EVENT -> OPEN POPUP
+                card.onclick = () => openModal(item, details, timeStr);
+
+                container.appendChild(card);
+            });
         }
 
-        // First Load
+        // Helper: Get App Icon & Colors
+        function getAppDetails(item) {
+            let key = (item.packageName || item.appName || "").toLowerCase();
+            if (key.includes("whatsapp")) return { style: 'style-whatsapp', icon: '<i class="fab fa-whatsapp"></i>', name: 'WhatsApp', color: '#25D366' };
+            if (key.includes("instagram")) return { style: 'style-instagram', icon: '<i class="fab fa-instagram"></i>', name: 'Instagram', color: '#E1306C' };
+            if (key.includes("facebook")) return { style: 'style-facebook', icon: '<i class="fab fa-facebook-f"></i>', name: 'Facebook', color: '#1877F2' };
+            return { style: 'style-default', icon: '<i class="fas fa-bell"></i>', name: 'System', color: '#ffffff' };
+        }
+
+        // Helper: Format Time
+        function formatTime(ms) {
+            if (!ms) return "Now";
+            let d = new Date(parseInt(ms));
+            return isNaN(d.getTime()) ? "Now" : d.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit' });
+        }
+
+        // 3. Filter Logic
+        function setFilter(type, btn) {
+            currentFilter = type;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            btn.classList.add('active');
+            renderList();
+        }
+
+        // --- POPUP LOGIC ---
+        function openModal(item, details, timeStr) {
+            const modal = document.getElementById('popupModal');
+            
+            // Set Content
+            document.getElementById('mTitle').innerText = item.title || "Notification";
+            document.getElementById('mApp').innerText = details.name;
+            document.getElementById('mApp').style.color = details.color;
+            document.getElementById('mMessage').innerText = item.text || "No content.";
+            document.getElementById('mTime').innerText = new Date(parseInt(item.postTime)).toLocaleString();
+            
+            // Set Icon
+            const iconBox = document.getElementById('mIcon');
+            iconBox.innerHTML = details.icon;
+            iconBox.style.color = details.color;
+
+            // Show
+            modal.style.display = 'flex';
+        }
+
+        function closeModal(e) {
+            // Close if clicked on overlay or close button
+            if (e.target === document.getElementById('popupModal') || e.target.closest('.close-btn')) {
+                document.getElementById('popupModal').style.display = 'none';
+            }
+        }
+
+        // Auto Load
         fetchData();
-        
-        // Check every 3 seconds
         setInterval(fetchData, 3000);
 
     </script>
