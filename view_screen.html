@@ -22,7 +22,7 @@
             font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* --- Header (Old Style) --- */
+        /* --- Header --- */
         .top-nav {
             padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
             display: flex; justify-content: space-between; align-items: center; z-index: 200;
@@ -32,12 +32,12 @@
         .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
         .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
-        /* --- Main Layout --- */
+        /* --- Screen Container --- */
         .screen-container {
             flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; position: relative;
         }
 
-        /* --- Phone Frame (PC View) --- */
+        /* --- Phone Frame (Laptop Style) --- */
         .phone-frame {
             width: 320px; height: 650px; border: 8px solid #222; border-radius: 30px;
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
@@ -45,19 +45,17 @@
             z-index: 10;
         }
 
-        /* Image Styling */
         #screenStream { 
             width: 100%; height: 100%; object-fit: contain; 
-            z-index: 1; /* Image peeche rahegi */
+            z-index: 1; 
         }
         
-        /* Loading/Offline Message */
         .offline-msg { 
             position: absolute; color: #444; text-align: center; 
             display: flex; flex-direction: column; align-items: center; z-index: 0; 
         }
 
-        /* --- Side Panel (Controls) --- */
+        /* --- Side Panel (Right Side Controls) --- */
         .side-panel {
             position: absolute; right: 30px; display: flex; flex-direction: column; gap: 15px;
             background: rgba(26, 26, 26, 0.8); padding: 15px; border-radius: 20px; border: 1px solid #333;
@@ -69,35 +67,40 @@
         }
         .control-btn:active { transform: scale(0.9); background: var(--accent); color: black; }
 
-        /* --- 3 Buttons (Bottom Nav) --- */
+        /* --- 3 BUTTONS (Ye Gayab nahi honge ab) --- */
         .nav-bar {
             width: 100%; height: 60px; background: rgba(0, 0, 0, 0.9);
-            position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #333;
-            z-index: 100; /* Buttons sabse upar */
+            position: absolute; bottom: 0; left: 0; 
+            display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #333;
+            z-index: 9999; /* Sabse Upar */
         }
-        .nav-item { color: #888; font-size: 1.4rem; cursor: pointer; padding: 15px; width: 100%; text-align: center; }
+        .nav-item { color: #888; font-size: 1.5rem; cursor: pointer; padding: 15px; width: 100%; text-align: center; }
         .nav-item:active { color: var(--accent); background: rgba(255,255,255,0.1); }
 
-        /* 🔥 MOBILE FULL SCREEN FIX */
+
+        /* 🔥 MOBILE SPECIFIC SETTINGS (Jo tumne manga) */
         @media (max-width: 768px) {
-            .top-nav { display: none; } /* Mobile me Header hata diya taaki full view mile */
+            .top-nav { display: none; } /* Mobile me Header gayab */
+            
             .screen-container { padding: 0; height: 100vh; width: 100vw; background: black; }
             
             .phone-frame { 
                 width: 100%; height: 100%; 
-                border: none; border-radius: 0; /* Border hata diya */
-                box-shadow: none; max-width: none;
+                border: none; border-radius: 0; 
+                box-shadow: none; 
             }
 
-            /* Controls ko thoda transparent aur side me kar diya */
+            /* Nav Bar ko Phone ke bottom me chipka diya */
+            .nav-bar { position: fixed; bottom: 0; width: 100%; height: 70px; }
+
+            /* Side Panel Adjustments for Phone */
             .side-panel { 
-                right: 10px; bottom: 80px; 
+                right: 10px; bottom: 100px; /* Thoda upar taaki nav bar na chhupe */
                 background: transparent; border: none; padding: 0;
             }
-            .control-btn { 
-                background: rgba(0,0,0,0.5); border: 1px solid #444; 
-                width: 45px; height: 45px;
-            }
+            
+            /* 🔥 Lock ke niche wala sab gayab (Phone pe) */
+            .hide-on-mobile { display: none !important; }
         }
     </style>
 </head>
@@ -116,7 +119,7 @@
             
             <div id="offlineMsg" class="offline-msg">
                 <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-                <p style="margin-top:10px" id="msgText">Connecting to Device...</p>
+                <p style="margin-top:10px" id="msgText">Connecting...</p>
             </div>
             
             <img id="screenStream" src="" alt="" onclick="sendClick(event)">
@@ -129,10 +132,12 @@
         </div>
 
         <div class="side-panel">
-            <div class="control-btn" onclick="sendCommand('lock')" title="Lock"><i class="fa-solid fa-power-off"></i></div>
-            <div class="control-btn" onclick="sendCommand('unlock')" title="Wake"><i class="fa-solid fa-sun"></i></div>
-            <div class="control-btn" onclick="sendCommand('swipe_up')" title="Scroll Down"><i class="fa-solid fa-arrow-up"></i></div>
-            <div class="control-btn" onclick="sendCommand('swipe_down')" title="Scroll Up"><i class="fa-solid fa-arrow-down"></i></div>
+            <div class="control-btn" onclick="sendCommand('lock')" title="Lock/Unlock"><i class="fa-solid fa-power-off"></i></div>
+            
+            <div class="control-btn hide-on-mobile" onclick="sendCommand('swipe_up')" title="Scroll Down"><i class="fa-solid fa-arrow-up"></i></div>
+            <div class="control-btn hide-on-mobile" onclick="sendCommand('swipe_down')" title="Scroll Up"><i class="fa-solid fa-arrow-down"></i></div>
+            <div class="control-btn hide-on-mobile" onclick="sendCommand('volume_up')" title="Vol +"><i class="fa-solid fa-plus"></i></div>
+            <div class="control-btn hide-on-mobile" onclick="sendCommand('volume_down')" title="Vol -"><i class="fa-solid fa-minus"></i></div>
         </div>
     </div>
 
@@ -149,8 +154,7 @@
                 document.getElementById('statusText').innerText = "ID: " + currentDeviceId;
                 startConnection(); 
             } else {
-                document.getElementById('msgText').innerText = "Link Error: No ID";
-                document.getElementById('statusText').innerText = "No ID";
+                document.getElementById('msgText').innerText = "No ID Provided";
             }
         };
 
@@ -172,24 +176,16 @@
                 document.getElementById('offlineMsg').style.display = "flex";
             });
 
-            // 🔥 FINAL IMAGE FIX: Auto-Detect Format
+            // Auto-Detect Image Format
             socket.on("screen-data", (data) => {
-                // Loading hatao
                 document.getElementById('offlineMsg').style.display = "none";
                 const img = document.getElementById('screenStream');
                 
                 if (!data.image) return;
 
-                // Smart Detection Logic
-                let prefix = "data:image/webp;base64,"; // Default WebP (Fastest)
-
-                if (data.image.startsWith("/9j/")) {
-                    prefix = "data:image/jpeg;base64,"; // Agar JPEG hai
-                } else if (data.image.startsWith("iVBOR")) {
-                    prefix = "data:image/png;base64,"; // Agar PNG hai
-                }
-
-                // Check agar prefix pehle se laga hai
+                let prefix = "data:image/webp;base64,"; 
+                if (data.image.startsWith("/9j/")) prefix = "data:image/jpeg;base64,";
+                
                 if (data.image.startsWith("data:image")) {
                     img.src = data.image;
                 } else {
@@ -209,7 +205,6 @@
             const img = document.getElementById('screenStream');
             const rect = img.getBoundingClientRect();
             
-            // Exact calculation for accurate touch
             const x = Math.round(event.clientX - rect.left);
             const y = Math.round(event.clientY - rect.top);
 
