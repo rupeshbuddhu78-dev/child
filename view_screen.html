@@ -90,6 +90,7 @@
                 <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
                 <p style="margin-top:10px" id="msgText">Connecting...</p>
             </div>
+            
             <img id="screenStream" src="" alt="" onclick="sendClick(event)">
             
             <div class="nav-bar">
@@ -114,7 +115,6 @@
         let socket = null;
         let currentDeviceId = null;
 
-        // 1. Start logic ONLY when page is ready
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
             currentDeviceId = urlParams.get('id');
@@ -131,55 +131,48 @@
 
         function startConnection() {
             if (typeof io === 'undefined') {
-                alert("Error: Socket.io library failed to load. Check internet.");
+                alert("Error: Socket.io library failed to load.");
                 return;
             }
 
+            // Force Websocket for better speed
             socket = io(SERVER_URL, { 
-                transports: ['websocket', 'polling'], 
+                transports: ['websocket'], 
                 reconnection: true
             });
 
-            // 2. Event Listeners Setup
             socket.on("connect", () => {
-                console.log("Web Connected!");
+                console.log("✅ Web Connected!");
                 document.getElementById('statusText').innerText = "Online: " + currentDeviceId;
                 document.getElementById('statusText').style.color = "var(--accent)";
                 document.getElementById('dot').classList.add("active");
                 
-                console.log("Joining Room: " + currentDeviceId);
                 socket.emit("join", currentDeviceId); 
             });
 
             socket.on("disconnect", () => {
-                console.log("Disconnected");
+                console.log("❌ Disconnected");
                 document.getElementById('statusText').innerText = "Offline";
                 document.getElementById('statusText').style.color = "var(--danger)";
                 document.getElementById('dot').classList.remove("active");
                 document.getElementById('offlineMsg').style.display = "flex";
-                document.getElementById('msgText').innerText = "Server Disconnected";
             });
 
-            // 3. Receive Image (Corrected to WEBP)
+            // 🔥 IMAGE FIX IS HERE (Changed jpeg to webp)
             socket.on("screen-data", (data) => {
-                console.log("Image Received!"); 
                 document.getElementById('offlineMsg').style.display = "none";
-                
-                // 🔥 CHANGE IS HERE: 'jpeg' ko 'webp' kar diya hai
                 document.getElementById('screenStream').src = "data:image/webp;base64," + data.image;
-            });
-
-            socket.on("connect_error", (err) => {
-                console.error("Connection Error:", err);
             });
         }
 
+        // 🔥 BUTTON FIX: Added console log to verify
         function sendCommand(action) {
-            if(!socket || !currentDeviceId) {
-                console.warn("Socket not connected or No ID");
-                return;
-            }
-            if(navigator.vibrate) navigator.vibrate(50);
+            if(!socket || !currentDeviceId) return;
+            
+            // Safety check for vibrate
+            if(navigator.vibrate) navigator.vibrate(30); 
+
+            console.log("Sending Command: " + action); // Check Console (F12) to see if button works
             
             socket.emit("control-event", {
                 room: currentDeviceId,
