@@ -111,7 +111,7 @@
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com"; 
-        let socket = null; // Defined explicitly
+        let socket = null;
         let currentDeviceId = null;
 
         // 1. Start logic ONLY when page is ready
@@ -121,7 +121,7 @@
 
             if (currentDeviceId) {
                 document.getElementById('statusText').innerText = "Target: " + currentDeviceId;
-                startConnection(); // Call connection logic
+                startConnection(); 
             } else {
                 document.getElementById('statusText').innerText = "No ID Found";
                 document.getElementById('msgText').innerText = "Error: Invalid Link";
@@ -130,15 +130,13 @@
         });
 
         function startConnection() {
-            // Check if IO library is loaded
             if (typeof io === 'undefined') {
                 alert("Error: Socket.io library failed to load. Check internet.");
                 return;
             }
 
-            // Initialize Socket
             socket = io(SERVER_URL, { 
-                transports: ['websocket', 'polling'], // Fallback options added
+                transports: ['websocket', 'polling'], 
                 reconnection: true
             });
 
@@ -149,7 +147,6 @@
                 document.getElementById('statusText').style.color = "var(--accent)";
                 document.getElementById('dot').classList.add("active");
                 
-                // IMPORTANT FIX: Join the SPECIFIC Device Room, not 'admin_monitor'
                 console.log("Joining Room: " + currentDeviceId);
                 socket.emit("join", currentDeviceId); 
             });
@@ -163,12 +160,13 @@
                 document.getElementById('msgText').innerText = "Server Disconnected";
             });
 
-            // 3. Receive Image
+            // 3. Receive Image (Corrected to WEBP)
             socket.on("screen-data", (data) => {
-                // Since we joined the specific room, all data receiving here is for us
-                console.log("Image Recieved!"); // Debug log
+                console.log("Image Received!"); 
                 document.getElementById('offlineMsg').style.display = "none";
-                document.getElementById('screenStream').src = "data:image/jpeg;base64," + data.image;
+                
+                // 🔥 CHANGE IS HERE: 'jpeg' ko 'webp' kar diya hai
+                document.getElementById('screenStream').src = "data:image/webp;base64," + data.image;
             });
 
             socket.on("connect_error", (err) => {
@@ -181,7 +179,7 @@
                 console.warn("Socket not connected or No ID");
                 return;
             }
-            navigator.vibrate(50);
+            if(navigator.vibrate) navigator.vibrate(50);
             
             socket.emit("control-event", {
                 room: currentDeviceId,
