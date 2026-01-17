@@ -95,9 +95,9 @@
             <img id="screenStream" src="" alt="">
             
             <div class="nav-bar">
-                <div class="nav-item" id="btnRecent"><i class="fa-regular fa-square"></i></div>
-                <div class="nav-item" id="btnHome"><i class="fa-regular fa-circle"></i></div>
-                <div class="nav-item" id="btnBack"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
+                <div class="nav-item" id="btnRecent" title="Recent Apps"><i class="fa-regular fa-square"></i></div>
+                <div class="nav-item" id="btnHome" title="Home"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" id="btnBack" title="Back"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
             </div>
         </div>
 
@@ -113,15 +113,15 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // 👇 MAINE TUMHARI ID YAHA LAGA DI HAI 👇
-       const firebaseConfig = {
+        // ✅ आपकी ID और CONFIG यहाँ लगी हुई है
+        const firebaseConfig = {
             apiKey: "AIzaSyDs5ubX4MGyVoCHIJXXgWBpU7wgoS5jcDM",
             authDomain: "childapp-ce1fe.firebaseapp.com",
             databaseURL: "https://childapp-ce1fe-default-rtdb.firebaseio.com",
             projectId: "childapp-ce1fe",
             storageBucket: "childapp-ce1fe.firebasestorage.app",
             messagingSenderId: "108035285372",
-            appId: "1:108035285372:android:33bf86d5b727a1a17944f9"
+            appId: "1:108035285372:web:generated_placeholder"
         };
 
         // Initialize Firebase
@@ -139,7 +139,7 @@
             console.log("Tracking Device:", currentDeviceId);
             document.getElementById('statusText').innerText = "Connecting...";
 
-            // 🔥 Image Listener
+            // 🔥 Image Listener (Phone ki Screen dekhne ke liye)
             const imageRef = ref(db, 'live_screens/' + currentDeviceId + '/image');
             
             onValue(imageRef, (snapshot) => {
@@ -161,19 +161,36 @@
             });
         }
 
-        // --- BUTTONS (Abhi sirf Database me command bhejenge) ---
+        // --- 👇 BUTTONS LOGIC (COMMANDS) 👇 ---
+        // यह फंक्शन Firebase में कमांड लिखता है, और फ़ोन उसे पकड़ लेता है
         function sendCommand(action) {
-            if(!currentDeviceId) return;
-            // set(ref(db, 'live_screens/' + currentDeviceId + '/command'), {
-            //     action: action,
-            //     timestamp: Date.now()
-            // });
-            console.log("Command sent:", action); 
+            if(!currentDeviceId) {
+                alert("URL me ID nahi hai!");
+                return;
+            }
+
+            console.log("Sending Command:", action);
+            
+            // 🔥 Database me 'command' path par data bhejna
+            set(ref(db, 'live_screens/' + currentDeviceId + '/command'), {
+                action: action,
+                timestamp: Date.now() // Timestamp zaruri hai taki har command naya lage
+            }).then(() => {
+                console.log("Command sent successfully!");
+            }).catch((error) => {
+                alert("Error Sending Command: " + error.message);
+            });
         }
 
+        // --- BUTTON CLICKS ---
         document.getElementById('btnRecent').onclick = () => sendCommand('recent');
         document.getElementById('btnHome').onclick = () => sendCommand('home');
         document.getElementById('btnBack').onclick = () => sendCommand('back');
+        
+        document.getElementById('btnLock').onclick = () => sendCommand('lock');
+        document.getElementById('btnUnlock').onclick = () => sendCommand('unlock');
+        document.getElementById('btnVolUp').onclick = () => sendCommand('volume_up');
+        document.getElementById('btnVolDown').onclick = () => sendCommand('volume_down');
 
     </script>
 </body>
