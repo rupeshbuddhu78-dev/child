@@ -4,21 +4,10 @@ const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cloudinary = require('cloudinary').v2;
-const http = require('http'); // ✅ NEW: HTTP Server
-const { Server } = require("socket.io"); // ✅ NEW: Socket.io for Realtime
 
+// 🔥 Socket.io aur HTTP Server hata diya gaya hai
 const app = express();
-const server = http.createServer(app); // ✅ Wrap Express in HTTP Server
 const PORT = process.env.PORT || 3000;
-
-// ✅ SOCKET.IO SETUP (Live Control Ke Liye)
-const io = new Server(server, {
-    cors: {
-        origin: "*", // Kisi bhi website se allow karega
-        methods: ["GET", "POST"]
-    },
-    maxHttpBufferSize: 1e8 // 100MB buffer for heavy screen data
-});
 
 // --- 1. CLOUDINARY CONFIG ---
 cloudinary.config({
@@ -34,46 +23,21 @@ if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 app.use(cors({ origin: '*' }));
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
+
+// ✅ HTML File Dikhane ke liye Static Folder
 app.use(express.static(__dirname));
 
 // Live Status (RAM Storage)
 let devicesStatus = {}; 
 
-// --- 3. SOCKET.IO LOGIC (🔥 LIVE SCREEN & CONTROL) ---
-io.on('connection', (socket) => {
-    console.log('🔌 New Connection:', socket.id);
-
-    // 1. Join Room (Device aur Admin dono same ID se join karenge)
-    socket.on('join', (roomID) => {
-        socket.join(roomID);
-        console.log(`🔗 Socket Joined Room: ${roomID}`);
-    });
-
-    // 2. SCREEN SHARE (Device -> Admin)
-    // Phone screen ki images bhejega, hum admin ko forward karenge
-    socket.on('screen-data', (data) => {
-        const { room, image } = data;
-        // Sirf us room me bhejo (Admin ko milega)
-        socket.to(room).emit('screen-data', image);
-    });
-
-    // 3. REMOTE CONTROL (Admin -> Device)
-    // Admin click/swipe karega, hum phone ko forward karenge
-    socket.on('control-event', (data) => {
-        const { room, action, x, y, key } = data; 
-        // Action: 'click', 'swipe', 'home', 'back'
-        socket.to(room).emit('control-event', { action, x, y, key });
-        console.log(`🎮 Control Event to ${room}: ${action}`);
-    });
-
-    socket.on('disconnect', () => {
-        console.log('❌ Disconnected:', socket.id);
-    });
-});
-
-// --- 4. ROOT ROUTE ---
+// --- 3. ROOT ROUTE ---
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running (Socket.io Active for Live Control)!');
+    // Ab ye seedha screen.html dikhayega agar wo folder me hai
+    if (fs.existsSync(path.join(__dirname, 'screen.html'))) {
+        res.sendFile(path.join(__dirname, 'screen.html'));
+    } else {
+        res.send('✅ Server is Running! (Open /screen.html to view)');
+    }
 });
 
 // ==================================================
@@ -226,5 +190,5 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     else res.json([]);
 });
 
-// ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
-server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
+// ✅ Ab "server.listen" nahi, wapas "app.listen" par aa gaye
+app.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} (REST API Only)`));
