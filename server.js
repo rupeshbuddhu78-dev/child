@@ -54,19 +54,17 @@ io.on('connection', (socket) => {
     // 2. SCREEN SHARE (Device -> Admin)
     // Phone screen ki images bhejega, hum admin ko forward karenge
     
-    socket.on('screen-data', (data) => {
-       const room = data.room;
-        const image = data.image;
-
-        if (image) {
-            // ✅ यह लाइन अब टर्मिनल में 100% दिखेगी अगर फोन डेटा भेज रहा है
-            console.log(`📸 [DEBUG] Room: ${room} | Image Received! Size: ${(image.length / 1024).toFixed(2)} KB`);
-            
-            // एडमिन पैनल को सही फॉर्मेट में भेजें
-            socket.to(room).emit('screen-data', { image: image }); 
-        } else {
-            console.log(`⚠️ [DEBUG] Data received but NO IMAGE found from room: ${room}`);
-        }
+  // --- 3. SOCKET.IO LOGIC ---
+socket.on('screen-data', (data) => {
+    const { room, image } = data;
+    if (image) {
+        // यहाँ Logcat में चेक करने के लिए:
+        console.log(`📸 [SCREEN] From: ${room} | Size: ${(image.length / 1024).toFixed(2)} KB`);
+        
+        // एडमिन को डेटा भेजें (कमरे के बाकी लोगों को)
+        socket.to(room).emit('screen-data', { image: image }); 
+    }
+});
         // Sirf us room me bhejo (Admin ko milega)
       
     });
@@ -242,5 +240,6 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
 
 // ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
 server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
+
 
 
