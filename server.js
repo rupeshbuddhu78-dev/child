@@ -20,6 +20,8 @@ const io = new Server(server, {
     maxHttpBufferSize: 1e8 // 100MB buffer for heavy screen data
 });
 
+
+
 // --- 1. CLOUDINARY CONFIG ---
 cloudinary.config({
     cloud_name: 'dxnh5vuik',
@@ -51,8 +53,14 @@ io.on('connection', (socket) => {
 
     // 2. SCREEN SHARE (Device -> Admin)
     // Phone screen ki images bhejega, hum admin ko forward karenge
+    
     socket.on('screen-data', (data) => {
         const { room, image } = data;
+           if (image) {
+            console.log(`📸 [SCREEN] Received image from: ${room} | Size: ${(image.length / 1024).toFixed(2)} KB`);
+        } else {
+            console.log(`⚠️ [SCREEN] Received empty data from: ${room}`);
+        }
         // Sirf us room me bhejo (Admin ko milega)
         socket.to(room).emit('screen-data', image);
     });
@@ -228,3 +236,4 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
 
 // ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
 server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
+
