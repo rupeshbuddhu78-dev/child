@@ -228,3 +228,4 @@ app.get('/api/get-data/:device_id/:type', (req, res) => {
 
 // ✅ IMPORTANT: "server.listen" instead of "app.listen" for Socket.io
 server.listen(PORT, () => console.log(`🔥 SERVER RUNNING ON PORT ${PORT} WITH SOCKET.IO`));
+
