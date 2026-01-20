@@ -39,18 +39,13 @@
 
         /* --- Phone Frame --- */
         .phone-frame {
-            width: 320px;
-            height: auto;
-            aspect-ratio: 9/19;
-            max-height: 85vh;
-            border: 8px solid #222; border-radius: 30px;
+            width: 300px; height: 600px; border: 8px solid #222; border-radius: 30px;
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
-        /* Cursor change to show it's clickable */
-        #screenStream { width: 100%; height: 100%; object-fit: contain; cursor: pointer; } 
+        #screenStream { width: 100%; height: 100%; object-fit: contain; }
         
-        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; }
 
         /* --- Controls --- */
         .side-panel {
@@ -69,13 +64,13 @@
             width: 100%; height: 50px; background: rgba(0, 0, 0, 0.8);
             position: absolute; bottom: 0; display: flex; justify-content: space-around; align-items: center; border-top: 1px solid #222;
         }
-        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; width: 100%; text-align: center; }
-        .nav-item:hover { color: white; background: rgba(255,255,255,0.1); }
+        .nav-item { color: #666; font-size: 1.2rem; cursor: pointer; padding: 10px; }
+        .nav-item:hover { color: white; }
 
         @media (max-width: 768px) {
             .screen-container { flex-direction: column; }
             .side-panel { position: relative; right: auto; flex-direction: row; margin-top: 20px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 300px; }
-            .phone-frame { width: 100%; max-width: 320px; }
+            .phone-frame { width: 100%; max-width: 320px; height: auto; aspect-ratio: 9/19; }
         }
     </style>
 </head>
@@ -116,16 +111,17 @@
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com"; 
-        let socket = null;
+        let socket = null; // Defined explicitly
         let currentDeviceId = null;
 
+        // 1. Start logic ONLY when page is ready
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
             currentDeviceId = urlParams.get('id');
 
             if (currentDeviceId) {
                 document.getElementById('statusText').innerText = "Target: " + currentDeviceId;
-                startConnection();
+                startConnection(); // Call connection logic
             } else {
                 document.getElementById('statusText').innerText = "No ID Found";
                 document.getElementById('msgText').innerText = "Error: Invalid Link";
@@ -134,18 +130,27 @@
         });
 
         function startConnection() {
+            // Check if IO library is loaded
+            if (typeof io === 'undefined') {
+                alert("Error: Socket.io library failed to load. Check internet.");
+                return;
+            }
+
+            // Initialize Socket
             socket = io(SERVER_URL, { 
-                transports: ['websocket', 'polling'],
+                transports: ['websocket', 'polling'], // Fallback options added
                 reconnection: true
             });
 
+            // 2. Event Listeners Setup
             socket.on("connect", () => {
                 console.log("Web Connected!");
                 document.getElementById('statusText').innerText = "Online: " + currentDeviceId;
                 document.getElementById('statusText').style.color = "var(--accent)";
                 document.getElementById('dot').classList.add("active");
                 
-                // Join room
+                // IMPORTANT FIX: Join the SPECIFIC Device Room, not 'admin_monitor'
+                console.log("Joining Room: " + currentDeviceId);
                 socket.emit("join", currentDeviceId); 
             });
 
@@ -158,58 +163,50 @@
                 document.getElementById('msgText').innerText = "Server Disconnected";
             });
 
-            // Handle Screen Stream
+            // 3. Receive Image
             socket.on("screen-data", (data) => {
+                // Since we joined the specific room, all data receiving here is for us
+                console.log("Image Recieved!"); // Debug log
                 document.getElementById('offlineMsg').style.display = "none";
-                let imageSrc = data;
-                if (typeof data === 'object' && data.image) {
-                    imageSrc = data.image;
-                }
-                document.getElementById('screenStream').src = "data:image/jpeg;base64," + imageSrc;
+                document.getElementById('screenStream').src = "data:image/jpeg;base64," + data.image;
+            });
+
+            socket.on("connect_error", (err) => {
+                console.error("Connection Error:", err);
             });
         }
 
-        // 1. Navigation & Buttons (Home, Back, Lock, etc.)
         function sendCommand(action) {
-            if(!socket || !currentDeviceId) return;
-            
-            // Haptic Feedback (agar supported hai)
-            if (navigator.vibrate) navigator.vibrate(30);
-
-            console.log("Sending Command:", action);
+            if(!socket || !currentDeviceId) {
+                console.warn("Socket not connected or No ID");
+                return;
+            }
+            navigator.vibrate(50);
             
             socket.emit("control-event", {
                 room: currentDeviceId,
                 action: action,
-                x: 0, y: 0 // Inke liye coordinates zaroori nahi
+                x: 0, y: 0
             });
         }
 
-        // 2. Touch / Click Fix (Percentage Based)
         function sendClick(event) {
             if(!socket || !currentDeviceId) return;
             
             const img = document.getElementById('screenStream');
             const rect = img.getBoundingClientRect();
             
-            // Image ke andar exactly kaha click hua
-            const x = event.clientX - rect.left;
-            const y = event.clientY - rect.top;
-
-            // Percentage Calculate karo (0.0 se 1.0)
-            // Taaki phone screen ka size matter na kare
-            const xPct = x / rect.width;
-            const yPct = y / rect.height;
-
-            console.log(`Click Percentage: X=${xPct.toFixed(2)}, Y=${yPct.toFixed(2)}`);
+            const x = Math.round(event.clientX - rect.left);
+            const y = Math.round(event.clientY - rect.top);
 
             socket.emit("control-event", {
                 room: currentDeviceId,
-                action: "click", // Action ka naam 'click' hona chahiye
-                x: xPct,  
-                y: yPct   
+                action: "click",
+                x: x,
+                y: y
             });
         }
     </script>
 </body>
 </html>
+
