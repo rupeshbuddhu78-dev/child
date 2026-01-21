@@ -88,42 +88,9 @@
         }
         .gallery-btn:active { transform: scale(0.98); }
 
-        /* --- 🔥 POPUP MODAL (NEW) --- */
-        .modal {
-            display: none; 
-            position: fixed; z-index: 1000; left: 0; top: 0;
-            width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.9);
-            justify-content: center; align-items: center;
-            flex-direction: column;
-        }
-        .modal-content {
-            max-width: 90%; max-height: 80%;
-            border-radius: 12px;
-            border: 2px solid var(--accent);
-            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
-        }
-        .close-btn {
-            position: absolute; top: 20px; right: 30px;
-            color: #fff; font-size: 40px; font-weight: bold;
-            cursor: pointer;
-        }
-        .download-link {
-            margin-top: 20px;
-            padding: 10px 20px; background: var(--accent);
-            color: #000; text-decoration: none; border-radius: 8px;
-            font-weight: bold;
-        }
-
     </style>
 </head>
 <body>
-
-    <div id="imageModal" class="modal">
-        <span class="close-btn" onclick="closeModal()">&times;</span>
-        <img class="modal-content" id="receivedImage">
-        <a id="downloadBtn" href="#" class="download-link" download>Download Image</a>
-    </div>
 
     <div class="header">
         <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
@@ -189,7 +156,7 @@
 
         socket.on('connect', () => {
             console.log("✅ Connected to Server via Socket!");
-            // Server ko batao ki main Admin hu (taki mujhe data mile)
+            // Admin room join
             socket.emit('join-admin', { adminId: 'admin123' });
         });
 
@@ -207,44 +174,12 @@
         }
 
         // ===========================================
-        // 🔥 IMAGE RECEIVE LISTENER (YE MISSING THA)
-        // ===========================================
-        socket.on('file-uploaded', (data) => {
-            console.log("📩 File Received:", data);
-
-            // Check karo ki ye file usi device ki hai jise hum dekh rahe hain
-            if (data.deviceId === DEVICE_ID) {
-                
-                // Spinner band karo
-                const spinners = document.querySelectorAll('.spinner');
-                spinners.forEach(s => s.style.display = 'none');
-
-                // POPUP Show karo
-                showModal(data.fileUrl);
-            }
-        });
-
-        function showModal(imageUrl) {
-            const modal = document.getElementById("imageModal");
-            const img = document.getElementById("receivedImage");
-            const dlBtn = document.getElementById("downloadBtn");
-
-            img.src = imageUrl;
-            dlBtn.href = imageUrl; // Download link set karo
-            modal.style.display = "flex"; // Show popup
-        }
-
-        function closeModal() {
-            document.getElementById("imageModal").style.display = "none";
-        }
-
-        // ===========================================
-        // COMMAND SENDER
+        // SIMPLE COMMAND SENDER (NO POPUP)
         // ===========================================
         function triggerCommand(element, command) {
             const spinner = element.querySelector('.spinner');
             
-            // UI Feedback
+            // Show Spinner
             spinner.style.display = "block";
             
             console.log(`Sending command: ${command} to Device: ${DEVICE_ID}`);
@@ -254,7 +189,11 @@
                 command: command
             });
 
-            // Timeout hata diya kyunki ab hum real response ka wait kar rahe hain
+            // 3 Second baad spinner band kar do (Standard method)
+            setTimeout(() => {
+                spinner.style.display = "none";
+                alert("Command Sent!"); // Optional: Confirmation
+            }, 3000);
         }
 
         function goToGallery() {
