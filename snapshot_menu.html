@@ -6,42 +6,46 @@
     <title>Snapshot Menu</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
+        /* --- GLOBAL THEME (Consistent with Dashboard) --- */
         :root {
             --bg-color: #0f0f0f;
             --glass-bg: rgba(255, 255, 255, 0.05);
-            --border: rgba(255, 255, 255, 0.1);
-            --text: #ffffff;
-            --accent: #00f3ff; /* Cyan color for tech look */
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --accent: #00f3ff; /* Cyan */
+            --danger: #ff4444;
         }
         body {
             background-color: var(--bg-color);
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
-            color: var(--text);
+            color: var(--text-main);
             font-family: 'Segoe UI', sans-serif;
             margin: 0; padding: 20px;
-            display: flex; flex-direction: column; align-items: center;
             min-height: 100vh;
         }
 
-        .container {
-            width: 100%; max-width: 400px;
+        /* --- HEADER (New Back Button Style) --- */
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
+        .back-btn {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            color: #fff; padding: 10px 15px; border-radius: 12px;
+            cursor: pointer; text-decoration: none; font-size: 1rem;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .page-title { 
+            font-size: 1.2rem; font-weight: bold; 
+            color: var(--accent); text-transform: uppercase; letter-spacing: 1px; 
         }
 
-        h3 {
-            margin-top: 0;
-            border-bottom: 1px solid var(--border);
-            padding-bottom: 15px;
-            margin-bottom: 20px;
-            font-weight: 400;
-            letter-spacing: 1px;
-            color: var(--accent);
-        }
+        /* --- CONTENT CONTAINER --- */
+        .container { width: 100%; max-width: 400px; margin: 0 auto; }
 
-        /* List Design */
+        /* --- LIST GROUPS --- */
         .list-group { margin-bottom: 25px; }
         .list-title { 
             color: #888; font-size: 0.8rem; margin-bottom: 10px; 
             font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
+            padding-left: 5px;
         }
         
         .list-item {
@@ -49,7 +53,7 @@
             background: var(--glass-bg);
             padding: 16px; border-radius: 12px; margin-bottom: 10px;
             cursor: pointer; transition: 0.2s;
-            border: 1px solid var(--border);
+            border: 1px solid var(--glass-border);
         }
         .list-item:active { background: rgba(0, 243, 255, 0.1); transform: scale(0.98); border-color: var(--accent); }
         
@@ -75,21 +79,25 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* Bottom Buttons */
-        .btn-grid { display: flex; gap: 10px; margin-top: 20px; }
-        .action-btn {
-            flex: 1; padding: 12px; border-radius: 8px; border: none;
-            font-weight: bold; cursor: pointer; font-size: 0.9rem;
+        /* --- BOTTOM ACTION --- */
+        .gallery-btn {
+            width: 100%; padding: 15px; border-radius: 12px;
+            background: linear-gradient(90deg, var(--accent), #00bcd4);
+            color: #000; font-weight: bold; border: none; font-size: 1rem;
+            cursor: pointer; margin-top: 20px; box-shadow: 0 4px 15px rgba(0, 243, 255, 0.3);
         }
-        .back-btn { background: #333; color: white; }
-        .gallery-btn { background: var(--accent); color: #000; }
+        .gallery-btn:active { transform: scale(0.98); }
 
     </style>
 </head>
 <body>
 
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="page-title">Remote Capture</div>
+        <div style="width: 40px;"></div> </div>
+
     <div class="container">
-        <h3><i class="fa-solid fa-camera-retro"></i> Remote Capture</h3>
         
         <div class="list-group">
             <div class="list-title">Camera Controls</div>
@@ -129,53 +137,69 @@
             </div>
         </div>
 
-        <div class="btn-grid">
-            <button onclick="history.back()" class="action-btn back-btn">Back</button>
-            <button onclick="goToGallery()" class="action-btn gallery-btn">View Saved Files</button>
-        </div>
+        <button onclick="goToGallery()" class="gallery-btn">
+            <i class="fa-solid fa-images"></i> View Saved Files
+        </button>
+
     </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com'; // Apna Server URL check kar lena
+        const API_BASE = 'https://child-v9no.onrender.com'; 
+        
+        // 1. SECURITY CHECK: ID Validation
+        // URL se ID lo, agar wahan nahi hai to LocalStorage check karo
         const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id');
+        let DEVICE_ID = urlParams.get('id');
 
-        // Check ID
-        if(!DEVICE_ID) {
-            alert("Device ID missing! Going back.");
-            history.back();
+        // Agar URL me ID nahi hai, to storage check karo
+        if (!DEVICE_ID) {
+            DEVICE_ID = localStorage.getItem('monitoring_id');
         }
 
+        // Agar abhi bhi ID nahi mili, matlab unauthorized access hai -> Login pe bhejo
+        if (!DEVICE_ID) {
+            alert("Unauthorized Access! Device ID not found.");
+            window.location.href = 'index.html'; // Wapas login page par
+        }
+
+        // Logic to Trigger Command
         function triggerCommand(element, command) {
-            // UI Effect: Show Spinner
             const spinner = element.querySelector('.spinner');
             const arrow = element.querySelector('.fa-chevron-right');
             
+            // Show Loading
             spinner.style.display = "block";
-            arrow.style.display = "none";
+            if(arrow) arrow.style.display = "none";
             element.style.opacity = "0.7";
+            element.style.pointerEvents = "none"; // Prevent double clicking
 
-            // Send Command
+            // Send Command to Server
             fetch(`${API_BASE}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: command })
             })
-            .then(res => {
-                // UI Reset after 1 second
+            .then(res => res.json())
+            .then(data => {
                 setTimeout(() => {
+                    // Reset UI
                     spinner.style.display = "none";
-                    arrow.style.display = "block";
+                    if(arrow) arrow.style.display = "block";
                     element.style.opacity = "1";
+                    element.style.pointerEvents = "auto";
                     
-                    // Toast message (Optional improvement)
-                    alert("Command Sent: " + command + "\nCheck 'Saved Files' in a few seconds.");
+                    // Simple Toast Alert
+                    // alert("Command Sent Successfully!");
                 }, 1000);
             })
             .catch(err => {
                 console.error("Error:", err);
-                alert("Failed to send command!");
+                alert("Failed to send command. Device might be offline.");
+                
+                spinner.style.display = "none";
+                if(arrow) arrow.style.display = "block";
                 element.style.opacity = "1";
+                element.style.pointerEvents = "auto";
             });
         }
 
