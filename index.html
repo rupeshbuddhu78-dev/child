@@ -116,7 +116,12 @@
         .slides-container::-webkit-scrollbar { display: none; }
         
         .slide-page {
+            /* FIX START: Ensure slide takes exactly 100% width with no shrinking/growing */
             min-width: 100%;
+            width: 100%;
+            flex: 0 0 100%;
+            box-sizing: border-box;
+            /* FIX END */
             scroll-snap-align: start;
             /* Isse height content ke hisaab se adjust hogi */
             height: auto; 
