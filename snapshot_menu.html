@@ -173,24 +173,12 @@
         }
 
         // ===========================================
-        // 🔥 UPDATED FUNCTION: PREVENT DOUBLE CLICK
+        // 🔥 SIMPLE COMMAND FUNCTION (NO LOCK)
         // ===========================================
-        let isCommandSending = false; // LOCK VARIABLE
-
         function triggerCommand(element, command) {
-            // Check Lock
-            if (isCommandSending) {
-                console.log("⚠️ Command already in progress, ignoring click.");
-                return; 
-            }
-
-            // Set Lock & Update UI
-            isCommandSending = true;
+            // Sirf Spinner dikhana taaki user ko lage click hua
             const spinner = element.querySelector('.spinner');
-            
             spinner.style.display = "block";
-            element.style.opacity = "0.5"; // Thoda halka dikhega
-            element.style.pointerEvents = "none"; // Click disable
             
             console.log(`Sending command: ${command} to Device: ${DEVICE_ID}`);
 
@@ -199,16 +187,10 @@
                 command: command
             });
 
-            // 3 Second baad Lock hatega
+            // 1 second baad spinner gayab, lekin button kabhi disable nahi hoga
             setTimeout(() => {
-                isCommandSending = false; // Lock open
                 spinner.style.display = "none";
-                element.style.opacity = "1"; // Normal look
-                element.style.pointerEvents = "auto"; // Click enable
-                
-                // Agar popup chahiye to niche wali line uncomment kar dena
-                // alert("Command Sent!"); 
-            }, 3000);
+            }, 1000);
         }
 
         function goToGallery() {
