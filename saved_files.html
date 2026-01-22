@@ -206,20 +206,35 @@
                 alert("Device ID Missing!");
                 return;
             }
-            fetchFiles(true); // First load
-            setupSocket();    // Live connection
+            fetchFiles(true, false); // First load (Show spinner)
+            setupSocket();           // Live connection
+
+            // 🔥 AUTO REFRESH LOGIC (Every 2 Seconds)
+            setInterval(() => {
+                // Background refresh (isReset=true, isBackground=true)
+                // Spinner nahi dikhayega, bas data layega
+                fetchFiles(true, true);
+            }, 2000); 
         };
 
         // ==========================================
         //  2. FETCH DATA & SORTING
         // ==========================================
-        function fetchFiles(isReset = false) {
-            if (isLoading) return;
+        
+        // Updated Function to handle background refreshes
+        function fetchFiles(isReset = false, isBackground = false) {
+            if (isLoading && !isBackground) return; // Wait if non-background load is active
+            
             isLoading = true;
-            loadingSpinner.style.display = 'block';
+            
+            // Sirf tab spinner dikhao jab background refresh NA ho
+            if (!isBackground) {
+                loadingSpinner.style.display = 'block';
+            }
 
             let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
 
+            // Note: Auto-refresh hamesha latest data (reset) lata hai
             if (nextCursor && !isReset) {
                 url += `&next_cursor=${nextCursor}`;
             }
@@ -227,45 +242,56 @@
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    loadingSpinner.style.display = 'none';
+                    if (!isBackground) {
+                        loadingSpinner.style.display = 'none';
+                    }
                     isLoading = false;
 
                     let newFiles = data.photos || [];
                     
                     if (data.next_cursor) {
                         nextCursor = data.next_cursor;
-                        loadMoreArea.style.display = 'block';
+                        // Auto refresh me load more button ko hide mat karna agar already hai
+                        if (!isBackground || loadMoreArea.style.display !== 'block') {
+                             loadMoreArea.style.display = 'block';
+                        }
                     } else {
                         nextCursor = null;
                         loadMoreArea.style.display = 'none';
                     }
 
+                    // Compare current data with new data to avoid unnecessary DOM updates if same
+                    const isDataDifferent = JSON.stringify(newFiles) !== JSON.stringify(allFilesData.slice(0, newFiles.length));
+
                     if (isReset) {
+                        // Agar data same hai background refresh me, toh redraw mat karo (flicker bachega)
+                        if (isBackground && !isDataDifferent) {
+                            return; 
+                        }
                         allFilesData = newFiles; 
                     } else {
                         allFilesData = [...allFilesData, ...newFiles]; 
                     }
 
-                    // 🔥 NEW SORTING LOGIC: FORCE SORT BY FILENAME (TIMESTAMP)
+                    // 🔥 SORTING LOGIC
                     sortFilesByTime();
 
                     renderGallery();
                 })
                 .catch(err => {
                     console.error("Fetch Error:", err);
-                    loadingSpinner.style.display = 'none';
+                    if (!isBackground) loadingSpinner.style.display = 'none';
                     isLoading = false;
                 });
         }
 
         function fetchNextPage() {
-            if (nextCursor) fetchFiles(false);
+            if (nextCursor) fetchFiles(false, false);
         }
 
         // 🔥 Helper Function to sort files by timestamp in URL
         function sortFilesByTime() {
             allFilesData.sort((a, b) => {
-                // Extracts "17100000.jpg" then removes extension -> "17100000"
                 const timeA = extractTime(a);
                 const timeB = extractTime(b);
                 return timeB - timeA; // Descending (Newest First)
@@ -274,9 +300,8 @@
 
         function extractTime(url) {
             try {
-                // URL example: .../upload/v123/folder/17399999.jpg
-                const filename = url.split('/').pop(); // "17399999.jpg"
-                const timePart = filename.split('.')[0]; // "17399999"
+                const filename = url.split('/').pop(); 
+                const timePart = filename.split('.')[0]; 
                 return Number(timePart) || 0;
             } catch (e) {
                 return 0;
@@ -307,6 +332,9 @@
                 }
             });
 
+            // Save scroll position (Optional enhancement)
+            // const scrollPos = window.scrollY;
+
             galleryGrid.innerHTML = '';
 
             if (filtered.length === 0) {
@@ -335,17 +363,15 @@
         }
 
         // ==========================================
-        //  4. REAL-TIME UPDATES
+        //  4. REAL-TIME UPDATES (Backups Socket)
         // ==========================================
         function setupSocket() {
             socket.on('new-file', (data) => {
-                console.log("New file received:", data);
+                console.log("New file via Socket:", data);
                 if (data.device_id === DEVICE_ID) {
                     
                     if (!allFilesData.includes(data.url)) {
                         allFilesData.unshift(data.url);
-                        
-                        // 🔥 Ensure strict sorting even on live update
                         sortFilesByTime();
                     }
                     
