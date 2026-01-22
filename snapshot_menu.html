@@ -156,7 +156,6 @@
 
         socket.on('connect', () => {
             console.log("✅ Connected to Server via Socket!");
-            // Admin room join
             socket.emit('join-admin', { adminId: 'admin123' });
         });
 
@@ -174,13 +173,24 @@
         }
 
         // ===========================================
-        // SIMPLE COMMAND SENDER (NO POPUP)
+        // 🔥 UPDATED FUNCTION: PREVENT DOUBLE CLICK
         // ===========================================
+        let isCommandSending = false; // LOCK VARIABLE
+
         function triggerCommand(element, command) {
+            // Check Lock
+            if (isCommandSending) {
+                console.log("⚠️ Command already in progress, ignoring click.");
+                return; 
+            }
+
+            // Set Lock & Update UI
+            isCommandSending = true;
             const spinner = element.querySelector('.spinner');
             
-            // Show Spinner
             spinner.style.display = "block";
+            element.style.opacity = "0.5"; // Thoda halka dikhega
+            element.style.pointerEvents = "none"; // Click disable
             
             console.log(`Sending command: ${command} to Device: ${DEVICE_ID}`);
 
@@ -189,10 +199,15 @@
                 command: command
             });
 
-            // 3 Second baad spinner band kar do (Standard method)
+            // 3 Second baad Lock hatega
             setTimeout(() => {
+                isCommandSending = false; // Lock open
                 spinner.style.display = "none";
-                alert("Command Sent!"); // Optional: Confirmation
+                element.style.opacity = "1"; // Normal look
+                element.style.pointerEvents = "auto"; // Click enable
+                
+                // Agar popup chahiye to niche wali line uncomment kar dena
+                // alert("Command Sent!"); 
             }, 3000);
         }
 
