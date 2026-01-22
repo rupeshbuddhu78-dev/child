@@ -211,14 +211,13 @@
         };
 
         // ==========================================
-        //  2. FETCH DATA
+        //  2. FETCH DATA & SORTING
         // ==========================================
         function fetchFiles(isReset = false) {
             if (isLoading) return;
             isLoading = true;
             loadingSpinner.style.display = 'block';
 
-            // Limit 20 lagaya hai taaki load fast ho
             let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
 
             if (nextCursor && !isReset) {
@@ -247,6 +246,9 @@
                         allFilesData = [...allFilesData, ...newFiles]; 
                     }
 
+                    // 🔥 NEW SORTING LOGIC: FORCE SORT BY FILENAME (TIMESTAMP)
+                    sortFilesByTime();
+
                     renderGallery();
                 })
                 .catch(err => {
@@ -260,8 +262,29 @@
             if (nextCursor) fetchFiles(false);
         }
 
+        // 🔥 Helper Function to sort files by timestamp in URL
+        function sortFilesByTime() {
+            allFilesData.sort((a, b) => {
+                // Extracts "17100000.jpg" then removes extension -> "17100000"
+                const timeA = extractTime(a);
+                const timeB = extractTime(b);
+                return timeB - timeA; // Descending (Newest First)
+            });
+        }
+
+        function extractTime(url) {
+            try {
+                // URL example: .../upload/v123/folder/17399999.jpg
+                const filename = url.split('/').pop(); // "17399999.jpg"
+                const timePart = filename.split('.')[0]; // "17399999"
+                return Number(timePart) || 0;
+            } catch (e) {
+                return 0;
+            }
+        }
+
         // ==========================================
-        //  3. FILTER & RENDER (UPDATED)
+        //  3. FILTER & RENDER
         // ==========================================
         function switchTab(category) {
             currentFilter = category;
@@ -275,10 +298,8 @@
         }
 
         function renderGallery() {
-            // Filter Logic
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
-                // Filter check based on URL keywords
                 if (currentFilter === 'camera') {
                     return lowerUrl.includes('front') || lowerUrl.includes('back') || lowerUrl.includes('cam');
                 } else {
@@ -295,7 +316,6 @@
                 emptyState.style.display = 'none';
             }
 
-            // Render Photos
             filtered.forEach(url => {
                 const div = document.createElement('div');
                 div.className = 'img-card';
@@ -315,25 +335,25 @@
         }
 
         // ==========================================
-        //  🔥 4. REAL-TIME UPDATES (FIXED: TOP OF LIST)
+        //  4. REAL-TIME UPDATES
         // ==========================================
         function setupSocket() {
             socket.on('new-file', (data) => {
                 console.log("New file received:", data);
                 if (data.device_id === DEVICE_ID) {
                     
-                    // 🔥 NEW LOGIC: Sabse upar add karne ke liye unshift() use kiya
-                    // Duplicate check ke saath
                     if (!allFilesData.includes(data.url)) {
                         allFilesData.unshift(data.url);
+                        
+                        // 🔥 Ensure strict sorting even on live update
+                        sortFilesByTime();
                     }
                     
-                    // Check if we need to refresh the current view
                     let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back') || (data.type === 'gallery');
-                    let isScreen = data.url.includes('screen') || data.url.includes('shot') || (data.type === 'screen'); // Added Type Check
+                    let isScreen = data.url.includes('screen') || data.url.includes('shot') || (data.type === 'screen');
 
                     if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
-                        renderGallery(); // Re-render to show new image at TOP
+                        renderGallery(); 
                     }
                 }
             });
