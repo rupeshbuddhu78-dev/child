@@ -211,17 +211,16 @@
         };
 
         // ==========================================
-        //  2. FETCH DATA (UPDATED LOGIC)
+        //  2. FETCH DATA
         // ==========================================
         function fetchFiles(isReset = false) {
             if (isLoading) return;
             isLoading = true;
             loadingSpinner.style.display = 'block';
 
-            // 🔥 CHANGE 1: 'limit=20' add kiya taaki ek baar mein 20 photos aaye
+            // Limit 20 lagaya hai taaki load fast ho
             let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
 
-            // Agar cursor hai (load more ke liye), to use URL mein jodo
             if (nextCursor && !isReset) {
                 url += `&next_cursor=${nextCursor}`;
             }
@@ -242,11 +241,9 @@
                         loadMoreArea.style.display = 'none';
                     }
 
-                    // Data Store Logic
                     if (isReset) {
-                        allFilesData = newFiles; // Reset array
+                        allFilesData = newFiles; 
                     } else {
-                        // Load more ke time pe purane photos niche add honge
                         allFilesData = [...allFilesData, ...newFiles]; 
                     }
 
@@ -264,7 +261,7 @@
         }
 
         // ==========================================
-        //  3. FILTER & RENDER
+        //  3. FILTER & RENDER (UPDATED)
         // ==========================================
         function switchTab(category) {
             currentFilter = category;
@@ -281,6 +278,7 @@
             // Filter Logic
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
+                // Filter check based on URL keywords
                 if (currentFilter === 'camera') {
                     return lowerUrl.includes('front') || lowerUrl.includes('back') || lowerUrl.includes('cam');
                 } else {
@@ -317,25 +315,25 @@
         }
 
         // ==========================================
-        //  4. REAL-TIME UPDATES (NEWEST ON TOP)
+        //  🔥 4. REAL-TIME UPDATES (FIXED: TOP OF LIST)
         // ==========================================
         function setupSocket() {
             socket.on('new-file', (data) => {
                 console.log("New file received:", data);
                 if (data.device_id === DEVICE_ID) {
                     
-                    // 🔥 CHANGE 2: Naye photo ko 'unshift' se TOP pe daala
-                    // Aur duplicate check kiya taaki same photo 2 baar na dikhe
+                    // 🔥 NEW LOGIC: Sabse upar add karne ke liye unshift() use kiya
+                    // Duplicate check ke saath
                     if (!allFilesData.includes(data.url)) {
                         allFilesData.unshift(data.url);
                     }
                     
-                    // Refresh View only if in correct tab
-                    let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back');
-                    let isScreen = data.url.includes('screen') || data.url.includes('shot');
+                    // Check if we need to refresh the current view
+                    let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back') || (data.type === 'gallery');
+                    let isScreen = data.url.includes('screen') || data.url.includes('shot') || (data.type === 'screen'); // Added Type Check
 
                     if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
-                        renderGallery(); 
+                        renderGallery(); // Re-render to show new image at TOP
                     }
                 }
             });
