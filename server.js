@@ -49,9 +49,10 @@ let devicesStatus = {};
 // ==================================================
 io.on('connection', (socket) => {
     
-    // 1. Join Room
+    // 1. Join Room (Android connects here)
     socket.on('join', (roomID) => {
         socket.join(roomID);
+        console.log(`🔌 Device Joined Room: ${roomID}`);
     });
 
     // 2. Screen Share
@@ -61,6 +62,7 @@ io.on('connection', (socket) => {
 
     // 3. Control Events
     socket.on('control-event', (data) => {
+        console.log(`🎮 Control Event: ${data.action} -> ${data.room}`);
         socket.to(data.room).emit('control-event', data);
     });
 
@@ -75,8 +77,11 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. Audio Stream Relay (Binary)
+    // 5. Audio Stream Relay (Binary) - 🔥 DEBUGGING ADDED
     socket.on('audio-stream', (blob) => {
+        // 👇 YE LINE BATAYEGI KI AUDIO SERVER PAR PAHUCHA YA NAHI
+        // console.log(`🔊 Audio Chunk: ${blob ? blob.length : 0} bytes`); 
+
         const rooms = socket.rooms;
         for (const room of rooms) {
             if (room !== socket.id) {
@@ -89,7 +94,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Audio + Location Accuracy Fixed!');
+    res.send('✅ Server Running: Audio Debug + Location Accuracy Fixed!');
 });
 
 // ==================================================
