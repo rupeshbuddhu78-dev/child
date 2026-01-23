@@ -24,12 +24,11 @@
             color: var(--text-main);
             font-family: 'Segoe UI', sans-serif;
             margin: 0; 
-            /* Body padding badhaya taaki last me scroll karne ki jagah bache */
             padding: 15px 15px 50px 15px; 
             display: flex; flex-direction: column; align-items: center;
             min-height: 100vh;
             touch-action: pan-y; 
-            overflow-y: auto; /* Ensure vertical scrolling works on phone */
+            overflow-y: auto;
         }
         
         /* --- FIXED CONTAINER (Responsive Fix) --- */
@@ -43,7 +42,6 @@
             margin-bottom: 20px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
             box-sizing: border-box;
-            /* Height ko auto rakha taaki content na kate */
             height: auto;
             display: flex;
             flex-direction: column;
@@ -96,10 +94,9 @@
         .live-label { font-size: 0.65rem; color: var(--cyan); letter-spacing: 0.5px; margin-bottom: 2px; text-transform: uppercase; font-weight: bold; }
         .live-text { font-size: 0.85rem; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* --- SWIPE SLIDER STYLES (FIXED) --- */
+        /* --- SWIPE SLIDER STYLES --- */
         .slider-wrapper {
             width: 100%;
-            /* Fixed: Removed overflow:hidden to let content grow */
             overflow: hidden; 
             margin-bottom: 5px;
             flex-grow: 1;
@@ -110,33 +107,27 @@
             scroll-snap-type: x mandatory;
             scroll-behavior: smooth;
             -webkit-overflow-scrolling: touch;
-            /* Important for vertical sizing */
             align-items: flex-start; 
         }
         .slides-container::-webkit-scrollbar { display: none; }
         
         .slide-page {
-            /* FIX START: Ensure slide takes exactly 100% width with no shrinking/growing */
             min-width: 100%;
             width: 100%;
             flex: 0 0 100%;
             box-sizing: border-box;
-            /* FIX END */
             scroll-snap-align: start;
-            /* Isse height content ke hisaab se adjust hogi */
             height: auto; 
             padding-bottom: 10px;
         }
 
-        /* --- GRID LAYOUT (FIXED SPACING) --- */
+        /* --- GRID LAYOUT --- */
         .controls-grid { 
             display: grid; 
             grid-template-columns: repeat(4, 1fr); 
-            /* Fixed: Fixed height hata kar auto kar diya */
             grid-auto-rows: minmax(75px, auto); 
-            gap: 10px; /* Gap thora badhaya */
+            gap: 10px;
             width: 100%;
-            /* Niche extra padding di taaki last button na kate */
             padding-bottom: 10px; 
         }
 
@@ -146,7 +137,7 @@
             border-radius: 16px; position: relative; overflow: hidden;
             display: flex; align-items: flex-end; justify-content: center;
             border: 1px solid var(--glass-border); touch-action: none; width: 100%; 
-            height: 100%; /* Ensure it fills row span */
+            height: 100%; 
         }
 
         .slider-fill {
@@ -168,7 +159,7 @@
         
         .control-btn {
             background: var(--glass-bg); border-radius: 14px; 
-            height: 100%; min-height: 75px; /* Minimum height fix */
+            height: 100%; min-height: 75px; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             border: 1px solid var(--glass-border); cursor: pointer;
             transition: 0.2s; text-decoration: none; color: var(--text-main);
@@ -289,8 +280,9 @@
                         <div class="control-btn" id="soundBtn" onclick="cycleSoundMode()">
                             <i class="fa-solid fa-bell" id="soundIcon"></i><span id="soundText">Normal</span>
                         </div>
-                        <div class="control-btn" id="recBtn" onclick="toggleRec()">
-                            <i class="fa-solid fa-circle-dot"></i><span>Rec</span>
+
+                        <div class="control-btn" onclick="openDirect('recording.html')">
+                            <i class="fa-solid fa-circle-dot"></i><span>Recordings</span>
                         </div>
                         
                         <div onclick="openDirect('whatsapp.html')" class="control-btn"><i class="fa-brands fa-whatsapp"></i><span>WhatsApp</span></div>
@@ -556,21 +548,6 @@
                  btn.classList.remove('active-state');
             }
             sendCommand(modes[currentModeIndex]);
-        }
-
-        let isRecording = false;
-        function toggleRec() {
-            isRecording = !isRecording;
-            const btn = document.getElementById('recBtn');
-            if(isRecording) {
-                btn.classList.add('active-state');
-                btn.querySelector('span').innerText = "Stop Rec";
-                sendCommand('rec_start');
-            } else {
-                btn.classList.remove('active-state');
-                 btn.querySelector('span').innerText = "Rec";
-                sendCommand('rec_stop');
-            }
         }
 
         setInterval(updateDashboard, 5000);
