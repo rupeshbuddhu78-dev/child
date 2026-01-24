@@ -149,9 +149,7 @@
             </div>
         </div>
 
-        <div class="device-info-bar">
-            <button class="logout-btn" onclick="logout()">DISCONNECT</button>
-        </div>
+     
 
         <div class="filters">
             <div class="filter-pill active" onclick="filterBy('All', this)">All</div>
@@ -331,11 +329,7 @@
             });
         }
 
-        function logout() {
-            if(confirm("Disconnect from this target?")) {
-                localStorage.removeItem('spy_device_id');
-                window.location.href = 'index.html'; 
-            }
+       
         }
 
         function processCloudinaryFile(file) {
@@ -378,3 +372,4 @@
     </script>
 </body>
 </html>
+
