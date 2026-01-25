@@ -363,7 +363,7 @@
                     let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back');
                     let isScreen = data.url.includes('screen') || data.url.includes('shot');
 
-                    if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
+                    if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreenshot)) {
                         renderGallery(); 
                     }
                 }
@@ -391,3 +391,4 @@
     </script>
 </body>
 </html> 
+
