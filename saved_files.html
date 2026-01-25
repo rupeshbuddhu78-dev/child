@@ -110,10 +110,11 @@
             justify-content: center;
         }
         
+        /* 🔥 CHANGE HERE: 'contain' dikhayega puri photo */
         .img-card img { 
             width: 100%; 
             height: 100%; 
-            object-fit: cover; /* Change to 'contain' if you want full image visible */
+            object-fit: contain; /* ✅ AB PURI PHOTO DIKHEGI */
             background-color: #000;
             transition: transform 0.3s;
         }
@@ -248,7 +249,7 @@
                 return;
             }
             fetchFiles(true, false); 
-            setupSocket();           
+            setupSocket();            
 
             setInterval(() => {
                 fetchFiles(true, true);
