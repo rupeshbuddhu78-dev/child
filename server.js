@@ -172,24 +172,29 @@ app.get('/api/audio-history/:device_id', async (req, res) => {
 });
 
 // ==================================================
-//  ✅ GALLERY LIST FIX (Updated Logic)
+//  ✅ GALLERY LIST FIX (UNIVERSAL SEARCH)
 // ==================================================
 app.get('/api/gallery-list/:device_id', async (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
     
+    console.log(`🔍 Searching photos for: ${id}`); // Debugging Log
+
     try {
-        // 🔥 FIX: "folder:${id}/*" ka matlab hai ID folder aur uske andar ke sub-folders sab check karo.
+        // 🔥 FIX: "folder:${id} OR folder:${id}/*" 
+        // Ye Root Folder aur Sub-folders dono check karega.
+        // Max results 100 kar diya hai taaki photos miss na hon.
         let search = cloudinary.search
-            .expression(`folder:${id}/*`) 
+            .expression(`folder:${id} OR folder:${id}/*`) 
             .sort_by('created_at', 'desc')
-            .max_results(50);
+            .max_results(100);
 
         if (next_cursor) {
             search = search.next_cursor(next_cursor);
         }
 
         const result = await search.execute();
+        console.log(`✅ Found ${result.resources.length} photos`);
 
         const photos = result.resources.map(img => img.secure_url);
         res.json({ photos: photos, next_cursor: result.next_cursor });
