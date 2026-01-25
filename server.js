@@ -348,4 +348,4 @@ app.post('/api/send-command', (req, res) => {
     res.json({ status: "success", command: command });
 });
 
-server.listen(PORT, () => console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`)); dekho isa mai ak side mai id hai usake andar floader bana hua hai sab ka but ab dekho ky server mai kuch problem hai ham ko nahi lagata
+server.listen(PORT, () => console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`)); 
