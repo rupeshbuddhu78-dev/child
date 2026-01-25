@@ -171,23 +171,32 @@ app.get('/api/audio-history/:device_id', async (req, res) => {
     }
 });
 
-app.get('/api/gallery-list/:device_id', (req, res) => {
+// ==================================================
+//  ✅ GALLERY LIST FIX (Updated Logic)
+// ==================================================
+app.get('/api/gallery-list/:device_id', async (req, res) => {
     const id = req.params.device_id.toUpperCase();
     const next_cursor = req.query.next_cursor || null;
     
-    cloudinary.api.resources({ 
-        type: 'upload', 
-        prefix: id + "/", 
-        max_results: 100, 
-        next_cursor: next_cursor, 
-        direction: 'desc', 
-        context: true 
-    }, 
-    (error, result) => {
-        if (error) return res.json({ photos: [], next_cursor: null });
+    try {
+        // 🔥 FIX: "folder:${id}/*" ka matlab hai ID folder aur uske andar ke sub-folders sab check karo.
+        let search = cloudinary.search
+            .expression(`folder:${id}/*`) 
+            .sort_by('created_at', 'desc')
+            .max_results(50);
+
+        if (next_cursor) {
+            search = search.next_cursor(next_cursor);
+        }
+
+        const result = await search.execute();
+
         const photos = result.resources.map(img => img.secure_url);
         res.json({ photos: photos, next_cursor: result.next_cursor });
-    });
+    } catch (error) {
+        console.log("Cloudinary Search Error:", error);
+        res.json({ photos: [], next_cursor: null });
+    }
 });
 
 // ==================================================
