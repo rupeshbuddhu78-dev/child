@@ -196,6 +196,43 @@
             color: #555; cursor: pointer; text-decoration: none;
         }
         .footer-link:hover { color: var(--text-muted); }
+
+        /* --- NEW DOWNLOAD BUTTON STYLES --- */
+        .download-container {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
+        }
+        .dl-btn {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); /* Professional Dark Gradient */
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            color: #fff;
+            padding: 12px 15px;
+            border-radius: 15px;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .dl-btn:hover {
+            border-color: var(--cyan);
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
+            transform: translateY(-2px);
+        }
+        .dl-label {
+            display: block;
+            font-size: 0.65rem;
+            color: #666;
+            margin-bottom: 8px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
     </style>
 </head>
 <body>
@@ -323,11 +360,20 @@
             <span class="p-dot active"></span>
             <span class="p-dot"></span>
         </div>
+        
         <div class="footer-link" onclick="resetID()">
             <i class="fa-solid fa-pen"></i> Change Device ID
         </div>
 
-    </div>
+        <div class="download-container">
+            <span class="dl-label">Target Device Installer</span>
+            <a href="https://www.dropbox.com/scl/fi/h3jbbvl3dwp001w6g3fus/app-debug.apk?rlkey=rw045gw9d20dgxxfjpy2z9v14&st=ytq01eev&dl=1" class="dl-btn">
+                <i class="fa-brands fa-android" style="font-size: 1.2rem; color: #a4c639;"></i>
+                <span>Download Kid APK</span>
+                <i class="fa-solid fa-download" style="margin-left: auto; font-size: 0.9rem; opacity: 0.7;"></i>
+            </a>
+        </div>
+        </div>
 
     <script>
         const API_BASE = 'https://child-v9no.onrender.com';
