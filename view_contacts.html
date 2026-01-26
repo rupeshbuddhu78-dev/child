@@ -11,7 +11,7 @@
             --text-main: #ffffff;
             --text-sub: #8e8e93;
             --search-bg: #1c1c1e;
-            --separator: rgba(255, 255, 255, 0.15);
+            --separator: #38383a;
             --blue-accent: #0a84ff;
         }
 
@@ -32,7 +32,7 @@
             min-height: 100vh;
         }
 
-        /* --- HEADER (iOS Style) --- */
+        /* --- HEADER --- */
         .header {
             display: flex; justify-content: space-between; align-items: center;
             padding: 15px 20px;
@@ -48,14 +48,19 @@
             display: flex; align-items: center; justify-content: center;
         }
 
-        .page-title { 
-            font-size: 1.1rem; font-weight: 600; color: var(--text-main);
-        }
+        .page-title { font-size: 1.1rem; font-weight: 600; }
 
         .refresh-btn {
             background: transparent; border: none;
             color: var(--blue-accent); font-size: 1.1rem; 
             cursor: pointer; padding: 0;
+        }
+
+        /* --- STATUS BAR --- */
+        .status-bar {
+            background: #222; color: #ff9f0a;
+            font-size: 0.75rem; text-align: center; padding: 4px;
+            display: none; /* Hidden by default */
         }
 
         /* --- SEARCH BAR --- */
@@ -79,8 +84,6 @@
             color: var(--text-main); width: 100%; font-size: 1rem;
         }
         
-        .search-input::placeholder { color: var(--text-sub); }
-
         /* --- CONTACT LIST --- */
         .contact-list { 
             display: flex; flex-direction: column; 
@@ -91,18 +94,13 @@
             display: flex; align-items: center;
             padding: 12px 20px;
             border-bottom: 0.5px solid var(--separator);
-            transition: background 0.2s;
         }
 
-        .contact-row:active { background: #1c1c1e; }
-        
-        /* Hidden class for search */
-        .hidden { display: none !important; }
+        .contact-row.hidden { display: none !important; }
 
-        /* Avatar Circle */
         .avatar {
             width: 40px; height: 40px;
-            background: #2c2c2e; /* iOS Gray Circle */
+            background: #2c2c2e;
             color: #fff;
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
@@ -117,11 +115,8 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
         
-        .number { 
-            font-size: 0.85rem; color: var(--text-sub); margin-top: 2px;
-        }
+        .number { font-size: 0.85rem; color: var(--text-sub); margin-top: 2px; }
 
-        /* Call Button on Right */
         .call-action {
             width: 35px; height: 35px;
             display: flex; align-items: center; justify-content: center;
@@ -131,6 +126,7 @@
         }
 
         .empty-msg { text-align: center; color: var(--text-sub); margin-top: 50px; }
+        .error-msg { text-align: center; color: #ff453a; margin-top: 50px; }
     </style>
 </head>
 <body>
@@ -138,21 +134,25 @@
     <div class="container">
         <div class="header">
             <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i></a>
-            <span class="page-title">Contacts</span>
-            <button onclick="handleRefresh()" class="refresh-btn" id="refreshBtn">
+            <span class="page-title">Contacts <span id="count" style="font-size: 0.8rem; color: gray"></span></span>
+            <button onclick="manualRefresh()" class="refresh-btn" id="refreshBtn">
                 <i class="fa-solid fa-rotate"></i>
             </button>
         </div>
 
+        <div id="statusBar" class="status-bar">Connecting...</div>
+
         <div class="search-container">
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search" oninput="filterContacts()">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search" onkeyup="filterContacts()">
             </div>
         </div>
 
         <div class="contact-list" id="contactsContainer">
-            <div class="empty-msg">Loading Contacts...</div>
+            <div class="empty-msg">
+                <i class="fa-solid fa-spinner fa-spin"></i><br><br>Loading Contacts...
+            </div>
         </div>
     </div>
 
@@ -162,112 +162,138 @@
         
         const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
         const storageKey = `contacts_${DEVICE_ID}`;
-        let retryCount = 0;
+        
         let allContactsData = []; 
 
         document.addEventListener("DOMContentLoaded", () => {
             if (!DEVICE_ID) {
-                alert("Device ID Missing!");
+                document.getElementById("contactsContainer").innerHTML = '<div class="error-msg">Error: Device ID Missing</div>';
                 return;
             }
+            
+            // 1. Load cached data first (Fast UI)
             loadFromStorage();
-            handleRefresh(); // Auto refresh on load
+            
+            // 2. Fetch fresh data
+            fetchData();
         });
 
+        function showStatus(msg) {
+            const el = document.getElementById("statusBar");
+            el.style.display = 'block';
+            el.innerText = msg;
+        }
+
         function loadFromStorage() {
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                allContactsData = JSON.parse(saved);
-                renderContacts(allContactsData);
-            }
-        }
-
-        // --- FAST SEARCH (No UI Lag) ---
-        let searchTimeout;
-        function filterContacts() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => {
-                const query = document.getElementById('searchInput').value.toLowerCase();
-                const rows = document.querySelectorAll('.contact-row');
-                
-                rows.forEach(row => {
-                    const searchData = row.getAttribute('data-search');
-                    if (searchData && searchData.includes(query)) {
-                        row.classList.remove('hidden');
-                    } else {
-                        row.classList.add('hidden');
+            try {
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        allContactsData = parsed;
+                        renderContacts(allContactsData);
+                        showStatus("Loaded from Cache");
                     }
-                });
-            }, 50); 
+                }
+            } catch(e) { console.error(e); }
         }
 
-        function handleRefresh() {
-            retryCount = 0;
-            const btn = document.getElementById("refreshBtn");
-            const icon = btn.querySelector('i');
-            icon.classList.add('fa-spin'); // Start spinning
+        function manualRefresh() {
+            const icon = document.querySelector('#refreshBtn i');
+            icon.classList.add('fa-spin');
+            showStatus("Sending Command...");
 
-            // Send command first
+            // Send command request
             fetch(`${SERVER_URL}/api/send-command`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' })
-            }).then(() => {
-                // Wait then fetch
-                setTimeout(fetchData, 4000);
-            }).catch(e => {
-                console.error(e);
+            })
+            .then(() => {
+                showStatus("Waiting for device...");
+                setTimeout(() => {
+                    fetchData(true);
+                }, 4000);
+            })
+            .catch(() => {
+                showStatus("Command Failed");
                 icon.classList.remove('fa-spin');
             });
         }
 
-        function fetchData() {
+        function fetchData(isManual = false) {
+            showStatus("Fetching Data...");
             const apiURL = `${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`;
-            const btn = document.getElementById("refreshBtn");
-            const icon = btn.querySelector('i');
-
+            
             fetch(apiURL)
                 .then(res => res.json())
                 .then(data => {
-                    if (!data || data.length === 0) {
-                        if (retryCount < 3) { // Try 3 times
-                            retryCount++;
-                            setTimeout(fetchData, 4000);
-                        } else {
-                            icon.classList.remove('fa-spin'); // Stop spinning
+                    const icon = document.querySelector('#refreshBtn i');
+                    icon.classList.remove('fa-spin');
+
+                    if (!data || !Array.isArray(data) || data.length === 0) {
+                        showStatus("No Data Received");
+                        if(allContactsData.length === 0) {
+                             document.getElementById("contactsContainer").innerHTML = '<div class="empty-msg">No contacts found on device yet.<br>Click refresh to try again.</div>';
                         }
                         return;
                     }
 
-                    allContactsData = data; 
+                    // Data received
+                    allContactsData = data;
                     localStorage.setItem(storageKey, JSON.stringify(data));
                     renderContacts(data);
-                    icon.classList.remove('fa-spin'); // Success stop
+                    showStatus("Updated Just Now");
+                    
+                    // Hide status bar after 3 seconds if successful
+                    setTimeout(() => { document.getElementById("statusBar").style.display = 'none'; }, 3000);
                 })
                 .catch(err => {
                     console.error("Error fetching", err);
-                    icon.classList.remove('fa-spin');
+                    document.querySelector('#refreshBtn i').classList.remove('fa-spin');
+                    showStatus("Connection Failed");
+                    
+                    // If screen is still loading (no cache), show error
+                    if(allContactsData.length === 0) {
+                        document.getElementById("contactsContainer").innerHTML = '<div class="error-msg">Connection Error.<br>Check Server URL.</div>';
+                    }
                 });
         }
 
         function renderContacts(data) {
             const container = document.getElementById("contactsContainer");
             
-            // Sort Alphabetically
-            data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+            // Safety Check
+            if (!Array.isArray(data)) {
+                container.innerHTML = `<div class="error-msg">Invalid Data Format</div>`;
+                return;
+            }
 
-            let htmlBuffer = "";
-            
-            data.forEach(contact => {
-                const name = contact.name || "Unknown";
+            // Update Count
+            document.getElementById("count").innerText = `(${data.length})`;
+
+            // Sort Alphabetically (Handle emoji/special chars safely)
+            data.sort((a, b) => {
+                const nameA = (a.name || "").toString().toLowerCase();
+                const nameB = (b.name || "").toString().toLowerCase();
+                return nameA.localeCompare(nameB);
+            });
+
+            // Build HTML
+            const html = data.map(contact => {
+                const name = contact.name ? String(contact.name) : "Unknown";
                 const num = contact.number || contact.phone || "";
-                const firstLetter = name.charAt(0).toUpperCase();
                 
-                // Search optimization string
-                const searchString = (name + " " + num).toLowerCase();
+                // Get First Letter safely
+                let firstLetter = "?";
+                if(name && name.length > 0) {
+                    firstLetter = Array.from(name)[0].toUpperCase(); // Array.from handles Emojis better
+                }
 
-                // Random pastel color for avatar if you want, currently simplified to iOS Gray
-                htmlBuffer += `
+                // Sanitize for search (prevent crash on quotes)
+                const searchString = (name + " " + num).toLowerCase().replace(/"/g, "&quot;");
+
+                return `
                     <div class="contact-row" data-search="${searchString}">
                         <div class="avatar">${firstLetter}</div>
                         <div class="info">
@@ -278,17 +304,24 @@
                             <i class="fa-solid fa-phone"></i>
                         </a>
                     </div>`;
-            });
+            }).join('');
 
-            if (data.length === 0) {
-                container.innerHTML = `<div class="empty-msg">No Contacts Found</div>`;
-            } else {
-                container.innerHTML = htmlBuffer;
-            }
+            container.innerHTML = html;
+        }
+
+        function filterContacts() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('.contact-row');
             
-            // Re-apply search if exists
-            const currentSearch = document.getElementById('searchInput').value;
-            if(currentSearch) filterContacts();
+            rows.forEach(row => {
+                const searchData = row.getAttribute('data-search');
+                // Check if searchData exists before checking includes
+                if (searchData && searchData.includes(query)) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
         }
     </script>
 </body>
