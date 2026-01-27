@@ -15,6 +15,7 @@
             --text-muted: #a0a0a0;
             --accent-color: #00d2ff;
             --danger-color: #ff4757;
+            --success-color: #2ecc71;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
@@ -48,9 +49,12 @@
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            flex-wrap: wrap;
+            gap: 10px;
         }
 
-        .header h2 { font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .header-left { display: flex; align-items: center; gap: 15px; }
+        .header h2 { font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
         .header h2 i { color: var(--accent-color); }
         
         .back-btn {
@@ -63,6 +67,24 @@
             font-size: 0.9rem;
         }
         .back-btn:hover { background: var(--accent-color); color: #000; }
+
+        /* REFRESH BUTTON STYLE */
+        .refresh-btn {
+            background: rgba(0, 210, 255, 0.15);
+            color: var(--accent-color);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+        .refresh-btn:hover { background: var(--accent-color); color: #000; }
+        .refresh-btn:active { transform: scale(0.95); }
+        .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
 
         /* SEARCH */
         .search-container { position: relative; }
@@ -137,9 +159,16 @@
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
-            <h2><i class="fa-brands fa-android"></i> Installed Apps</h2>
-            <div id="device-id-display" style="font-size: 0.8rem; color: var(--text-muted);">...</div>
+            <div class="header-left">
+                <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
+                <div>
+                    <h2>Installed Apps</h2>
+                    <div id="device-id-display" style="font-size: 0.75rem; color: var(--text-muted);">ID: ...</div>
+                </div>
+            </div>
+            <button id="refreshBtn" class="refresh-btn" onclick="requestUpdate()">
+                <i class="fa-solid fa-sync"></i> Refresh
+            </button>
         </div>
 
         <div class="search-container">
@@ -155,31 +184,76 @@
     </div>
 
     <script>
+        let currentDeviceId = null;
+
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
-            
-            // ✅ FIX: Ab yeh 'deviceId' ya 'id' dono me se jo bhi milega, use karega
-            const deviceId = urlParams.get('deviceId') || urlParams.get('id');
+            currentDeviceId = urlParams.get('deviceId') || urlParams.get('id');
 
-            if (!deviceId) {
-                console.error("No ID found in URL parameters.");
+            if (!currentDeviceId) {
                 alert("❌ No Device Selected! Redirecting to Dashboard...");
                 window.location.href = "index.html";
                 return;
             }
 
-            // Header update karo
-            document.getElementById("device-id-display").innerText = "ID: " + deviceId;
-
-            // Data fetch karo
-            fetchApps(deviceId);
+            document.getElementById("device-id-display").innerText = "ID: " + currentDeviceId;
+            fetchApps(currentDeviceId);
         });
 
+        // ✅ COMMAND BHEJNE WALA FUNCTION
+        function requestUpdate() {
+            if (!currentDeviceId) return;
+
+            const btn = document.getElementById("refreshBtn");
+            const icon = btn.querySelector("i");
+            
+            // 1. Button ko disable aur loading mode me dalo
+            btn.disabled = true;
+            icon.classList.add("fa-spin");
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Sending...`;
+
+            // 2. Server par command bhejo (Example Endpoint)
+            fetch('/api/command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    deviceId: currentDeviceId,
+                    command: 'get_apps'  // Yeh command phone padhega
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                // 3. Command chala gaya, ab wait karte hain
+                btn.innerHTML = `<i class="fa-solid fa-clock"></i> Waiting...`;
+                
+                // 4. 5 Second baad Data reload karo (taki phone ko time mile upload karne ka)
+                setTimeout(() => {
+                    fetchApps(currentDeviceId); // List dobara load karo
+                    
+                    // Button reset
+                    btn.disabled = false;
+                    btn.innerHTML = `<i class="fa-solid fa-sync"></i> Refresh`;
+                    icon.classList.remove("fa-spin");
+                }, 5000); 
+            })
+            .catch(err => {
+                console.error("Command Error:", err);
+                alert("Failed to send command to device.");
+                btn.disabled = false;
+                btn.innerHTML = `<i class="fa-solid fa-sync"></i> Retry`;
+            });
+        }
+
         function fetchApps(deviceId) {
+            const listContainer = document.getElementById("app-list");
+            // Agar pehle se list khali hai tabhi loader dikhao, warna purani list rehne do update hone tak
+            if(listContainer.children.length === 0) {
+                 listContainer.innerHTML = `<div class="loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Updating List...</div>`;
+            }
+
             fetch(`/api/get-data/${deviceId}/installed_apps`)
                 .then(res => res.json())
                 .then(data => {
-                    const listContainer = document.getElementById("app-list");
                     listContainer.innerHTML = ""; // Clear loader
 
                     if (!data || data.length === 0) {
@@ -192,7 +266,6 @@
                     }
 
                     data.forEach(app => {
-                        // Safe values
                         const name = app.appName || app.app_name || app.name || "Unknown App";
                         const pkg = app.packageName || app.package_name || app.package || "com.unknown";
                         const ver = app.versionName || app.version || "";
@@ -212,11 +285,6 @@
                 })
                 .catch(err => {
                     console.error("Fetch Error:", err);
-                    document.getElementById("app-list").innerHTML = `
-                        <div class="empty-state">
-                            <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger-color)"></i>
-                            <p>Error loading data.</p>
-                        </div>`;
                 });
         }
 
