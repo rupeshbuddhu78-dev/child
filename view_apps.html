@@ -15,7 +15,6 @@
             --text-muted: #a0a0a0;
             --accent-color: #00d2ff;
             --danger-color: #ff4757;
-            --success-color: #2ecc71;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
@@ -49,8 +48,6 @@
             align-items: center;
             justify-content: space-between;
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-            flex-wrap: wrap;
-            gap: 10px;
         }
 
         .header-left { display: flex; align-items: center; gap: 15px; }
@@ -64,11 +61,10 @@
             padding: 8px 12px;
             border-radius: 8px;
             transition: 0.3s;
-            font-size: 0.9rem;
         }
         .back-btn:hover { background: var(--accent-color); color: #000; }
 
-        /* REFRESH BUTTON STYLE */
+        /* REFRESH BUTTON */
         .refresh-btn {
             background: rgba(0, 210, 255, 0.15);
             color: var(--accent-color);
@@ -83,7 +79,6 @@
             transition: all 0.3s ease;
         }
         .refresh-btn:hover { background: var(--accent-color); color: #000; }
-        .refresh-btn:active { transform: scale(0.95); }
         .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
 
         /* SEARCH */
@@ -108,7 +103,7 @@
             color: var(--text-muted);
         }
 
-        /* LIST */
+        /* APP LIST */
         .app-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
 
         .app-card {
@@ -152,7 +147,6 @@
         }
 
         .loading, .empty-state { text-align: center; margin-top: 50px; color: var(--text-muted); }
-        .empty-state i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
     </style>
 </head>
 <body>
@@ -162,7 +156,7 @@
             <div class="header-left">
                 <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
                 <div>
-                    <h2>Installed Apps</h2>
+                    <h2><i class="fa-brands fa-android"></i> Apps</h2>
                     <div id="device-id-display" style="font-size: 0.75rem; color: var(--text-muted);">ID: ...</div>
                 </div>
             </div>
@@ -178,7 +172,7 @@
 
         <div id="app-list" class="app-list">
             <div class="loading">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Loading Apps...
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Loading...
             </div>
         </div>
     </div>
@@ -188,49 +182,51 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
+            // URL se ID uthana (Ex: installed_apps.html?id=12345)
             currentDeviceId = urlParams.get('deviceId') || urlParams.get('id');
 
             if (!currentDeviceId) {
-                alert("❌ No Device Selected! Redirecting to Dashboard...");
-                window.location.href = "index.html";
+                alert("❌ No Device Selected!");
                 return;
             }
 
             document.getElementById("device-id-display").innerText = "ID: " + currentDeviceId;
+            
+            // Page load hote hi data fetch karo
             fetchApps(currentDeviceId);
         });
 
-        // ✅ COMMAND BHEJNE WALA FUNCTION
+        // ✅ 1. COMMAND BHEJNE KA FUNCTION (Jo server se match karta hai)
         function requestUpdate() {
             if (!currentDeviceId) return;
 
             const btn = document.getElementById("refreshBtn");
             const icon = btn.querySelector("i");
             
-            // 1. Button ko disable aur loading mode me dalo
+            // Button disable karo taaki user baar baar click na kare
             btn.disabled = true;
             icon.classList.add("fa-spin");
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Sending...`;
 
-            // 2. Server par command bhejo (Example Endpoint)
-            fetch('/api/command', {
+            // Server API call
+            fetch('/api/send-command', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    deviceId: currentDeviceId,
-                    command: 'get_apps'  // Yeh command phone padhega
+                    deviceId: currentDeviceId, 
+                    command: 'get_apps'  // Yeh command phone par jayega
                 })
             })
             .then(res => res.json())
             .then(data => {
-                // 3. Command chala gaya, ab wait karte hain
+                // Command chala gaya
                 btn.innerHTML = `<i class="fa-solid fa-clock"></i> Waiting...`;
                 
-                // 4. 5 Second baad Data reload karo (taki phone ko time mile upload karne ka)
+                // 5 Second wait karo (Phone ke upload karne ka time)
                 setTimeout(() => {
-                    fetchApps(currentDeviceId); // List dobara load karo
+                    fetchApps(currentDeviceId); // List reload karo
                     
-                    // Button reset
+                    // Button wapas normal karo
                     btn.disabled = false;
                     btn.innerHTML = `<i class="fa-solid fa-sync"></i> Refresh`;
                     icon.classList.remove("fa-spin");
@@ -238,34 +234,33 @@
             })
             .catch(err => {
                 console.error("Command Error:", err);
-                alert("Failed to send command to device.");
+                alert("Command Failed! Server check karo.");
                 btn.disabled = false;
                 btn.innerHTML = `<i class="fa-solid fa-sync"></i> Retry`;
             });
         }
 
+        // ✅ 2. DATA FETCH KARNE KA FUNCTION
         function fetchApps(deviceId) {
             const listContainer = document.getElementById("app-list");
-            // Agar pehle se list khali hai tabhi loader dikhao, warna purani list rehne do update hone tak
-            if(listContainer.children.length === 0) {
-                 listContainer.innerHTML = `<div class="loading"><i class="fa-solid fa-circle-notch fa-spin"></i> Updating List...</div>`;
-            }
 
             fetch(`/api/get-data/${deviceId}/installed_apps`)
                 .then(res => res.json())
                 .then(data => {
-                    listContainer.innerHTML = ""; // Clear loader
+                    listContainer.innerHTML = ""; // Loader hatao
 
                     if (!data || data.length === 0) {
                         listContainer.innerHTML = `
                             <div class="empty-state">
-                                <i class="fa-solid fa-box-open"></i>
+                                <i class="fa-solid fa-box-open" style="font-size:3rem; opacity:0.5; margin-bottom:10px;"></i>
                                 <p>No Apps Found.</p>
+                                <small>Press Refresh to fetch list</small>
                             </div>`;
                         return;
                     }
 
                     data.forEach(app => {
+                        // Data safely nikalna
                         const name = app.appName || app.app_name || app.name || "Unknown App";
                         const pkg = app.packageName || app.package_name || app.package || "com.unknown";
                         const ver = app.versionName || app.version || "";
@@ -273,7 +268,7 @@
                         const card = document.createElement("div");
                         card.className = "app-card";
                         card.innerHTML = `
-                            <div class="icon-box"><i class="fa-solid fa-mobile-screen"></i></div>
+                            <div class="icon-box"><i class="fa-brands fa-android"></i></div>
                             <div class="app-details">
                                 <div class="app-name">${name}</div>
                                 <div class="package-name">${pkg}</div>
@@ -285,9 +280,11 @@
                 })
                 .catch(err => {
                     console.error("Fetch Error:", err);
+                    listContainer.innerHTML = `<div class="empty-state"><p>Error loading data</p></div>`;
                 });
         }
 
+        // ✅ 3. SEARCH FILTER
         function filterApps() {
             const input = document.getElementById('searchInput').value.toLowerCase();
             const cards = document.getElementsByClassName('app-card');
