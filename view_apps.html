@@ -163,30 +163,36 @@
     </div>
 
     <script>
-        // URL se Device ID nikalo
+        // ============================================
+        // ✅ 1. VERIFY DEVICE ID & REDIRECT LOGIC
+        // ============================================
         const urlParams = new URLSearchParams(window.location.search);
         const deviceId = urlParams.get('deviceId');
 
-        document.getElementById('device-id-display').innerText = deviceId || "Unknown Device";
+        // Agar ID nahi mili, toh wapas bhej do
+        if (!deviceId || deviceId === 'null' || deviceId === 'undefined') {
+            alert("❌ No Device Selected! Redirecting to Dashboard...");
+            window.location.href = 'index.html'; // Redirect to main dashboard
+            throw new Error("Stop Script Execution"); // Script yahi rok do
+        }
 
-        // Start Fetching
-        document.addEventListener("DOMContentLoaded", () => {
-            if (deviceId) {
-                fetchApps();
-            } else {
-                document.getElementById('app-list').innerHTML = `<div class="empty-state"><p>Error: No Device ID Provided</p></div>`;
-            }
-        });
+        // Agar ID hai, toh UI update karo
+        document.getElementById('device-id-display').innerText = `ID: ${deviceId}`;
+
+        // ============================================
+        // ✅ 2. FETCH DATA FROM SERVER
+        // ============================================
+        document.addEventListener("DOMContentLoaded", fetchApps);
 
         function fetchApps() {
-            // Server API path: /api/get-data/:device_id/installed_apps
+            // API Call: /api/get-data/:device_id/installed_apps
             fetch(`/api/get-data/${deviceId}/installed_apps`)
                 .then(res => res.json())
                 .then(data => {
                     const listContainer = document.getElementById("app-list");
-                    listContainer.innerHTML = ""; // Clear loading
+                    listContainer.innerHTML = ""; // Loading spinner hatao
 
-                    // Data Validation
+                    // Agar koi data nahi aaya
                     if (!data || data.length === 0) {
                         listContainer.innerHTML = `
                             <div class="empty-state">
@@ -196,9 +202,9 @@
                         return;
                     }
 
-                    // Render Cards
+                    // Loop chalao aur cards banao
                     data.forEach(app => {
-                        // Data keys handle kar rahe hain (case insensitive fallback)
+                        // Keys handle kar rahe hain (Safety ke liye)
                         const name = app.appName || app.app_name || app.name || "Unknown App";
                         const pkg = app.packageName || app.package_name || app.package || "unknown.package";
                         const ver = app.versionName || app.version || "";
@@ -219,7 +225,7 @@
                     });
                 })
                 .catch(err => {
-                    console.error("Error:", err);
+                    console.error("Error fetching apps:", err);
                     document.getElementById("app-list").innerHTML = `
                         <div class="empty-state">
                             <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-color)"></i>
@@ -228,6 +234,9 @@
                 });
         }
 
+        // ============================================
+        // ✅ 3. SEARCH FILTER LOGIC
+        // ============================================
         function filterApps() {
             const input = document.getElementById('searchInput').value.toLowerCase();
             const cards = document.getElementsByClassName('app-card');
@@ -236,6 +245,7 @@
                 const name = card.querySelector('.app-name').innerText.toLowerCase();
                 const pkg = card.querySelector('.package-name').innerText.toLowerCase();
 
+                // Name ya Package ID dono mein search karega
                 if (name.includes(input) || pkg.includes(input)) {
                     card.style.display = "flex";
                 } else {
