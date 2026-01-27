@@ -3,182 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Installed Apps - Admin Panel</title>
+    <title>Installed Apps | Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #0f0f0f;
+            --bg-color: #050505;
             --glass-bg: rgba(255, 255, 255, 0.05);
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-main: #ffffff;
-            --text-muted: #aaaaaa;
-            --accent: #007bff; /* Blue for Apps */
+            --text-muted: #a0a0a0;
+            --accent-color: #00d2ff; /* Cyan Neon */
+            --danger-color: #ff4757;
         }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
 
         body {
             background-color: var(--bg-color);
-            background-image: linear-gradient(45deg, #000000, #121212);
+            background-image: radial-gradient(circle at 10% 20%, rgba(0, 210, 255, 0.05) 0%, transparent 20%);
             color: var(--text-main);
-            font-family: 'Segoe UI', sans-serif;
-            margin: 0;
-            padding: 20px;
             min-height: 100vh;
             display: flex;
             justify-content: center;
+            padding: 20px;
         }
 
         .container {
             width: 100%;
             max-width: 600px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 30px;
-            padding: 25px;
-            border: 1px solid var(--glass-border);
-            height: fit-content;
-        }
-
-        /* HEADER */
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid var(--glass-border);
-        }
-
-        .back-btn {
-            text-decoration: none;
-            color: white;
-            background: var(--glass-bg);
-            padding: 10px 15px;
-            border-radius: 50%;
-            border: 1px solid var(--glass-border);
-        }
-
-        .title { font-size: 1.4rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
-        .title i { color: var(--accent); }
-
-        /* APP LIST */
-        .app-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 20px;
         }
+
+        /* --- HEADER --- */
+        .header {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            padding: 15px 20px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h2 { font-size: 1.2rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        .header h2 i { color: var(--accent-color); }
+        
+        .back-btn {
+            text-decoration: none;
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.1);
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: 0.3s;
+            font-size: 0.9rem;
+        }
+        .back-btn:hover { background: var(--accent-color); color: #000; }
+
+        /* --- SEARCH --- */
+        .search-container { position: relative; }
+        .search-box {
+            width: 100%;
+            padding: 14px 15px 14px 45px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            background: var(--glass-bg);
+            color: white;
+            font-size: 1rem;
+            outline: none;
+            transition: 0.3s;
+        }
+        .search-box:focus { border-color: var(--accent-color); box-shadow: 0 0 10px rgba(0, 210, 255, 0.2); }
+        .search-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        /* --- APP LIST --- */
+        .app-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
 
         .app-card {
             background: var(--glass-bg);
             border: 1px solid var(--glass-border);
-            border-radius: 15px;
-            padding: 12px 18px;
+            padding: 15px;
+            border-radius: 14px;
             display: flex;
             align-items: center;
             gap: 15px;
-            transition: 0.3s;
+            transition: transform 0.2s, background 0.2s;
         }
 
         .app-card:hover {
-            border-color: var(--accent);
-            background: rgba(0, 123, 255, 0.05);
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
-        .app-icon-box {
-            width: 45px;
-            height: 45px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #1e1e1e, #2a2a2a);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.2rem;
-            color: var(--accent);
+            font-size: 1.5rem;
+            color: var(--accent-color);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        .app-info { flex: 1; }
-        .app-name { font-weight: bold; font-size: 1rem; margin-bottom: 2px; }
-        .app-package { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
+        .app-details { flex: 1; overflow: hidden; }
+        .app-name { font-size: 1rem; font-weight: 600; color: white; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .package-name { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        .search-box {
-            width: 100%;
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            padding: 12px;
-            border-radius: 12px;
-            color: white;
-            margin-bottom: 20px;
-            outline: none;
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--text-muted);
         }
 
-        .empty-state { text-align: center; padding: 50px; color: var(--text-muted); }
+        /* --- UTILS --- */
+        .loading, .empty-state { text-align: center; margin-top: 50px; color: var(--text-muted); }
+        .empty-state i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="header">
-            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i></a>
-            <div class="title"><i class="fa-solid fa-layer-group"></i> Installed Apps</div>
-            <div style="width: 40px;"></div>
+            <a href="index.html" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Back</a>
+            <h2><i class="fa-brands fa-android"></i> Installed Apps</h2>
+            <div id="device-id-display" style="font-size: 0.8rem; color: var(--text-muted);">...</div>
         </div>
 
-        <input type="text" class="search-box" id="appSearch" placeholder="Search app name..." onkeyup="filterApps()">
+        <div class="search-container">
+            <i class="fa-solid fa-search search-icon"></i>
+            <input type="text" class="search-box" id="searchInput" placeholder="Search apps or packages..." onkeyup="filterApps()">
+        </div>
 
         <div id="app-list" class="app-list">
-            <div class="empty-state">
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <p>Fetching Apps List...</p>
+            <div class="loading">
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Fetching App List...
             </div>
         </div>
     </div>
 
     <script>
-        document.addEventListener("DOMContentLoaded", fetchApps);
+        // URL se Device ID nikalo
+        const urlParams = new URLSearchParams(window.location.search);
+        const deviceId = urlParams.get('deviceId');
+
+        document.getElementById('device-id-display').innerText = deviceId || "Unknown Device";
+
+        // Start Fetching
+        document.addEventListener("DOMContentLoaded", () => {
+            if (deviceId) {
+                fetchApps();
+            } else {
+                document.getElementById('app-list').innerHTML = `<div class="empty-state"><p>Error: No Device ID Provided</p></div>`;
+            }
+        });
 
         function fetchApps() {
-            const deviceId = "Child_Phone_01";
-            fetch(`/api/apps/${deviceId}`)
+            // Server API path: /api/get-data/:device_id/installed_apps
+            fetch(`/api/get-data/${deviceId}/installed_apps`)
                 .then(res => res.json())
                 .then(data => {
-                    const container = document.getElementById("app-list");
-                    container.innerHTML = "";
+                    const listContainer = document.getElementById("app-list");
+                    listContainer.innerHTML = ""; // Clear loading
 
-                    if (data.length === 0) {
-                        container.innerHTML = `<div class="empty-state"><p>No Apps Found</p></div>`;
+                    // Data Validation
+                    if (!data || data.length === 0) {
+                        listContainer.innerHTML = `
+                            <div class="empty-state">
+                                <i class="fa-solid fa-box-open"></i>
+                                <p>No Apps Found or Data Not Uploaded Yet.</p>
+                            </div>`;
                         return;
                     }
 
+                    // Render Cards
                     data.forEach(app => {
+                        // Data keys handle kar rahe hain (case insensitive fallback)
+                        const name = app.appName || app.app_name || app.name || "Unknown App";
+                        const pkg = app.packageName || app.package_name || app.package || "unknown.package";
+                        const ver = app.versionName || app.version || "";
+
                         const card = document.createElement("div");
                         card.className = "app-card";
                         card.innerHTML = `
-                            <div class="app-icon-box">
-                                <i class="fa-solid fa-mobile-screen-button"></i>
+                            <div class="icon-box">
+                                <i class="fa-solid fa-mobile-screen"></i>
                             </div>
-                            <div class="app-info">
-                                <div class="app-name">${app.app_name}</div>
-                                <div class="app-package">${app.package_name}</div>
+                            <div class="app-details">
+                                <div class="app-name">${name}</div>
+                                <div class="package-name">${pkg}</div>
                             </div>
+                            ${ver ? `<div class="status-badge">v${ver}</div>` : ''}
                         `;
-                        container.appendChild(card);
+                        listContainer.appendChild(card);
                     });
                 })
                 .catch(err => {
-                    // Test ke liye 1-2 demo apps dikha raha hu
+                    console.error("Error:", err);
                     document.getElementById("app-list").innerHTML = `
-                        <div class="app-card"><div class="app-icon-box"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i></div><div class="app-info"><div class="app-name">WhatsApp</div><div class="app-package">com.whatsapp</div></div></div>
-                        <div class="app-card"><div class="app-icon-box"><i class="fa-brands fa-instagram" style="color:#E1306C"></i></div><div class="app-info"><div class="app-name">Instagram</div><div class="app-package">com.instagram.android</div></div></div>
-                    `;
+                        <div class="empty-state">
+                            <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-color)"></i>
+                            <p>Failed to load data.</p>
+                        </div>`;
                 });
         }
 
         function filterApps() {
-            let input = document.getElementById('appSearch').value.toLowerCase();
-            let cards = document.getElementsByClassName('app-card');
-            for (let i = 0; i < cards.length; i++) {
-                let name = cards[i].querySelector(".app-name").innerText.toLowerCase();
-                cards[i].style.display = name.includes(input) ? "flex" : "none";
+            const input = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.getElementsByClassName('app-card');
+
+            for (let card of cards) {
+                const name = card.querySelector('.app-name').innerText.toLowerCase();
+                const pkg = card.querySelector('.package-name').innerText.toLowerCase();
+
+                if (name.includes(input) || pkg.includes(input)) {
+                    card.style.display = "flex";
+                } else {
+                    card.style.display = "none";
+                }
             }
         }
     </script>
+
 </body>
 </html>
