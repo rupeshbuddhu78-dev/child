@@ -155,12 +155,14 @@
     </div>
 
     <script>
-        // ✅ Jaisa Call Logs me tha, waisa hi Verification Logic
         document.addEventListener("DOMContentLoaded", () => {
             const urlParams = new URLSearchParams(window.location.search);
-            const deviceId = urlParams.get('deviceId');
+            
+            // ✅ FIX: Ab yeh 'deviceId' ya 'id' dono me se jo bhi milega, use karega
+            const deviceId = urlParams.get('deviceId') || urlParams.get('id');
 
             if (!deviceId) {
+                console.error("No ID found in URL parameters.");
                 alert("❌ No Device Selected! Redirecting to Dashboard...");
                 window.location.href = "index.html";
                 return;
