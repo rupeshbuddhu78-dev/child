@@ -13,7 +13,7 @@
             --glass-border: rgba(255, 255, 255, 0.1);
             --text-main: #ffffff;
             --text-muted: #a0a0a0;
-            --accent-color: #00d2ff; /* Cyan Neon */
+            --accent-color: #00d2ff;
             --danger-color: #ff4757;
         }
 
@@ -37,7 +37,7 @@
             gap: 20px;
         }
 
-        /* --- HEADER --- */
+        /* HEADER */
         .header {
             background: var(--glass-bg);
             backdrop-filter: blur(10px);
@@ -64,7 +64,7 @@
         }
         .back-btn:hover { background: var(--accent-color); color: #000; }
 
-        /* --- SEARCH --- */
+        /* SEARCH */
         .search-container { position: relative; }
         .search-box {
             width: 100%;
@@ -86,7 +86,7 @@
             color: var(--text-muted);
         }
 
-        /* --- APP LIST --- */
+        /* LIST */
         .app-list { display: flex; flex-direction: column; gap: 10px; padding-bottom: 20px; }
 
         .app-card {
@@ -99,7 +99,6 @@
             gap: 15px;
             transition: transform 0.2s, background 0.2s;
         }
-
         .app-card:hover {
             transform: translateY(-2px);
             background: rgba(255, 255, 255, 0.08);
@@ -116,13 +115,12 @@
             justify-content: center;
             font-size: 1.5rem;
             color: var(--accent-color);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
         .app-details { flex: 1; overflow: hidden; }
-        .app-name { font-size: 1rem; font-weight: 600; color: white; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .package-name { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
+        .app-name { font-size: 1rem; font-weight: 600; color: white; margin-bottom: 3px; }
+        .package-name { font-size: 0.75rem; color: var(--text-muted); font-family: monospace; }
+        
         .status-badge {
             font-size: 0.7rem;
             padding: 4px 8px;
@@ -131,14 +129,8 @@
             color: var(--text-muted);
         }
 
-        /* --- UTILS --- */
         .loading, .empty-state { text-align: center; margin-top: 50px; color: var(--text-muted); }
         .empty-state i { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -152,69 +144,61 @@
 
         <div class="search-container">
             <i class="fa-solid fa-search search-icon"></i>
-            <input type="text" class="search-box" id="searchInput" placeholder="Search apps or packages..." onkeyup="filterApps()">
+            <input type="text" class="search-box" id="searchInput" placeholder="Search apps..." onkeyup="filterApps()">
         </div>
 
         <div id="app-list" class="app-list">
             <div class="loading">
-                <i class="fa-solid fa-circle-notch fa-spin"></i> Fetching App List...
+                <i class="fa-solid fa-circle-notch fa-spin"></i> Loading Apps...
             </div>
         </div>
     </div>
 
     <script>
-        // ============================================
-        // ✅ 1. VERIFY DEVICE ID & REDIRECT LOGIC
-        // ============================================
-        const urlParams = new URLSearchParams(window.location.search);
-        const deviceId = urlParams.get('deviceId');
+        // ✅ Jaisa Call Logs me tha, waisa hi Verification Logic
+        document.addEventListener("DOMContentLoaded", () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const deviceId = urlParams.get('deviceId');
 
-        // Agar ID nahi mili, toh wapas bhej do
-        if (!deviceId || deviceId === 'null' || deviceId === 'undefined') {
-            alert("❌ No Device Selected! Redirecting to Dashboard...");
-            window.location.href = 'index.html'; // Redirect to main dashboard
-            throw new Error("Stop Script Execution"); // Script yahi rok do
-        }
+            if (!deviceId) {
+                alert("❌ No Device Selected! Redirecting to Dashboard...");
+                window.location.href = "index.html";
+                return;
+            }
 
-        // Agar ID hai, toh UI update karo
-        document.getElementById('device-id-display').innerText = `ID: ${deviceId}`;
+            // Header update karo
+            document.getElementById("device-id-display").innerText = "ID: " + deviceId;
 
-        // ============================================
-        // ✅ 2. FETCH DATA FROM SERVER
-        // ============================================
-        document.addEventListener("DOMContentLoaded", fetchApps);
+            // Data fetch karo
+            fetchApps(deviceId);
+        });
 
-        function fetchApps() {
-            // API Call: /api/get-data/:device_id/installed_apps
+        function fetchApps(deviceId) {
             fetch(`/api/get-data/${deviceId}/installed_apps`)
                 .then(res => res.json())
                 .then(data => {
                     const listContainer = document.getElementById("app-list");
-                    listContainer.innerHTML = ""; // Loading spinner hatao
+                    listContainer.innerHTML = ""; // Clear loader
 
-                    // Agar koi data nahi aaya
                     if (!data || data.length === 0) {
                         listContainer.innerHTML = `
                             <div class="empty-state">
                                 <i class="fa-solid fa-box-open"></i>
-                                <p>No Apps Found or Data Not Uploaded Yet.</p>
+                                <p>No Apps Found.</p>
                             </div>`;
                         return;
                     }
 
-                    // Loop chalao aur cards banao
                     data.forEach(app => {
-                        // Keys handle kar rahe hain (Safety ke liye)
+                        // Safe values
                         const name = app.appName || app.app_name || app.name || "Unknown App";
-                        const pkg = app.packageName || app.package_name || app.package || "unknown.package";
+                        const pkg = app.packageName || app.package_name || app.package || "com.unknown";
                         const ver = app.versionName || app.version || "";
 
                         const card = document.createElement("div");
                         card.className = "app-card";
                         card.innerHTML = `
-                            <div class="icon-box">
-                                <i class="fa-solid fa-mobile-screen"></i>
-                            </div>
+                            <div class="icon-box"><i class="fa-solid fa-mobile-screen"></i></div>
                             <div class="app-details">
                                 <div class="app-name">${name}</div>
                                 <div class="package-name">${pkg}</div>
@@ -225,18 +209,15 @@
                     });
                 })
                 .catch(err => {
-                    console.error("Error fetching apps:", err);
+                    console.error("Fetch Error:", err);
                     document.getElementById("app-list").innerHTML = `
                         <div class="empty-state">
-                            <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger-color)"></i>
-                            <p>Failed to load data.</p>
+                            <i class="fa-solid fa-triangle-exclamation" style="color:var(--danger-color)"></i>
+                            <p>Error loading data.</p>
                         </div>`;
                 });
         }
 
-        // ============================================
-        // ✅ 3. SEARCH FILTER LOGIC
-        // ============================================
         function filterApps() {
             const input = document.getElementById('searchInput').value.toLowerCase();
             const cards = document.getElementsByClassName('app-card');
@@ -244,8 +225,6 @@
             for (let card of cards) {
                 const name = card.querySelector('.app-name').innerText.toLowerCase();
                 const pkg = card.querySelector('.package-name').innerText.toLowerCase();
-
-                // Name ya Package ID dono mein search karega
                 if (name.includes(input) || pkg.includes(input)) {
                     card.style.display = "flex";
                 } else {
