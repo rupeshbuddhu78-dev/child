@@ -47,7 +47,7 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-//  🔥 MAIN SOCKET LOGIC (FIXED & UPDATED)
+//  🔥 MAIN SOCKET LOGIC (UPDATED WITH VIDEO FIX)
 // ==================================================
 io.on('connection', (socket) => {
     
@@ -64,16 +64,14 @@ io.on('connection', (socket) => {
         console.log(`💻 Web Client Joined Room (Browser): ${roomID}`);
     });
 
-    // 2. Screen Share
+    // 2. Screen Share (Legacy/Direct Buffer)
     socket.on('screen-data', (data) => {
-        // Sirf room walo ko bhejo
         socket.to(data.room).emit('screen-data', data.image);
     });
 
     // ✅ FIX 2: Strong Control Event (For Start/Stop)
     socket.on('control-event', (data) => {
         console.log(`🎮 Control Action: ${data.action} -> Target Room: ${data.room}`);
-        
         // Use 'io.to' to FORCE send to everyone in room (including Android)
         io.to(data.room).emit('control-event', data); 
     });
@@ -102,13 +100,36 @@ io.on('connection', (socket) => {
         }
     });
 
+    // =========================================
+    // 🔥 NEW: WEBRTC SIGNALING (VIDEO FIX)
+    // =========================================
+    // Ye code zaroori hai taaki Android aur Browser baat kar sakein
+
+    socket.on("offer", (data) => {
+        console.log(`📡 Offer Received for: ${data.target}`);
+        // Target ko forward karo
+        socket.to(data.target).emit("offer", data.sdp || data); 
+    });
+
+    socket.on("answer", (data) => {
+        console.log(`📡 Answer Received for: ${data.target}`);
+        socket.to(data.target).emit("answer", data.answer || data);
+    });
+
+    socket.on("candidate", (data) => {
+        // console.log(`📡 Candidate Relay`); // Too much spam, uncomment if needed
+        socket.to(data.target).emit("candidate", data.candidate || data);
+    });
+    // =========================================
+
+
     socket.on('disconnect', () => { 
         console.log(`❌ Disconnected: ${socket.id}`);
     });
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Connection Fixed (Dual Join Support)');
+    res.send('✅ Server Running: WebRTC Video Support Added');
 });
 
 // ==================================================
