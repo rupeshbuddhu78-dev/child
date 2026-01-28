@@ -67,6 +67,10 @@
         }
         .control-btn:hover { border-color: var(--accent); color: var(--accent); transform: scale(1.1); }
         .control-btn:active { transform: scale(0.9); }
+        
+        /* Special Style for Start Button */
+        .btn-start { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(0, 255, 136, 0.2); }
+        .btn-start:hover { background: var(--accent); color: black; box-shadow: 0 0 20px var(--accent); }
 
         /* Navigation Bar */
         .nav-bar {
@@ -110,6 +114,10 @@
         </div>
 
         <div class="side-panel">
+            <div class="control-btn btn-start" onclick="sendCommand('start')" title="FORCE START STREAM">
+                <i class="fa-solid fa-play"></i>
+            </div>
+            
             <div class="control-btn" onclick="sendCommand('lock')" title="Lock Screen"><i class="fa-solid fa-lock"></i></div>
             <div class="control-btn" onclick="sendCommand('unlock')" title="Wake Screen"><i class="fa-solid fa-lock-open"></i></div>
             <div class="control-btn" onclick="sendCommand('volume_up')" title="Vol +"><i class="fa-solid fa-plus"></i></div>
@@ -218,9 +226,14 @@
 
         // --- BUTTON COMMANDS ---
         function sendCommand(action) {
-            if(!socket || !currentDeviceId) return;
+            if(!socket || !currentDeviceId) {
+                alert("Not connected to ID!");
+                return;
+            }
             // Haptic feedback (if on mobile)
             if(navigator.vibrate) navigator.vibrate(50);
+            
+            console.log("🚀 Sending Command:", action); // Browser console me dikhega
             
             socket.emit("control-event", {
                 room: currentDeviceId,
@@ -230,7 +243,6 @@
         }
 
         // --- 🔥 PRO CLICK/TOUCH HANDLING 🔥 ---
-        // Ye function 'object-fit: contain' ke bawajood sahi coordinates nikalta hai
         remoteVideo.addEventListener('click', (event) => {
             if(!socket || !currentDeviceId) return;
 
@@ -240,39 +252,31 @@
             const elementWidth = rect.width;
             const elementHeight = rect.height;
 
-            // Aspect Ratios
             const videoRatio = videoWidth / videoHeight;
             const elementRatio = elementWidth / elementHeight;
 
             let displayedWidth, displayedHeight;
             let startX = 0, startY = 0;
 
-            // Calculate actual video size displayed on screen
             if (elementRatio > videoRatio) {
-                // Letterboxing left/right (Black bars on sides)
                 displayedHeight = elementHeight;
                 displayedWidth = displayedHeight * videoRatio;
                 startX = (elementWidth - displayedWidth) / 2;
             } else {
-                // Letterboxing top/bottom (Black bars top/bottom)
                 displayedWidth = elementWidth;
                 displayedHeight = displayedWidth / videoRatio;
                 startY = (elementHeight - displayedHeight) / 2;
             }
 
-            // Click position relative to the video element
             const clickX = event.clientX - rect.left;
             const clickY = event.clientY - rect.top;
 
-            // Check if click is inside the actual video area (ignore black bars)
             if (clickX >= startX && clickX <= startX + displayedWidth &&
                 clickY >= startY && clickY <= startY + displayedHeight) {
                 
-                // Calculate percentage (0.0 to 1.0) relative to actual video
                 const relX = (clickX - startX) / displayedWidth;
                 const relY = (clickY - startY) / displayedHeight;
 
-                // Scale to actual video resolution (Android resolution)
                 const finalX = Math.round(relX * videoWidth);
                 const finalY = Math.round(relY * videoHeight);
 
@@ -280,7 +284,7 @@
 
                 socket.emit("control-event", {
                     room: currentDeviceId,
-                    action: "tap", // Android "tap" action handle karega
+                    action: "tap",
                     x: finalX, 
                     y: finalY
                 });
