@@ -18,6 +18,7 @@
             --accent-red: #ff3b30;
             --accent-blue: #0a84ff;
             --accent-green: #30d158;
+            --accent-orange: #ff9f0a;
             --text-main: #ffffff;
             --text-muted: #8b949e;
             --glass: blur(12px);
@@ -36,7 +37,6 @@
             background: rgba(5, 5, 9, 0.9); backdrop-filter: var(--glass);
             border-bottom: 1px solid var(--border);
             padding: 15px 20px; display: flex; flex-direction: column; gap: 15px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
 
         .top-bar { display: flex; justify-content: space-between; align-items: center; }
@@ -90,6 +90,15 @@
 
         .details h4 { margin: 0; font-size: 0.95rem; font-weight: 500; color: #fff; }
         .details span { font-size: 0.75rem; color: var(--text-muted); }
+
+        .action-btns { display: flex; gap: 8px; }
+
+        .boost-btn {
+            background: rgba(255, 159, 10, 0.15); color: var(--accent-orange); width: 35px; height: 35px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            border: 1px solid rgba(255, 159, 10, 0.3); cursor: pointer; transition: 0.3s;
+        }
+        .boost-btn.active { background: var(--accent-orange); color: #000; box-shadow: 0 0 15px var(--accent-orange); }
 
         .download-btn {
             background: rgba(255,255,255,0.1); color: #fff; width: 35px; height: 35px;
@@ -148,6 +157,10 @@
         let currentFilter = 'All';
         let currentDeviceId = '';
 
+        // Audio Context for Boosting
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const nodes = new Map(); // Store nodes for each audio element
+
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const urlID = urlParams.get('id');
@@ -170,6 +183,30 @@
             return parts.join(' ') || "Unknown Call";
         }
 
+        // --- NEW: BOOST LOGIC ---
+        function toggleBoost(btn, audioId) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const audio = document.getElementById(audioId);
+            if (!nodes.has(audioId)) {
+                // First time setup for this audio element
+                const source = audioCtx.createMediaElementSource(audio);
+                const gainNode = audioCtx.createGain();
+                source.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                nodes.set(audioId, gainNode);
+            }
+
+            const gainNode = nodes.get(audioId);
+            if (btn.classList.contains('active')) {
+                gainNode.gain.value = 1.0; // Normal
+                btn.classList.remove('active');
+            } else {
+                gainNode.gain.value = 5.0; // 5x Boost
+                btn.classList.add('active');
+            }
+        }
+
         function render() {
             const container = document.getElementById('recordingsList');
             container.innerHTML = '';
@@ -180,8 +217,9 @@
                 return;
             }
 
-            filtered.forEach(rec => {
+            filtered.forEach((rec, index) => {
                 const iconInfo = getIconInfo(rec.app);
+                const audioId = `audio_${index}`;
                 const html = `
                     <div class="card">
                         <div class="card-top">
@@ -192,13 +230,17 @@
                                     <span>${rec.app} • ${rec.date} • ${rec.time}</span>
                                 </div>
                             </div>
-                            <a href="${rec.url}" download="${rec.displayName}.m4a" target="_blank" class="download-btn" title="Download">
-                                <i class="fa-solid fa-download"></i>
-                            </a>
+                            <div class="action-btns">
+                                <button class="boost-btn" onclick="toggleBoost(this, '${audioId}')" title="Boost Volume 400%">
+                                    <i class="fa-solid fa-volume-high"></i>
+                                </button>
+                                <a href="${rec.url}" download="${rec.displayName}.m4a" target="_blank" class="download-btn" title="Download">
+                                    <i class="fa-solid fa-download"></i>
+                                </a>
+                            </div>
                         </div>
-                        <audio controls preload="none">
+                        <audio id="${audioId}" controls crossorigin="anonymous" preload="none">
                             <source src="${rec.url}" type="audio/mp4">
-                            Your browser does not support audio.
                         </audio>
                     </div>
                 `;
