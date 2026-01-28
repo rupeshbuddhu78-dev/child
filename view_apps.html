@@ -18,7 +18,8 @@
             --text-secondary: #94a3b8;
             --accent: #3b82f6;
             --danger: #ef4444;
-            --warning: #f59e0b; /* New Color for Disable */
+            --warning: #f59e0b; 
+            --success: #10b981; /* Green for Unlock */
         }
 
         body {
@@ -48,7 +49,7 @@
         .search-input:focus { outline: none; box-shadow: 0 0 0 2px var(--accent); }
         .search-icon { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); }
 
-        /* 🔥 LIST VIEW STYLE 🔥 */
+        /* LIST VIEW STYLE */
         .app-item {
             background: var(--list-bg);
             border-radius: 12px;
@@ -80,8 +81,16 @@
         .pkg-name { font-size: 0.75rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
         .arrow-icon { color: var(--text-secondary); font-size: 0.9rem; }
+        
+        /* Locked Indicator in List */
+        .lock-badge {
+            color: var(--warning);
+            font-size: 0.8rem;
+            margin-right: 10px;
+            display: none; /* Hidden by default */
+        }
 
-        /* 🔥 MODAL STYLES (POPUP) 🔥 */
+        /* MODAL STYLES */
         .modal-content {
             background-color: #1e293b;
             color: #fff;
@@ -89,7 +98,7 @@
             border-radius: 15px;
         }
         .modal-header { border-bottom: 1px solid #334155; }
-        .modal-footer { border-top: 1px solid #334155; display: block; } /* Changed to block for full width buttons */
+        .modal-footer { border-top: 1px solid #334155; display: block; } 
         .btn-close-white { filter: invert(1); }
 
         .big-icon {
@@ -110,24 +119,35 @@
         .info-val { color: #fff; font-family: monospace; }
 
         /* BUTTONS */
-        /* Disable Button (Yellow/Orange) */
-        .btn-action-disable { 
+        
+        /* Default Button Style */
+        .btn-toggle { 
             width: 100%; 
-            background: var(--warning); 
-            border: none; 
             padding: 12px; 
             border-radius: 8px; 
-            color: #000; /* Black text for contrast */
             font-weight: 700; 
             margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
+            border: none;
+            transition: 0.3s;
         }
-        .btn-action-disable:hover {
-            background: #d97706; /* Darker orange */
+
+        /* State: LOCK (Yellow) */
+        .btn-state-lock {
+            background: var(--warning); 
+            color: #000;
         }
+        .btn-state-lock:hover { background: #d97706; }
+
+        /* State: UNLOCK (Green) */
+        .btn-state-unlock {
+            background: var(--success); 
+            color: #fff;
+        }
+        .btn-state-unlock:hover { background: #059669; }
 
         /* Uninstall Button (Red) */
         .btn-action-uninstall { 
@@ -172,8 +192,7 @@
     </header>
 
     <div class="container mt-3">
-        <div id="appsContainer">
-            </div>
+        <div id="appsContainer"></div>
         <div id="statusMsg" class="text-center text-muted mt-5">Loading...</div>
     </div>
 
@@ -206,8 +225,8 @@
                 </div>
                 
                 <div class="modal-footer">
-                    <button class="btn-action-disable" onclick="sendDisableCommand()">
-                        <i class="fas fa-ban"></i> DISABLE / LOCK APP
+                    <button id="btnToggleLock" class="btn-toggle btn-state-lock" onclick="toggleAppLock()">
+                        <i class="fas fa-ban"></i> <span>LOCK APP</span>
                     </button>
                     
                     <button class="btn-action-uninstall" onclick="sendUninstallCommand()">
@@ -224,10 +243,14 @@
         const urlParams = new URLSearchParams(window.location.search);
         const DEVICE_ID = urlParams.get('id') || urlParams.get('deviceId');
         const storageKey = `apps_${DEVICE_ID}`;
+        const lockedListKey = `locked_apps_${DEVICE_ID}`; // Local storage key for locked status
         
         let allApps = [];
         let currentAppPkg = ""; 
         let refreshInterval;
+        
+        // Load Locked List from Local Storage
+        let lockedApps = JSON.parse(localStorage.getItem(lockedListKey)) || [];
 
         document.addEventListener("DOMContentLoaded", () => {
             if (!DEVICE_ID) {
@@ -286,7 +309,6 @@
                 .catch(() => document.getElementById("liveText").innerText = "Offline");
         }
 
-        // 🔥 RENDER AS LIST 🔥
         function renderApps(data) {
             const container = document.getElementById("appsContainer");
             document.getElementById("appCount").innerText = data.length;
@@ -299,6 +321,10 @@
                     ? `data:image/webp;base64,${app.icon}` 
                     : 'https://cdn-icons-png.flaticon.com/512/160/160139.png';
 
+                // Check if Locked
+                const isLocked = lockedApps.includes(app.packageName);
+                const lockIcon = isLocked ? '<i class="fas fa-lock text-warning me-2"></i>' : '';
+
                 const div = document.createElement("div");
                 div.className = "app-item";
                 div.onclick = function() { openDetailsModal(app); };
@@ -309,6 +335,7 @@
                         <div class="app-name">${app.appName}</div>
                         <div class="pkg-name">${app.packageName}</div>
                     </div>
+                    ${lockIcon}
                     <i class="fas fa-chevron-right arrow-icon"></i>
                 `;
                 container.appendChild(div);
@@ -324,7 +351,7 @@
             renderApps(filtered);
         }
 
-        // 🔥 OPEN MODAL 🔥
+        // 🔥 OPEN MODAL & SET BUTTON STATE 🔥
         function openDetailsModal(app) {
             currentAppPkg = app.packageName;
 
@@ -335,34 +362,79 @@
                     ? `data:image/webp;base64,${app.icon}` 
                     : 'https://cdn-icons-png.flaticon.com/512/160/160139.png';
             document.getElementById("modalIcon").src = iconSrc;
-
             document.getElementById("modalVersion").innerText = app.versionName || "Unknown";
             document.getElementById("modalDate").innerText = app.installDate || "N/A";
             document.getElementById("modalPath").innerText = `/data/user/0/${app.packageName}`;
+
+            // Check Lock Status Logic
+            updateToggleButtonUI();
 
             const myModal = new bootstrap.Modal(document.getElementById('appDetailModal'));
             myModal.show();
         }
 
-        // --- UPDATED COMMANDS ---
-        
-        // 🔥 DISABLE COMMAND (Replaces Open) 🔥
-        function sendDisableCommand() {
+        function updateToggleButtonUI() {
+            const btn = document.getElementById("btnToggleLock");
+            const isLocked = lockedApps.includes(currentAppPkg);
+
+            if (isLocked) {
+                // Agar Locked hai -> UI will show UNLOCK Option
+                btn.className = "btn-toggle btn-state-unlock";
+                btn.innerHTML = '<i class="fas fa-unlock"></i> UNLOCK APP';
+            } else {
+                // Agar Unlocked hai -> UI will show LOCK Option
+                btn.className = "btn-toggle btn-state-lock";
+                btn.innerHTML = '<i class="fas fa-ban"></i> LOCK APP';
+            }
+        }
+
+        // 🔥 TOGGLE LOGIC (LOCK / UNLOCK) 🔥
+        function toggleAppLock() {
             if(!currentAppPkg) return;
             
-            // Confirmation Msg
-            if(confirm(`Are you sure you want to LOCK ${currentAppPkg}?\nThe user will be kicked out when they try to open it.`)) {
-                // Sending 'disable' command instead of 'open'
+            const btn = document.getElementById("btnToggleLock");
+            const isLocked = lockedApps.includes(currentAppPkg);
+
+            if (isLocked) {
+                // Step 1: Currently Locked -> Command to UNLOCK (Enable)
+                sendCommandToDevice(`enable:${currentAppPkg}`);
+                
+                // Update Local List
+                lockedApps = lockedApps.filter(pkg => pkg !== currentAppPkg);
+                localStorage.setItem(lockedListKey, JSON.stringify(lockedApps));
+
+                // Update UI Immediately
+                updateToggleButtonUI();
+                renderApps(allApps); // Update list icon
+                
+                // Optional Toast/Feedback
+                console.log("Unlocked: " + currentAppPkg);
+
+            } else {
+                // Step 2: Currently Unlocked -> Command to LOCK (Disable)
                 sendCommandToDevice(`disable:${currentAppPkg}`);
-                alert("Disable Command Sent! (Phone will kick user out)");
+                
+                // Update Local List
+                lockedApps.push(currentAppPkg);
+                localStorage.setItem(lockedListKey, JSON.stringify(lockedApps));
+
+                // Update UI Immediately
+                updateToggleButtonUI();
+                renderApps(allApps); // Update list icon
+                
+                console.log("Locked: " + currentAppPkg);
             }
         }
 
         function sendUninstallCommand() {
             if(!currentAppPkg) return;
-            if(confirm(`Request uninstall for ${currentAppPkg}?`)) {
-                sendCommandToDevice(`uninstall:${currentAppPkg}`);
-            }
+            // Removed Confirm Popup as requested
+            sendCommandToDevice(`uninstall:${currentAppPkg}`);
+            // Feedback
+            const btn = document.querySelector('.btn-action-uninstall');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Sent!';
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
         }
 
         function sendCommandToDevice(cmd) {
