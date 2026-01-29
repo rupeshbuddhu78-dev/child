@@ -3,18 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Control v3.0 (Fixed)</title>
+    <title>Shadow Control v4.0 (Stable)</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 
     <style>
         :root {
             --bg-dark: #050505;
-            --panel-glass: rgba(20, 25, 35, 0.85); /* Thoda darker kiya taaki text dikhe */
+            --panel-glass: rgba(20, 25, 35, 0.9);
             --accent: #00f3ff;
-            --accent-glow: rgba(0, 243, 255, 0.25);
             --danger: #ff2a6d;
             --border: 1px solid rgba(255, 255, 255, 0.12);
             --text-color: #e0e6ed;
@@ -23,315 +22,213 @@
         * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
 
         body {
-            margin: 0; 
-            background-color: var(--bg-dark); 
-            color: var(--text-color);
-            font-family: 'Rajdhani', sans-serif;
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden;
-            background-image: 
-                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
-                url("https://www.transparenttextures.com/patterns/cubes.png");
+            margin: 0; background-color: var(--bg-dark); color: var(--text-color);
+            font-family: 'Rajdhani', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden;
         }
 
-        /* --- HEADER --- */
         .top-bar {
-            height: 55px;
-            padding: 0 20px;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(12px);
-            border-bottom: var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
+            height: 55px; padding: 0 20px; background: rgba(10, 10, 15, 0.9); border-bottom: var(--border);
+            display: flex; justify-content: space-between; align-items: center; z-index: 100;
         }
 
-        .brand {
-            font-size: 1.4rem; font-weight: 700; color: var(--accent);
-            text-transform: uppercase; letter-spacing: 2px;
-            display: flex; align-items: center; gap: 10px;
-        }
+        .brand { font-size: 1.4rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; }
 
         .status-pill {
-            background: rgba(255,255,255,0.05);
-            padding: 6px 15px; border-radius: 50px; border: var(--border);
-            display: flex; align-items: center; gap: 8px; font-size: 0.85rem;
+            background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 50px; border: var(--border);
+            display: flex; align-items: center; gap: 8px; font-size: 0.8rem;
         }
-
-        .dot { width: 8px; height: 8px; border-radius: 50%; }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
         .dot.online { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
-        .dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-        .dot.connecting { background: #ffaa00; animation: blink 1s infinite; }
 
-        @keyframes blink { 50% { opacity: 0.5; } }
-
-        /* --- MAIN LAYOUT --- */
         .main-container { flex: 1; display: flex; overflow: hidden; position: relative; }
 
         .video-wrapper {
-            flex: 1; display: flex; justify-content: center; align-items: center;
-            position: relative; background: #000; overflow: hidden;
+            flex: 1; background: #000; position: relative; display: flex; justify-content: center; align-items: center;
         }
 
-        video {
-            width: 100%; height: 100%;
-            object-fit: contain; /* Aspect Ratio maintain karega */
-            background: black;
-            z-index: 1;
-        }
-
-        .sidebar {
-            width: 320px; background: var(--panel-glass);
-            backdrop-filter: blur(15px); border-left: var(--border);
-            padding: 20px; display: flex; flex-direction: column; gap: 15px;
-            overflow-y: auto;
-        }
-
-        .control-group {
-            background: rgba(0,0,0,0.4); padding: 12px;
-            border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .group-title {
-            font-size: 0.75rem; color: var(--accent);
-            text-transform: uppercase; margin-bottom: 8px; font-weight: bold;
-        }
-
-        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-
-        .btn {
-            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-            border: 1px solid rgba(255,255,255,0.05); color: #ccc;
-            padding: 12px 0; border-radius: 6px; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-        }
-        
-        .btn:hover { background: rgba(0, 243, 255, 0.1); color: var(--accent); border-color: var(--accent-glow); }
-
-        .btn-large { grid-column: span 3; background: rgba(0, 243, 255, 0.15); color: white; font-weight: bold; }
-        
-        .btn-danger { color: var(--danger); }
-
-        .input-box { display: flex; gap: 6px; margin-top: 5px; }
-        .text-input {
-            flex: 1; background: rgba(0,0,0,0.4); border: var(--border);
-            color: white; padding: 8px 12px; border-radius: 4px; outline: none;
-        }
-
-        .toast {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9); color: var(--accent);
-            padding: 10px 25px; border-radius: 30px; border: 1px solid var(--accent);
-            opacity: 0; transition: 0.3s; z-index: 1000;
-        }
+        video { width: 100%; height: 100%; object-fit: contain; background: black; }
 
         .overlay-msg {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            text-align: center; color: rgba(255,255,255,0.7); z-index: 10;
+            background: rgba(0,0,0,0.85); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; text-align: center; color: white; z-index: 10;
         }
 
-        @media (max-width: 850px) {
+        .sidebar {
+            width: 300px; background: var(--panel-glass); border-left: var(--border);
+            padding: 15px; display: flex; flex-direction: column; gap: 15px; overflow-y: auto;
+        }
+
+        .control-group { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+        .group-title { color: var(--accent); font-size: 0.7rem; text-transform: uppercase; margin-bottom: 5px; font-weight: bold; }
+        
+        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .btn {
+            background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.05); color: #ccc;
+            padding: 10px 0; border-radius: 5px; cursor: pointer; display: flex; flex-direction: column; align-items: center;
+        }
+        .btn:active { background: var(--accent); color: black; }
+        .btn-large { grid-column: span 3; background: rgba(0, 243, 255, 0.1); color: white; font-weight: bold; }
+
+        @media (max-width: 800px) {
             .main-container { flex-direction: column; }
-            .sidebar { width: 100%; height: 45%; border-left: none; border-top: var(--border); }
-            .video-wrapper { height: 55%; }
+            .sidebar { width: 100%; height: 40%; border-left: none; border-top: var(--border); }
         }
     </style>
 </head>
 <body>
 
     <div class="top-bar">
-        <div class="brand"><i class="fa-solid fa-ghost"></i> <span>Shadow Control</span></div>
+        <div class="brand"><i class="fa-solid fa-ghost"></i> Shadow V4</div>
         <div class="status-pill">
-            <div id="statusDot" class="dot offline"></div>
+            <div id="statusDot" class="dot"></div>
             <span id="statusText">Disconnected</span>
         </div>
     </div>
 
     <div class="main-container">
-        <div class="video-wrapper" id="videoContainer">
-            <div class="overlay-msg" id="loadingMsg">
-                <i class="fa-solid fa-wifi fa-3x"></i>
-                <p id="loaderSubText" style="margin-top:15px; letter-spacing:1px;">WAITING FOR CONNECTION...</p>
-                <small style="color: #666; margin-top: 5px;">Make sure "Start Now" is pressed on Phone</small>
+        <div class="video-wrapper">
+            <div class="overlay-msg" id="loadingOverlay">
+                <i class="fa-solid fa-satellite-dish fa-3x"></i>
+                <h3 style="margin:10px 0;">WAITING FOR SIGNAL</h3>
+                <p id="debugText" style="color:#888; font-size: 12px;">Initializing...</p>
             </div>
-            
             <video id="remoteVideo" autoplay playsinline muted controls></video>
-            
-            <button onclick="toggleFullscreen()" style="position:absolute; bottom:15px; right:15px; background:rgba(0,0,0,0.6); border:1px solid #444; color:white; padding:8px 12px; border-radius:6px; cursor:pointer; z-index:20;">
-                <i class="fa-solid fa-expand"></i>
-            </button>
         </div>
 
         <div class="sidebar">
             <div class="control-group">
-                <div class="group-title">Connection Status</div>
-                <button class="btn btn-large" id="startBtn" onclick="forceStart()">
-                    <i class="fa-solid fa-power-off"></i> CONNECT & STREAM
+                <div class="group-title">Connection</div>
+                <button class="btn btn-large" onclick="requestStream()">
+                    <i class="fa-solid fa-play"></i> START STREAM
                 </button>
             </div>
 
             <div class="control-group">
                 <div class="group-title">Navigation</div>
                 <div class="btn-grid">
-                    <button class="btn" onclick="sendCmd('back')"><i class="fa-solid fa-chevron-left"></i><span>BACK</span></button>
-                    <button class="btn" onclick="sendCmd('home')"><i class="fa-regular fa-circle"></i><span>HOME</span></button>
-                    <button class="btn" onclick="sendCmd('recent')"><i class="fa-regular fa-square"></i><span>APPS</span></button>
+                    <button class="btn" onclick="sendCmd('back')"><i class="fa-solid fa-chevron-left"></i> BACK</button>
+                    <button class="btn" onclick="sendCmd('home')"><i class="fa-regular fa-circle"></i> HOME</button>
+                    <button class="btn" onclick="sendCmd('recent')"><i class="fa-regular fa-square"></i> APPS</button>
                 </div>
             </div>
 
             <div class="control-group">
-                <div class="group-title">Quick Actions</div>
+                <div class="group-title">Gestures</div>
                 <div class="btn-grid">
-                    <button class="btn" onclick="sendCmd('swipe_up')"><i class="fa-solid fa-arrow-up"></i><span>UP</span></button>
-                    <button class="btn" onclick="sendCmd('swipe_down')"><i class="fa-solid fa-arrow-down"></i><span>DOWN</span></button>
-                    <button class="btn" onclick="sendCmd('unlock')"><i class="fa-solid fa-mobile-screen"></i><span>WAKE</span></button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <div class="group-title">Type & Send</div>
-                <div class="input-box">
-                    <input type="text" id="typeInput" class="text-input" placeholder="Type text...">
-                    <button class="btn" style="width: 50px;" onclick="sendText()"><i class="fa-solid fa-paper-plane"></i></button>
+                    <button class="btn" onclick="sendCmd('swipe_up')"><i class="fa-solid fa-arrow-up"></i> UP</button>
+                    <button class="btn" onclick="sendCmd('swipe_down')"><i class="fa-solid fa-arrow-down"></i> DOWN</button>
+                    <button class="btn" onclick="sendCmd('unlock')"><i class="fa-solid fa-lock-open"></i> WAKE</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <div id="toast" class="toast">Action Sent</div>
-
     <script>
+        // --- CONFIGURATION ---
         const SERVER_URL = "https://child-v9no.onrender.com";
         const urlParams = new URLSearchParams(window.location.search);
-        const currentDeviceId = urlParams.get('id'); // URL se ID uthayega (view_screen.html?id=123456)
+        const DEVICE_ID = urlParams.get('id'); // e.g. ?id=945428
 
-        let socket;
-        let peerConnection;
-        
-        // Google STUN Servers (Reliable)
-        const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-
-        const remoteVideo = document.getElementById('remoteVideo');
+        // --- DOM ELEMENTS ---
         const statusText = document.getElementById('statusText');
         const statusDot = document.getElementById('statusDot');
-        const loadingMsg = document.getElementById('loadingMsg');
-        const loaderSubText = document.getElementById('loaderSubText');
+        const debugText = document.getElementById('debugText');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const remoteVideo = document.getElementById('remoteVideo');
 
-        if (!currentDeviceId) {
-            loaderSubText.innerText = "ERROR: ID MISSING IN URL";
-            statusText.innerText = "No ID Provided";
+        let socket = null;
+        let peerConnection = null;
+
+        const rtcConfig = {
+            iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+        };
+
+        // --- INITIALIZATION ---
+        if (!DEVICE_ID) {
+            debugText.innerText = "ERROR: Missing Device ID in URL";
+            alert("URL me ID nahi hai! (?id=XXXX)");
         } else {
-            // Default ID agar URL me na ho to (Testing ke liye)
-            document.getElementById('typeInput').value = currentDeviceId;
+            initSocket();
         }
 
-        // --- CONNECT BUTTON CLICK ---
-        function forceStart() {
-            if(!currentDeviceId) return alert("URL me ID nahi hai! (e.g. ?id=123456)");
+        function initSocket() {
+            debugText.innerText = "Connecting to Server...";
             
-            loaderSubText.innerText = "CONNECTING...";
-            statusDot.className = "dot connecting";
-            
-            if (socket) socket.disconnect();
-            
-            socket = io(SERVER_URL, { transports: ['websocket', 'polling'] });
-            setupSocketListeners();
-        }
+            // Socket connect karo (WebSocket mode only for stability)
+            socket = io(SERVER_URL, { transports: ['websocket'] });
 
-        function setupSocketListeners() {
             socket.on("connect", () => {
-                setStatus(true, "Connected, Waiting for Video...");
-                console.log("✅ Socket Connected");
-                socket.emit("join-room", currentDeviceId);
+                setStatus(true, "Server Connected");
+                debugText.innerText = `Joined Room: ${DEVICE_ID}`;
+                socket.emit("join-room", DEVICE_ID);
             });
 
-            socket.on("disconnect", () => setStatus(false, "Disconnected"));
+            socket.on("disconnect", () => {
+                setStatus(false, "Disconnected");
+                debugText.innerText = "Lost connection to server";
+            });
 
+            // --- WEBRTC LOGIC ---
             socket.on("offer", async (data) => {
                 console.log("📡 Offer Received!");
-                setStatus(true, "Negotiating Video...");
-
+                debugText.innerText = "Offer Received! Negotiating...";
+                
                 if (peerConnection) peerConnection.close();
-                peerConnection = new RTCPeerConnection(config);
+                peerConnection = new RTCPeerConnection(rtcConfig);
 
-                // --- 🎥 STREAM HANDLER (Fix for Black Screen) ---
                 peerConnection.ontrack = (event) => {
-                    console.log("🎥 Stream Started!");
-                    
-                    // 1. Hide Overlay
-                    loadingMsg.style.display = "none";
-                    
-                    // 2. Play Video
+                    console.log("🎥 Stream Found!");
+                    debugText.innerText = "Stream Active";
+                    loadingOverlay.style.display = "none"; // Hide Overlay
                     remoteVideo.srcObject = event.streams[0];
-                    remoteVideo.play().catch(e => console.log("Auto-play blocked, press Play button"));
-                    
-                    setStatus(true, "🔴 LIVE STREAMING");
-                    showToast("VIDEO STARTED");
+                    remoteVideo.play().catch(e => console.log("Press play manually"));
                 };
 
                 peerConnection.onicecandidate = (event) => {
                     if (event.candidate) {
-                        socket.emit("candidate", { target: currentDeviceId, candidate: event.candidate });
+                        socket.emit("candidate", { target: DEVICE_ID, candidate: event.candidate });
                     }
                 };
 
-                let offerData = data.offer || data; // Handle different JSON structures
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offerData));
-                
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer || data));
                 const answer = await peerConnection.createAnswer();
                 await peerConnection.setLocalDescription(answer);
 
-                console.log("⚡ Sending Answer");
-                socket.emit("answer", { target: currentDeviceId, answer: answer });
+                socket.emit("answer", { target: DEVICE_ID, answer: answer });
+                debugText.innerText = "Sent Answer. Waiting for Video...";
             });
 
             socket.on("candidate", async (data) => {
                 if (peerConnection) {
-                    let candidate = data.candidate || data;
                     try {
-                        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-                    } catch (e) { console.error("Error adding candidate", e); }
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate || data));
+                    } catch (e) { console.error(e); }
                 }
             });
         }
 
-        function setStatus(online, text) {
-            statusText.innerText = text;
-            statusDot.className = online ? "dot online" : "dot offline";
+        // --- USER ACTIONS ---
+        function requestStream() {
+            if (!socket || !socket.connected) {
+                alert("Server se connect nahi hai!");
+                return;
+            }
+            debugText.innerText = "Requesting Stream...";
+            // Phone ko bolo "Start" karne ko
+            // Note: Phone app me ye event handle hona chahiye
+            socket.emit("control-event", { room: DEVICE_ID, action: "start" });
         }
 
-        // --- COMMANDS ---
-        function sendCmd(action, x = 0, y = 0) {
-            if (!socket?.connected) return showToast("Not Connected!");
-            socket.emit("control-event", { room: currentDeviceId, action, x, y });
-            if (!['tap', 'drag'].includes(action)) showToast(action.toUpperCase());
-        }
-
-        function sendText() {
-            const input = document.getElementById('typeInput');
-            if (input.value && socket?.connected) {
-                socket.emit("control-event", { room: currentDeviceId, action: "text_input", text: input.value });
-                input.value = "";
-                showToast("TEXT SENT");
+        function sendCmd(action) {
+            if (socket && socket.connected) {
+                socket.emit("control-event", { room: DEVICE_ID, action: action });
             }
         }
 
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg; t.style.opacity = "1";
-            setTimeout(() => t.style.opacity = "0", 2000);
-        }
-
-        function toggleFullscreen() {
-            const v = document.getElementById("videoContainer");
-            if (!document.fullscreenElement) v.requestFullscreen();
-            else document.exitFullscreen();
+        function setStatus(online, text) {
+            statusDot.className = online ? "dot online" : "dot";
+            statusText.innerText = text;
         }
     </script>
 </body>
