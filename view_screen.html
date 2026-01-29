@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Control v2.0 (Fixed)</title>
+    <title>Shadow Control v3.0 (Ultimate)</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
@@ -11,46 +11,47 @@
 
     <style>
         :root {
-            --bg-color: #0a0a0f;
-            --panel-bg: rgba(20, 20, 30, 0.7);
+            --bg-dark: #050505;
+            --panel-glass: rgba(20, 25, 35, 0.65);
             --accent: #00f3ff;
-            --accent-glow: rgba(0, 243, 255, 0.4);
+            --accent-glow: rgba(0, 243, 255, 0.25);
             --danger: #ff2a6d;
-            --text-main: #ffffff;
-            --border: 1px solid rgba(255, 255, 255, 0.1);
+            --border: 1px solid rgba(255, 255, 255, 0.12);
+            --text-color: #e0e6ed;
         }
 
-        * { box-sizing: border-box; user-select: none; }
+        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
 
         body {
             margin: 0; 
-            background-color: var(--bg-color); 
-            color: var(--text-main);
+            background-color: var(--bg-dark); 
+            color: var(--text-color);
             font-family: 'Rajdhani', sans-serif;
             height: 100vh; 
             display: flex; 
             flex-direction: column; 
             overflow: hidden;
             background-image: 
-                radial-gradient(circle at 10% 20%, rgba(0, 243, 255, 0.05) 0%, transparent 20%),
-                radial-gradient(circle at 90% 80%, rgba(255, 42, 109, 0.05) 0%, transparent 20%);
+                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+                url("https://www.transparenttextures.com/patterns/cubes.png");
         }
 
         /* --- HEADER --- */
         .top-bar {
-            height: 60px;
+            height: 55px;
             padding: 0 20px;
-            background: var(--panel-bg);
-            backdrop-filter: blur(10px);
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(12px);
             border-bottom: var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
             z-index: 100;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.5);
         }
 
         .brand {
-            font-size: 1.5rem;
+            font-size: 1.4rem;
             font-weight: 700;
             color: var(--accent);
             text-transform: uppercase;
@@ -62,19 +63,23 @@
         }
 
         .status-pill {
-            background: rgba(0,0,0,0.3);
-            padding: 5px 15px;
-            border-radius: 20px;
+            background: rgba(255,255,255,0.05);
+            padding: 6px 15px;
+            border-radius: 50px;
             border: var(--border);
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 0.9rem;
+            gap: 8px;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
         }
 
-        .dot { width: 8px; height: 8px; border-radius: 50%; background: #444; transition: 0.3s; }
-        .dot.online { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; transition: 0.3s; }
+        .dot.online { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
         .dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+        .dot.connecting { background: #ffaa00; animation: blink 1s infinite; }
+
+        @keyframes blink { 50% { opacity: 0.5; } }
 
         /* --- MAIN LAYOUT --- */
         .main-container {
@@ -102,140 +107,156 @@
             height: auto;
             object-fit: contain;
             cursor: crosshair;
-        }
-
-        /* Ripple Effect for Click */
-        .ripple {
-            position: absolute;
-            width: 20px; height: 20px;
-            background: rgba(0, 243, 255, 0.6);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            animation: ripple-anim 0.6s linear;
-            pointer-events: none;
-        }
-        @keyframes ripple-anim {
-            0% { width: 0; height: 0; opacity: 1; }
-            100% { width: 100px; height: 100px; opacity: 0; }
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
         }
 
         /* --- SIDEBAR CONTROLS --- */
         .sidebar {
-            width: 300px;
-            background: var(--panel-bg);
+            width: 320px;
+            background: var(--panel-glass);
             backdrop-filter: blur(15px);
             border-left: var(--border);
             padding: 20px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
             overflow-y: auto;
-            transition: transform 0.3s ease;
+            z-index: 50;
         }
 
         .control-group {
-            background: rgba(255,255,255,0.03);
-            padding: 15px;
-            border-radius: 12px;
-            border: var(--border);
+            background: rgba(0,0,0,0.2);
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.05);
         }
 
         .group-title {
-            font-size: 0.8rem;
-            color: #888;
+            font-size: 0.75rem;
+            color: var(--accent);
             text-transform: uppercase;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             letter-spacing: 1px;
+            font-weight: bold;
+            opacity: 0.8;
         }
 
         .btn-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
+            gap: 8px;
         }
 
         .btn {
-            background: rgba(255,255,255,0.05);
-            border: none;
+            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+            border: 1px solid rgba(255,255,255,0.05);
             color: #ccc;
-            padding: 15px 0;
-            border-radius: 8px;
+            padding: 12px 0;
+            border-radius: 6px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: all 0.2s ease;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 5px;
+            gap: 4px;
             font-family: 'Rajdhani', sans-serif;
         }
-        .btn:hover { background: rgba(0, 243, 255, 0.1); color: var(--accent); border: 1px solid var(--accent-glow); }
-        .btn:active { transform: scale(0.95); }
-        .btn i { font-size: 1.2rem; }
-        .btn span { font-size: 0.7rem; }
-
-        .btn-large { grid-column: span 3; background: var(--accent-glow); color: white; font-weight: bold; }
-        .btn-large:hover { background: var(--accent); color: black; }
         
-        .btn-danger { color: var(--danger); border: 1px solid rgba(255, 42, 109, 0.3); }
-        .btn-danger:hover { background: var(--danger); color: white; }
-
-        /* Keyboard Input */
-        .input-box {
-            display: flex;
-            gap: 5px;
-            margin-top: 10px;
+        .btn:hover { 
+            background: rgba(0, 243, 255, 0.1); 
+            color: var(--accent); 
+            border-color: var(--accent-glow);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
+        
+        .btn:active { transform: scale(0.95); }
+        .btn i { font-size: 1.1rem; }
+        .btn span { font-size: 0.65rem; font-weight: 600; }
+
+        .btn-large { 
+            grid-column: span 3; 
+            background: rgba(0, 243, 255, 0.15); 
+            color: white; 
+            font-weight: bold; 
+            border: 1px solid var(--accent-glow);
+        }
+        .btn-large:hover { background: var(--accent); color: black; box-shadow: 0 0 15px var(--accent-glow); }
+        
+        .btn-danger { color: var(--danger); border-color: rgba(255, 42, 109, 0.3); }
+        .btn-danger:hover { background: var(--danger); color: white; border-color: var(--danger); }
+
+        /* Input Field */
+        .input-box { display: flex; gap: 6px; margin-top: 5px; }
         .text-input {
             flex: 1;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0,0,0,0.4);
             border: var(--border);
             color: white;
-            padding: 8px;
-            border-radius: 5px;
+            padding: 8px 12px;
+            border-radius: 4px;
             outline: none;
+            font-family: 'Rajdhani', sans-serif;
         }
-        .text-input:focus { border-color: var(--accent); }
+        .text-input:focus { border-color: var(--accent); background: rgba(0,0,0,0.6); }
 
-        /* --- TOAST NOTIFICATION --- */
+        /* --- TOAST & OVERLAY --- */
         .toast {
             position: fixed;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.9);
             color: var(--accent);
-            padding: 10px 20px;
-            border-radius: 20px;
+            padding: 10px 25px;
+            border-radius: 30px;
             border: 1px solid var(--accent);
             opacity: 0;
             transition: opacity 0.3s;
             pointer-events: none;
             z-index: 1000;
             font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.2);
         }
 
-        /* --- MOBILE RESPONSIVENESS --- */
-        @media (max-width: 768px) {
-            .main-container { flex-direction: column; }
-            .sidebar { 
-                width: 100%; 
-                height: 40%; /* Bottom panel on mobile */
-                border-left: none; 
-                border-top: var(--border); 
-            }
-            .video-wrapper { height: 60%; }
-            .brand span { display: none; }
-        }
-
-        /* Fullscreen Overlay Messages */
         .overlay-msg {
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             text-align: center;
-            color: #666;
+            color: rgba(255,255,255,0.5);
             pointer-events: none;
+            z-index: 10;
+        }
+
+        .ripple {
+            position: absolute;
+            width: 20px; height: 20px;
+            background: rgba(0, 243, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: ripple-anim 0.5s linear;
+            pointer-events: none;
+        }
+        @keyframes ripple-anim {
+            0% { width: 0; height: 0; opacity: 1; }
+            100% { width: 80px; height: 80px; opacity: 0; }
+        }
+
+        /* --- MOBILE --- */
+        @media (max-width: 850px) {
+            .main-container { flex-direction: column; }
+            .sidebar { 
+                width: 100%; 
+                height: 45%; 
+                border-left: none; 
+                border-top: var(--border); 
+                padding: 10px;
+            }
+            .video-wrapper { height: 55%; }
+            .brand span { display: none; }
+            .control-group { padding: 8px; margin-bottom: 5px; }
         }
     </style>
 </head>
@@ -255,13 +276,13 @@
         
         <div class="video-wrapper" id="videoContainer">
             <div class="overlay-msg" id="loadingMsg">
-                <i class="fa-solid fa-satellite-dish fa-3x fa-spin"></i>
-                <p style="margin-top:10px">Waiting for Connection...</p>
+                <i class="fa-solid fa-wifi fa-3x"></i>
+                <p style="margin-top:15px; letter-spacing:1px;">WAITING FOR CONNECTION...</p>
             </div>
             
             <video id="remoteVideo" autoplay playsinline muted></video>
             
-            <button onclick="toggleFullscreen()" style="position:absolute; bottom:20px; right:20px; background:rgba(0,0,0,0.5); border:none; color:white; padding:10px; border-radius:5px; cursor:pointer; z-index:10;">
+            <button onclick="toggleFullscreen()" style="position:absolute; bottom:15px; right:15px; background:rgba(0,0,0,0.6); border:1px solid #444; color:white; padding:8px 12px; border-radius:6px; cursor:pointer; z-index:20;">
                 <i class="fa-solid fa-expand"></i>
             </button>
         </div>
@@ -269,43 +290,43 @@
         <div class="sidebar">
             
             <div class="control-group">
-                <div class="group-title">Connection</div>
-                <button class="btn btn-large" onclick="forceStart()">
-                    <i class="fa-solid fa-power-off"></i> START STREAM
+                <div class="group-title">Connection Status</div>
+                <button class="btn btn-large" id="startBtn" onclick="forceStart()">
+                    <i class="fa-solid fa-power-off"></i> CONNECT & STREAM
                 </button>
             </div>
 
             <div class="control-group">
                 <div class="group-title">Navigation</div>
                 <div class="btn-grid">
-                    <button class="btn" onclick="sendCmd('back')"><i class="fa-solid fa-caret-left"></i><span>Back</span></button>
-                    <button class="btn" onclick="sendCmd('home')"><i class="fa-regular fa-circle"></i><span>Home</span></button>
-                    <button class="btn" onclick="sendCmd('recent')"><i class="fa-regular fa-square"></i><span>Recent</span></button>
+                    <button class="btn" onclick="sendCmd('back')"><i class="fa-solid fa-chevron-left"></i><span>BACK</span></button>
+                    <button class="btn" onclick="sendCmd('home')"><i class="fa-regular fa-circle"></i><span>HOME</span></button>
+                    <button class="btn" onclick="sendCmd('recent')"><i class="fa-regular fa-square"></i><span>APPS</span></button>
                 </div>
             </div>
 
             <div class="control-group">
-                <div class="group-title">Gestures</div>
+                <div class="group-title">Quick Actions</div>
                 <div class="btn-grid">
-                    <button class="btn" onclick="sendCmd('swipe_up')"><i class="fa-solid fa-arrow-up"></i><span>Up</span></button>
-                    <button class="btn" onclick="sendCmd('swipe_down')"><i class="fa-solid fa-arrow-down"></i><span>Down</span></button>
-                    <button class="btn" onclick="sendCmd('unlock')"><i class="fa-solid fa-lock-open"></i><span>Wake</span></button>
+                    <button class="btn" onclick="sendCmd('swipe_up')"><i class="fa-solid fa-arrow-up"></i><span>SWIPE UP</span></button>
+                    <button class="btn" onclick="sendCmd('swipe_down')"><i class="fa-solid fa-arrow-down"></i><span>SWIPE DOWN</span></button>
+                    <button class="btn" onclick="sendCmd('unlock')"><i class="fa-solid fa-mobile-screen"></i><span>WAKE</span></button>
                 </div>
             </div>
 
             <div class="control-group">
-                <div class="group-title">Remote Input</div>
+                <div class="group-title">Type & Send</div>
                 <div class="input-box">
-                    <input type="text" id="typeInput" class="text-input" placeholder="Type here...">
-                    <button class="btn" style="padding: 5px 15px;" onclick="sendText()"><i class="fa-solid fa-paper-plane"></i></button>
+                    <input type="text" id="typeInput" class="text-input" placeholder="Type text here...">
+                    <button class="btn" style="width: 50px;" onclick="sendText()"><i class="fa-solid fa-paper-plane"></i></button>
                 </div>
             </div>
 
              <div class="control-group">
-                <div class="group-title">System</div>
+                <div class="group-title">System Controls</div>
                 <div class="btn-grid">
                     <button class="btn" onclick="sendCmd('volume_down')"><i class="fa-solid fa-volume-low"></i></button>
-                    <button class="btn btn-danger" onclick="sendCmd('lock')"><i class="fa-solid fa-lock"></i></button>
+                    <button class="btn btn-danger" onclick="sendCmd('lock')"><i class="fa-solid fa-lock"></i><span>LOCK</span></button>
                     <button class="btn" onclick="sendCmd('volume_up')"><i class="fa-solid fa-volume-high"></i></button>
                 </div>
             </div>
@@ -313,196 +334,177 @@
         </div>
     </div>
 
-    <div id="toast" class="toast">Command Sent</div>
+    <div id="toast" class="toast">Action Sent</div>
 
     <script>
-        const SERVER_URL = "https://child-v9no.onrender.com"; // ✅ Server URL
+        // --- CONFIGURATION ---
+        const SERVER_URL = "https://child-v9no.onrender.com"; // Updated Server URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentDeviceId = urlParams.get('id');
+
         let socket;
         let peerConnection;
-        let currentDeviceId = null;
-        let candidateQueue = []; // Queue for early candidates
+        let candidateQueue = [];
+        let isDragging = false;
+        let startX = 0, startY = 0;
+        let lastTapTime = 0;
 
-        // URL se Device ID nikalo
-        const urlParams = new URLSearchParams(window.location.search);
-        currentDeviceId = urlParams.get('id');
-
-        // 🔥🔥 WebRTC Config with OPENRELAY 🔥🔥
-        const rtcConfig = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                {
-                    urls: "turn:openrelay.metered.ca:80",
-                    username: "openrelayproject",
-                    credential: "openrelayproject"
-                },
-                {
-                    urls: "turn:openrelay.metered.ca:443",
-                    username: "openrelayproject",
-                    credential: "openrelayproject"
-                },
-                {
-                    urls: "turn:openrelay.metered.ca:443?transport=tcp",
-                    username: "openrelayproject",
-                    credential: "openrelayproject"
-                }
-            ]
-        };
-
+        // --- DOM ELEMENTS ---
         const remoteVideo = document.getElementById('remoteVideo');
         const statusText = document.getElementById('statusText');
         const statusDot = document.getElementById('statusDot');
         const loadingMsg = document.getElementById('loadingMsg');
+        const startBtn = document.getElementById('startBtn');
 
-        // --- 🚀 INITIALIZATION ---
+        // --- WEBRTC CONFIG (OpenRelay for better connectivity) ---
+        const rtcConfig = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+                { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+                { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
+            ]
+        };
+
+        // --- INITIALIZATION ---
         if (!currentDeviceId) {
-            statusText.innerText = "Error: No Device ID";
-            loadingMsg.innerHTML = "<span style='color:red'>Please add ?id=12345 to URL</span>";
+            statusText.innerText = "NO DEVICE ID";
+            loadingMsg.innerHTML = "<h3 style='color:var(--danger)'>Error: Missing Device ID</h3><p>Add ?id=YOUR_ID to the URL</p>";
+            startBtn.disabled = true;
         } else {
-            initSocket();
+            connectSocket();
         }
 
-        function initSocket() {
+        function connectSocket() {
             statusText.innerText = "Connecting...";
-            socket = io(SERVER_URL, { transports: ['websocket'] });
+            statusDot.className = "dot connecting";
+            
+            socket = io(SERVER_URL, { 
+                transports: ['websocket'],
+                reconnection: true,
+                reconnectionAttempts: 10
+            });
 
             socket.on("connect", () => {
                 setStatus(true);
-                console.log("✅ Connected to Server. Joining Room:", currentDeviceId);
+                console.log("✅ Socket Connected. Joining Room:", currentDeviceId);
                 socket.emit("join-room", currentDeviceId);
             });
 
             socket.on("disconnect", () => setStatus(false));
 
-            // --- WebRTC Logic (Corrected) ---
+            // --- WebRTC Signaling ---
             socket.on("offer", async (offer) => {
-                console.log("📩 Offer Received from Child");
+                console.log("📩 Received WebRTC Offer");
                 loadingMsg.style.display = "none";
                 
-                // 1. Reset Connection cleanly
-                if (peerConnection) {
-                    peerConnection.close();
-                }
+                if (peerConnection) peerConnection.close();
                 peerConnection = new RTCPeerConnection(rtcConfig);
-                candidateQueue = []; // Clear queue
+                candidateQueue = [];
 
-                // 2. Setup Track Event
                 peerConnection.ontrack = event => {
-                    console.log("📺 Stream Track Received");
+                    console.log("🎥 Video Stream Received");
                     remoteVideo.srcObject = event.streams[0];
-                    showToast("Video Feed Active");
+                    showToast("Stream Active");
                 };
 
-                // 3. Setup ICE Candidate Event
                 peerConnection.onicecandidate = event => {
                     if (event.candidate) {
                         socket.emit("candidate", { target: currentDeviceId, candidate: event.candidate });
                     }
                 };
 
-                try {
-                    // 4. Set Remote Description
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-                    console.log("✅ Remote Description Set");
+                peerConnection.onconnectionstatechange = () => {
+                     if(peerConnection.connectionState === 'disconnected') {
+                         showToast("Stream Disconnected");
+                         loadingMsg.style.display = "flex";
+                     }
+                };
 
-                    // 5. Process Queued Candidates (Wait karne wale candidates ab add honge)
-                    while (candidateQueue.length > 0) {
-                        const c = candidateQueue.shift();
-                        await peerConnection.addIceCandidate(c);
-                        console.log("➕ Added Queued Candidate");
-                    }
-
-                    // 6. Create & Send Answer
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    
-                    console.log("📤 Sending Answer");
-                    socket.emit("answer", { target: currentDeviceId, answer: answer });
-
-                } catch (error) {
-                    console.error("❌ WebRTC Error:", error);
-                    showToast("Connection Failed");
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                
+                // Process waiting candidates
+                while (candidateQueue.length > 0) {
+                    await peerConnection.addIceCandidate(candidateQueue.shift());
                 }
+
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit("answer", { target: currentDeviceId, answer: answer });
             });
 
             socket.on("candidate", async (candidate) => {
-                try {
-                    const ice = new RTCIceCandidate(candidate);
-                    
-                    // Agar RemoteDescription set hai, to seedha add karo
-                    if (peerConnection && peerConnection.remoteDescription) {
-                        await peerConnection.addIceCandidate(ice);
-                        console.log("➕ ICE Candidate Added");
-                    } else {
-                        // Agar nahi set hai, to Queue mein dalo (Prevent Crash)
-                        console.log("⏳ Queueing Candidate (Waiting for Offer)");
-                        candidateQueue.push(ice);
-                    }
-                } catch (e) {
-                    console.error("❌ Error adding candidate:", e);
+                const ice = new RTCIceCandidate(candidate);
+                if (peerConnection && peerConnection.remoteDescription) {
+                    await peerConnection.addIceCandidate(ice);
+                } else {
+                    candidateQueue.push(ice);
                 }
             });
         }
 
-        // --- 🛠 HELPER FUNCTIONS ---
-
+        // --- HELPER FUNCTIONS ---
         function setStatus(isOnline) {
-            if(isOnline) {
+            if (isOnline) {
                 statusText.innerText = "Connected: " + currentDeviceId;
                 statusText.style.color = "var(--accent)";
-                statusDot.classList.remove('offline');
-                statusDot.classList.add('online');
+                statusDot.className = "dot online";
+                startBtn.innerHTML = "<i class='fa-solid fa-rotate'></i> RESTART STREAM";
             } else {
                 statusText.innerText = "Disconnected";
                 statusText.style.color = "#888";
-                statusDot.classList.remove('online');
-                statusDot.classList.add('offline');
-                loadingMsg.style.display = "block";
+                statusDot.className = "dot offline";
+                loadingMsg.style.display = "flex";
             }
-        }
-
-        function sendCmd(action) {
-            if (!socket) return;
-            if(navigator.vibrate) navigator.vibrate(30);
-            
-            console.log("Sending:", action);
-            socket.emit("control-event", {
-                room: currentDeviceId,
-                action: action,
-                x: 0, y: 0
-            });
-            showToast(action.toUpperCase());
         }
 
         function forceStart() {
+            if(!socket || !socket.connected) {
+                window.location.reload(); 
+                return;
+            }
             sendCmd('start'); 
-            loadingMsg.innerHTML = "<i class='fa-solid fa-hourglass-half fa-spin'></i> Requesting Stream...";
+            loadingMsg.innerHTML = "<i class='fa-solid fa-spinner fa-spin fa-2x'></i><br><br>Requesting Stream...";
+        }
+
+        function sendCmd(action, x = 0, y = 0) {
+            if (!socket) return;
+            if (navigator.vibrate) navigator.vibrate(20);
+
+            console.log(`Sending: ${action} (${x}, ${y})`);
+            socket.emit("control-event", {
+                room: currentDeviceId,
+                action: action,
+                x: x, 
+                y: y
+            });
+            
+            if(action !== 'tap' && action !== 'drag') showToast(action.replace('_', ' ').toUpperCase());
         }
 
         function sendText() {
-            const txt = document.getElementById('typeInput').value;
-            if(txt) {
+            const input = document.getElementById('typeInput');
+            if (input.value) {
                 socket.emit("control-event", {
                     room: currentDeviceId,
                     action: "text_input",
-                    text: txt
+                    text: input.value
                 });
-                document.getElementById('typeInput').value = "";
-                showToast("Text Sent: " + txt);
+                showToast(`Sent: "${input.value}"`);
+                input.value = "";
             }
         }
 
-        // --- 👆 TAP HANDLING (PRECISE MATH) ---
-        remoteVideo.addEventListener('click', (e) => {
-            if(!currentDeviceId) return;
-
+        // --- ADVANCED TOUCH HANDLING (Tap & Drag) ---
+        
+        // Convert screen coordinates to video coordinates
+        function getVideoCoords(clientX, clientY) {
             const rect = remoteVideo.getBoundingClientRect();
-            // Video ka asli size aur displayed size nikalo
             const videoRatio = remoteVideo.videoWidth / remoteVideo.videoHeight;
             const displayRatio = rect.width / rect.height;
 
             let drawWidth, drawHeight, startX, startY;
 
-            // 'object-fit: contain' logic calculation
             if (displayRatio > videoRatio) {
                 drawHeight = rect.height;
                 drawWidth = drawHeight * videoRatio;
@@ -515,54 +517,115 @@
                 startY = (rect.height - drawHeight) / 2;
             }
 
-            // Click coordinates relative to the video image
-            const clickX = e.clientX - rect.left - startX;
-            const clickY = e.clientY - rect.top - startY;
+            const clickX = clientX - rect.left - startX;
+            const clickY = clientY - rect.top - startY;
 
-            // Coordinates valid range ke bahar hain?
-            if (clickX < 0 || clickX > drawWidth || clickY < 0 || clickY > drawHeight) return;
+            // Check bounds
+            if (clickX < 0 || clickX > drawWidth || clickY < 0 || clickY > drawHeight) return null;
 
-            // Scale to original resolution
-            const finalX = Math.round((clickX / drawWidth) * remoteVideo.videoWidth);
-            const finalY = Math.round((clickY / drawHeight) * remoteVideo.videoHeight);
+            return {
+                x: Math.round((clickX / drawWidth) * remoteVideo.videoWidth),
+                y: Math.round((clickY / drawHeight) * remoteVideo.videoHeight)
+            };
+        }
 
-            createRipple(e.clientX, e.clientY);
+        function handlePointerDown(e) {
+            if (!currentDeviceId || !remoteVideo.videoWidth) return;
+            isDragging = false;
+            
+            // Handle both mouse and touch
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const coords = getVideoCoords(clientX, clientY);
+            if(coords) {
+                startX = coords.x;
+                startY = coords.y;
+                isDragging = true;
+            }
+        }
 
-            console.log(`Tap: ${finalX}, ${finalY}`);
-            socket.emit("control-event", {
-                room: currentDeviceId,
-                action: "tap",
-                x: finalX,
-                y: finalY
-            });
-        });
+        function handlePointerUp(e) {
+            if (!isDragging) return;
+            
+            // Use changedTouches for touchend
+            const clientX = e.changedTouches ? e.changedTouches[0].clientX : e.clientX;
+            const clientY = e.changedTouches ? e.changedTouches[0].clientY : e.clientY;
 
+            const coords = getVideoCoords(clientX, clientY);
+            if (!coords) return;
+
+            const endX = coords.x;
+            const endY = coords.y;
+            
+            // Calculate distance moved
+            const dist = Math.sqrt(Math.pow(endX - startX, 2) + Math.pow(endY - startY, 2));
+
+            if (dist < 10) {
+                // It's a TAP
+                createRipple(clientX, clientY);
+                sendCmd("tap", startX, startY);
+            } else {
+                // It's a SWIPE/DRAG
+                // Note: Assuming backend handles 'swipe' with start/end or direction
+                // For now, mapping simple swipes based on direction if backend doesn't support coords
+                const diffX = startX - endX;
+                const diffY = startY - endY;
+
+                if (Math.abs(diffX) > Math.abs(diffY)) {
+                    // Horizontal
+                    if (diffX > 0) sendCmd("swipe_left"); // Or custom drag logic
+                    else sendCmd("swipe_right");
+                } else {
+                    // Vertical
+                    if (diffY > 0) sendCmd("swipe_up");
+                    else sendCmd("swipe_down");
+                }
+                showToast("Swipe Detected");
+            }
+            isDragging = false;
+        }
+
+        // Add Listeners
+        remoteVideo.addEventListener('mousedown', handlePointerDown);
+        remoteVideo.addEventListener('mouseup', handlePointerUp);
+        remoteVideo.addEventListener('touchstart', handlePointerDown, {passive: false});
+        remoteVideo.addEventListener('touchend', handlePointerUp, {passive: false});
+
+        // --- UTILS ---
         function createRipple(x, y) {
             const ripple = document.createElement('div');
             ripple.classList.add('ripple');
             ripple.style.left = `${x}px`;
             ripple.style.top = `${y}px`;
             document.body.appendChild(ripple);
-            setTimeout(() => ripple.remove(), 600);
+            setTimeout(() => ripple.remove(), 500);
         }
 
         function showToast(msg) {
             const t = document.getElementById('toast');
             t.innerText = msg;
             t.style.opacity = "1";
-            setTimeout(() => t.style.opacity = "0", 2000);
+            t.style.bottom = "50px";
+            setTimeout(() => {
+                t.style.opacity = "0";
+                t.style.bottom = "30px";
+            }, 2000);
         }
 
         function toggleFullscreen() {
             const elem = document.getElementById("videoContainer");
             if (!document.fullscreenElement) {
-                elem.requestFullscreen().catch(err => {
-                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
-                });
+                elem.requestFullscreen().catch(err => console.log(err));
             } else {
                 document.exitFullscreen();
             }
         }
+
+        // Keep input focused when typing
+        document.getElementById('typeInput').addEventListener("keypress", function(event) {
+            if (event.key === "Enter") sendText();
+        });
     </script>
 </body>
 </html>
