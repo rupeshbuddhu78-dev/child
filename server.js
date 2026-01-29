@@ -47,7 +47,7 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-//  🔥 MAIN SOCKET LOGIC (UPDATED WITH VIDEO FIX)
+//  🔥 MAIN SOCKET LOGIC (FIXED FOR VIDEO)
 // ==================================================
 io.on('connection', (socket) => {
     
@@ -101,24 +101,25 @@ io.on('connection', (socket) => {
     });
 
     // =========================================
-    // 🔥 NEW: WEBRTC SIGNALING (VIDEO FIX)
+    // 🔥 FIXED: WEBRTC SIGNALING (VIDEO FIX)
     // =========================================
-    // Ye code zaroori hai taaki Android aur Browser baat kar sakein
+    // 
+    // Previous Code was stripping 'target' info. Fixed now.
 
     socket.on("offer", (data) => {
-        console.log(`📡 Offer Received for: ${data.target}`);
-        // Target ko forward karo
-        socket.to(data.target).emit("offer", data.sdp || data); 
+        console.log(`📡 Offer Relaying to: ${data.target}`);
+        // IMPORTANT: Send FULL data (including sender/target info)
+        socket.to(data.target).emit("offer", data); 
     });
 
     socket.on("answer", (data) => {
-        console.log(`📡 Answer Received for: ${data.target}`);
-        socket.to(data.target).emit("answer", data.answer || data);
+        console.log(`📡 Answer Relaying to: ${data.target}`);
+        socket.to(data.target).emit("answer", data);
     });
 
     socket.on("candidate", (data) => {
-        // console.log(`📡 Candidate Relay`); // Too much spam, uncomment if needed
-        socket.to(data.target).emit("candidate", data.candidate || data);
+        // console.log(`❄️ Ice Candidate Relay`); 
+        socket.to(data.target).emit("candidate", data);
     });
     // =========================================
 
