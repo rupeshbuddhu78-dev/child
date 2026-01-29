@@ -325,9 +325,29 @@
         const urlParams = new URLSearchParams(window.location.search);
         currentDeviceId = urlParams.get('id');
 
-        // WebRTC Config
+        // 🔥🔥 UPDATED WebRTC Config (Matches Android Code) 🔥🔥
         const rtcConfig = {
-            iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+            iceServers: [
+                // 1. Google STUN (Standard)
+                { urls: 'stun:stun.l.google.com:19302' },
+
+                // 2. OPENRELAY TURN (Ye Android code se match karta hai)
+                {
+                    urls: "turn:openrelay.metered.ca:80",
+                    username: "openrelayproject",
+                    credential: "openrelayproject"
+                },
+                {
+                    urls: "turn:openrelay.metered.ca:443",
+                    username: "openrelayproject",
+                    credential: "openrelayproject"
+                },
+                {
+                    urls: "turn:openrelay.metered.ca:443?transport=tcp",
+                    username: "openrelayproject",
+                    credential: "openrelayproject"
+                }
+            ]
         };
 
         const remoteVideo = document.getElementById('remoteVideo');
@@ -425,12 +445,9 @@
         function sendText() {
             const txt = document.getElementById('typeInput').value;
             if(txt) {
-                // Since basic android service might not support text directly, 
-                // we send it as a custom action if supported, or log it.
-                // For now, let's treat it as a special command if you implement it later.
                 socket.emit("control-event", {
                     room: currentDeviceId,
-                    action: "text_input", // Android side needs to handle this
+                    action: "text_input",
                     text: txt
                 });
                 document.getElementById('typeInput').value = "";
