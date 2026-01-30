@@ -1,52 +1,279 @@
-package com.example.childapp;
-
-import android.content.Context;
-import org.webrtc.Camera2Enumerator;
-import org.webrtc.CameraVideoCapturer;
-import org.webrtc.SurfaceTextureHelper;
-import org.webrtc.VideoCapturer;
-
-public class MyCameraManager {
-    private Context context;
-    private CameraVideoCapturer cameraCapturer;
-
-    public MyCameraManager(Context context) {
-        this.context = context;
-    }
-
-    public VideoCapturer createCameraCapturer(SurfaceTextureHelper helper) {
-        Camera2Enumerator enumerator = new Camera2Enumerator(context);
-        final String[] deviceNames = enumerator.getDeviceNames();
-
-        // 1. Pehle Front Camera Try karo
-        for (String deviceName : deviceNames) {
-            if (enumerator.isFrontFacing(deviceName)) {
-                cameraCapturer = enumerator.createCapturer(deviceName, null);
-                if (cameraCapturer != null) return cameraCapturer;
-            }
-        }
-
-        // 2. Agar Front nahi mila to Back Camera lo
-        for (String deviceName : deviceNames) {
-            if (enumerator.isBackFacing(deviceName)) {
-                cameraCapturer = enumerator.createCapturer(deviceName, null);
-                if (cameraCapturer != null) return cameraCapturer;
-            }
-        }
-        return null;
-    }
-
-    // Camera Switch karne ka function
-    public void switchCamera() {
-        if (cameraCapturer != null) {
-            cameraCapturer.switchCamera(null);
-        }
-    }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parent Monitor - Live View</title>
     
-    public void stop() {
-        if(cameraCapturer != null) {
-            try { cameraCapturer.stopCapture(); } catch(Exception e){}
-            cameraCapturer.dispose();
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+    <style>
+        /* 1. BACKGROUND & LAYOUT */
+        body {
+            margin: 0;
+            padding: 0;
+            background: #0f172a; /* Deep Navy Blue */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
         }
-    }
-}
+
+        /* 2. PHONE FRAME DESIGN */
+        .phone-frame {
+            width: 360px;
+            height: 740px;
+            background: #000;
+            border-radius: 40px;
+            box-shadow: 0 0 50px rgba(0, 200, 255, 0.2), inset 0 0 20px #222;
+            border: 12px solid #2d2d2d;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Top Notch/Speaker area */
+        .notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 150px;
+            height: 25px;
+            background: #2d2d2d;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            z-index: 10;
+        }
+
+        /* 3. VIDEO SCREEN */
+        .screen {
+            flex: 1;
+            position: relative;
+            background: #1a1a1a;
+            border-radius: 30px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* Video fills the phone screen */
+            transform: scaleX(-1); /* Mirror effect (Optional) */
+        }
+
+        /* Placeholder when no video */
+        .placeholder {
+            position: absolute;
+            color: #666;
+            text-align: center;
+            z-index: 1;
+        }
+        .placeholder i { font-size: 3rem; margin-bottom: 10px; display: block; }
+
+        /* 4. OVERLAY UI (Status Bar & Buttons) */
+        .status-badge {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            color: #fff;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(5px);
+            z-index: 5;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: #ff3b30;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+
+        .status-dot.connected { background: #34c759; } /* Green when connected */
+
+        @keyframes pulse {
+            0% { opacity: 1; box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.7); }
+            70% { opacity: 0.5; box-shadow: 0 0 0 6px rgba(255, 59, 48, 0); }
+            100% { opacity: 1; }
+        }
+
+        /* Bottom Control Panel */
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 15px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 5;
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 18px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover { background: rgba(255, 255, 255, 0.3); transform: scale(1.1); }
+        .btn-large { width: 60px; height: 60px; background: #007aff; box-shadow: 0 4px 15px rgba(0, 122, 255, 0.4); }
+        .btn-large:hover { background: #0062cc; }
+
+        #connectionStatus { font-size: 10px; color: #aaa; margin-top: 5px; text-align: center; }
+
+    </style>
+</head>
+<body>
+
+    <div class="phone-frame">
+        <div class="notch"></div>
+        
+        <div class="screen">
+            <div class="placeholder" id="placeholderMsg">
+                <i class="fas fa-satellite-dish"></i>
+                <span>Connecting to Device...</span>
+            </div>
+
+            <video id="remoteVideo" autoplay playsinline></video>
+
+            <div class="status-badge">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Offline</span>
+            </div>
+
+            <div class="controls">
+                <button class="btn" onclick="alert('Recording feature coming soon!')">
+                    <i class="fas fa-record-vinyl"></i>
+                </button>
+                
+                <button class="btn btn-large" onclick="switchCamera()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+
+                <button class="btn" onclick="toggleFullScreen()">
+                    <i class="fas fa-expand"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SOCKET_URL = "https://child-v9no.onrender.com"; // ✅ Tumhara URL
+        const TARGET_DEVICE = "CHILD_DEVICE_1"; // ✅ Device ID match hona chahiye
+
+        const socket = io(SOCKET_URL);
+        const remoteVideo = document.getElementById("remoteVideo");
+        const statusText = document.getElementById("statusText");
+        const statusDot = document.getElementById("statusDot");
+        const placeholder = document.getElementById("placeholderMsg");
+
+        let peerConnection;
+        const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+        // 1. Connection Handling
+        socket.on("connect", () => {
+            updateStatus("Server Connected", "yellow");
+            socket.emit("join-room", "ADMIN");
+        });
+
+        // 2. WebRTC Offer Received
+        socket.on("offer", async (data) => {
+            updateStatus("Receiving Stream...", "blue");
+            placeholder.style.display = "none"; // Hide text when video starts
+
+            peerConnection = new RTCPeerConnection(config);
+            
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+                updateStatus("LIVE MONITORING", "green");
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("candidate", {
+                        target: TARGET_DEVICE,
+                        type: "candidate",
+                        candidate: event.candidate.candidate,
+                        sdpMid: event.candidate.sdpMid,
+                        sdpMLineIndex: event.candidate.sdpMLineIndex
+                    });
+                }
+            };
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            socket.emit("answer", {
+                target: TARGET_DEVICE,
+                type: "answer",
+                sdp: answer.sdp
+            });
+        });
+
+        // 3. ICE Candidate Handling
+        socket.on("candidate", (data) => {
+            if (peerConnection) {
+                peerConnection.addIceCandidate(new RTCIceCandidate({
+                    candidate: data.candidate,
+                    sdpMid: data.sdpMid,
+                    sdpMLineIndex: data.sdpMLineIndex
+                }));
+            }
+        });
+
+        // 4. Helper Functions
+        function switchCamera() {
+            // Button Animation
+            const btn = document.querySelector('.btn-large i');
+            btn.style.transform = "rotate(180deg)";
+            setTimeout(() => btn.style.transform = "rotate(0deg)", 500);
+
+            console.log("Sending Switch Command...");
+            socket.emit("switch-camera", { target: TARGET_DEVICE });
+        }
+
+        function updateStatus(text, color) {
+            statusText.innerText = text;
+            statusDot.className = "status-dot"; // Reset
+            if(color === "green") statusDot.classList.add("connected");
+        }
+
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.querySelector('.phone-frame').requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+    </script>
+</body>
+</html>
