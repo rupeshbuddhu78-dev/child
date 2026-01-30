@@ -4,157 +4,84 @@
 <title>Screen Monitor</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 <style>
-body{background:#111;color:#fff;font-family:sans-serif;text-align:center;margin:0;padding:20px;}
-video{
-    width: 100%;
-    max-width: 360px;
-    height: auto;
-    aspect-ratio: 9/16;
-    background: #000;
-    border: 2px solid #333;
-    border-radius: 10px;
-    margin-top: 20px;
-}
-input{padding:10px; border-radius:5px; border:none; width: 200px; text-align: center;}
-button{padding:10px 20px;margin:5px;cursor:pointer;border-radius:5px;border:none;font-weight:bold;}
-.btn-start{background:#28a745;color:white;}
-.btn-stop{background:#dc3545;color:white;}
+body{background:#111;color:#fff;font-family:sans-serif;text-align:center}
+video{width:360px;height:640px;background:black;border-radius:20px}
+button{padding:12px 25px;margin:10px;font-size:16px}
 </style>
 </head>
 
 <body>
 
-<h2>Screen Monitor (Admin)</h2>
+<h2>Screen Monitor</h2>
 
-<input id="id" placeholder="Enter Device ID Here">
+<input id="id" placeholder="Device ID">
+<br>
+
+<button onclick="start()">START</button>
+<button onclick="stop()">STOP</button>
+
 <br><br>
-
-<button class="btn-start" onclick="start()">START SCREEN</button>
-<button class="btn-stop" onclick="stop()">STOP</button>
-
-<br>
-<div id="status" style="color:gray; margin-top:10px;">Status: Disconnected</div>
-
-<br>
-<video id="v" autoplay playsinline controls></video>
+<video id="v" autoplay playsinline></video>
 
 <script>
 const socket = io("https://child-v9no.onrender.com");
 let pc;
-let deviceId; // Ye variable store karega ki hum kis phone se connect hain
+let deviceId;
 
-const iceServers = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: "stun:stun2.l.google.com:19302" }
-    ]
-};
-
-socket.on("connect", () => {
-    document.getElementById("status").innerText = "Status: Server Connected (Waiting for ID)";
-    console.log("✅ Socket Connected");
-    // Hum 'ADMIN' room join kar rahe hain taaki Android humein Offer bhej sake
-    socket.emit("join-room", "ADMIN"); 
+socket.on("connect", ()=>{
+  socket.emit("join-room","ADMIN");
 });
 
-// 1. OFFER AAYA
-socket.on("offer", async (data) => {
-    console.log("📡 Offer Received");
+socket.on("offer", async d=>{
+  pc = new RTCPeerConnection({
+    iceServers:[{urls:"stun:stun.l.google.com:19302"}]
+  });
 
-    // SAFETY CHECK: Agar humne ID nahi daali, to hum reply nahi kar payenge
-    if (!deviceId) {
-        deviceId = document.getElementById("id").value;
-    }
-    if (!deviceId) {
-        alert("Offer received but No Device ID entered! Please enter ID.");
-        return;
-    }
-    
-    if (pc) pc.close();
-    
-    pc = new RTCPeerConnection(iceServers);
+  pc.ontrack = e=>{
+    document.getElementById("v").srcObject = e.streams[0];
+  };
 
-    pc.ontrack = (event) => {
-        console.log("🎥 Stream Started");
-        document.getElementById("v").srcObject = event.streams[0];
-        document.getElementById("status").innerText = "Status: 🔴 Live View";
-    };
+  pc.onicecandidate = e=>{
+    if(e.candidate){
+      socket.emit("candidate",{
+        target: deviceId,
+        candidate: e.candidate.candidate,
+        sdpMid: e.candidate.sdpMid,
+        sdpMLineIndex: e.candidate.sdpMLineIndex
+      });
+    }
+  };
 
-    pc.onicecandidate = (event) => {
-        if (event.candidate) {
-            // Candidates wapas ussi Device ID ko bhejo
-            socket.emit("candidate", {
-                target: deviceId, 
-                candidate: event.candidate.candidate,
-                sdpMid: event.candidate.sdpMid,
-                sdpMLineIndex: event.candidate.sdpMLineIndex
-            });
-        }
-    };
+  await pc.setRemoteDescription({
+    type:"offer",
+    sdp:d.sdp
+  });
 
-    await pc.setRemoteDescription(new RTCSessionDescription({
-        type: "offer",
-        sdp: data.sdp
-    }));
+  const ans = await pc.createAnswer();
+  await pc.setLocalDescription(ans);
 
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-
-    // Answer wapas ussi Device ID ko bhejo
-    socket.emit("answer", {
-        target: deviceId,
-        sdp: answer.sdp
-    });
+  socket.emit("answer",{
+    target: deviceId,
+    sdp: ans.sdp
+  });
 });
 
-// 2. CANDIDATE AAYA
-socket.on("candidate", async (data) => {
-    try {
-        if (pc) {
-            await pc.addIceCandidate(new RTCIceCandidate({
-                candidate: data.candidate,
-                sdpMid: data.sdpMid,
-                sdpMLineIndex: data.sdpMLineIndex
-            }));
-        }
-    } catch (e) {
-        console.error("Candidate Error:", e);
-    }
-});
-
-function start() {
-    deviceId = document.getElementById("id").value;
-    if(!deviceId) { alert("Please Enter Device ID first"); return; }
-    
-    console.log("🚀 Sending Start Command to: " + deviceId);
-    document.getElementById("status").innerText = "Status: Connecting to " + deviceId + "...";
-    
-    // Server command ussi specific Device Room mein bhejega
-    socket.emit("command", {
-        target: deviceId,
-        command: "start_screen"
-    });
+function start(){
+  deviceId = document.getElementById("id").value;
+  socket.emit("send-command",{
+    targetId: deviceId,
+    command:"start_screen"
+  });
 }
 
-function stop() {
-    if(!deviceId) deviceId = document.getElementById("id").value;
-    
-    if(deviceId) {
-        socket.emit("command", {
-            target: deviceId,
-            command: "stop_screen"
-        });
-    }
-    
-    if (pc) {
-        pc.close();
-        pc = null;
-    }
-    document.getElementById("v").srcObject = null;
-    document.getElementById("status").innerText = "Status: Stopped";
+function stop(){
+  socket.emit("send-command",{
+    targetId: deviceId,
+    command:"stop_screen"
+  });
+  if(pc){ pc.close(); pc=null; }
 }
 </script>
 
 </body>
-</html>
+</html> ham ko lagta hai ab error isa mai hai dekho to hai to sahi kar ke do code 
