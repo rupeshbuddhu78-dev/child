@@ -2,152 +2,121 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Live Camera Monitor</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 
 <style>
 :root{
-    --bg:#0f0f10;
-    --panel:#1c1c1e;
-    --green:#30d158;
-    --red:#ff453a;
-    --blue:#0a84ff;
+    --bg:#0f0f10;
+    --panel:#1c1c1e;
+    --green:#30d158;
+    --red:#ff453a;
+    --blue:#0a84ff;
 }
 
 body{
-    margin:0;
-    background:var(--bg); /* Background dark rahega */
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    display:flex;
-    justify-content:center;
-    align-items:center; /* Center align for Laptop */
-    height: 100vh;
-    height: 100dvh; /* Mobile Browser Bar Fix */
-    overflow: hidden; 
+    margin:0;
+    background:var(--bg);
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    display:flex;
+    justify-content:center;
+    /* Laptop screen fix: Body full height aur scroll band */
+    height: 100vh;
+    overflow: hidden; 
 }
 
 .app{
-    display:flex;
-    flex-direction:column;
-    background:#000;
-    
-    /* DEFAULT (Laptop View) settings */
-    width:100%;
-    max-width:420px; /* Thoda sleek phone look */
-    height:90vh; /* Laptop pe thoda gap rahega upar niche */
-    max-height: 850px;
-    border-radius: 20px; /* Laptop pe rounded corners */
-    box-shadow: 0 0 30px rgba(0,0,0,0.6); /* Shadow for depth */
-    overflow: hidden;
-    position: relative;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-
-/* 🔥 MOBILE SPECIFIC STYLES 🔥 */
-/* Jab screen choti hogi (Asli phone par), ye CSS lagegi */
-@media (max-width: 500px) {
-    body {
-        background: #000; /* Phone pe full black background */
-        align-items: flex-start;
-    }
-    .app {
-        max-width: 100%; /* Full Width */
-        height: 100%; /* Full Height */
-        max-height: none;
-        border-radius: 0; /* Corners hat gaye */
-        border: none;
-        box-shadow: none;
-    }
+    width:100%;
+    max-width:480px;
+    /* Change: min-height hata kar height 100% kar diya */
+    height:100%; 
+    background:#000;
+    display:flex;
+    flex-direction:column;
+    /* Thoda shadow diya taaki laptop pe alag dikhe */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5); 
 }
 
 /* HEADER */
 .header{
-    flex-shrink: 0; 
-    padding:16px 20px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    background: var(--panel); 
-    color: white;
-    z-index: 10;
+    /* Flex-shrink 0 means ye shrink nahi hoga */
+    flex-shrink: 0; 
+    padding:14px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-bottom:1px solid rgba(255,255,255,0.1);
+    background: var(--panel); /* Header color match kiya */
+    color: white;
 }
 
 .status{
-    font-size:11px;
-    padding:4px 12px;
-    border-radius:20px;
-    background:rgba(255, 69, 58, 0.2); /* Soft Red bg */
-    color: var(--red);
-    font-weight:700;
-    letter-spacing: 0.5px;
-    border: 1px solid var(--red);
+    font-size:12px;
+    padding:5px 14px;
+    border-radius:20px;
+    background:var(--red);
+    font-weight:700;
+    color: white;
 }
 
 .status.live{
-    background:rgba(48, 209, 88, 0.2); /* Soft Green bg */
-    color: var(--green);
-    border: 1px solid var(--green);
+    background:var(--green);
+    color:#000;
 }
 
-/* VIDEO SECTION */
+/* VIDEO - Main Adjustment Here */
 .video-box{
-    flex:1; 
-    background:black;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    overflow: hidden; 
-    position: relative;
-    width: 100%;
+    flex:1; /* Ye baki bachi hui jagah lega */
+    background:black;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    overflow: hidden; /* Video bahar nahi jayega */
+    position: relative;
 }
 
 video{
-    width:100%;
-    height:100%;
-    object-fit:contain; /* Video fit rahega */
+    width:100%;
+    height:100%;
+    object-fit:contain; /* Video katne ki jagah fit hoga */
 }
 
 /* CONTROLS */
 .controls{
-    flex-shrink: 0; 
-    padding:20px;
-    background:var(--panel);
-    display:flex;
-    gap:15px;
-    /* Phone ke niche wale safe area ke liye padding */
-    padding-bottom: max(20px, env(safe-area-inset-bottom)); 
+    flex-shrink: 0; /* Buttons kabhi shrink nahi honge */
+    padding:18px;
+    background:var(--panel);
+    display:flex;
+    gap:12px;
+    /* Bottom safe area for mobile */
+    padding-bottom: max(18px, env(safe-area-inset-bottom)); 
 }
 
 .btn{
-    flex:1;
-    border:none;
-    border-radius:14px;
-    padding:16px 0;
-    font-size:14px;
-    font-weight:600;
-    color:white;
-    cursor:pointer;
-    transition: transform 0.1s, opacity 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    flex:1;
+    border:none;
+    border-radius:16px;
+    padding:15px 0;
+    font-size:15px;
+    font-weight:700;
+    color:white;
+    cursor:pointer;
+    transition: opacity 0.2s;
 }
 
 .btn:active {
-    transform: scale(0.96);
-    opacity: 0.8;
+    opacity: 0.7;
 }
 
-.start{ background:var(--green); color:#000; box-shadow: 0 4px 15px rgba(48, 209, 88, 0.3); }
-.stop{ background:var(--red); color: white; box-shadow: 0 4px 15px rgba(255, 69, 58, 0.3); }
+.start{ background:var(--green); color:#000; }
+.stop{ background:var(--red); }
 .switch{
-    background:rgba(255,255,255,0.1);
-    color: var(--blue);
-    max-width:60px;
-    font-size:20px;
+    background:var(--blue);
+    max-width:70px;
+    font-size:18px;
 }
-
 </style>
 </head>
 
@@ -155,21 +124,20 @@ video{
 
 <div class="app">
 
-    <div class="header">
-        <span style="font-weight: 600;">📷 Cam Monitor</span>
-        <span id="status" class="status">OFFLINE</span>
-    </div>
+    <div class="header">
+        <span>Live Camera</span>
+        <span id="status" class="status">OFFLINE</span>
+    </div>
 
-    <div class="video-box">
-        <video id="remoteVideo" autoplay playsinline muted></video>
-        <div id="placeholder" style="position:absolute; color:#333; font-size:12px;">Waiting for connection...</div>
-    </div>
+    <div class="video-box">
+        <video id="remoteVideo" autoplay playsinline muted></video>
+    </div>
 
-    <div class="controls">
-        <button class="btn start" onclick="startCamera()">Start</button>
-        <button class="btn switch" onclick="switchCamera()">🔄</button>
-        <button class="btn stop" onclick="stopCamera()">Stop</button>
-    </div>
+    <div class="controls">
+        <button class="btn start" onclick="startCamera()">▶ START</button>
+        <button class="btn switch" onclick="switchCamera()">🔄</button>
+        <button class="btn stop" onclick="stopCamera()">⏹ STOP</button>
+    </div>
 
 </div>
 
@@ -182,13 +150,11 @@ const params = new URLSearchParams(window.location.search);
 let DEVICE_ID = params.get("id");
 
 if(!DEVICE_ID){
-    DEVICE_ID = localStorage.getItem("savedDeviceId");
+    DEVICE_ID = localStorage.getItem("savedDeviceId");
 }
 
 if(!DEVICE_ID){
-    // Optional: Prompt user instead of alert for better UI
-    DEVICE_ID = prompt("Enter Device ID:", "");
-    if(DEVICE_ID) localStorage.setItem("savedDeviceId", DEVICE_ID);
+    alert("Device ID missing!");
 }
 
 /* ================= WEBRTC ================= */
@@ -197,7 +163,7 @@ let socket;
 let pc;
 
 const config = {
-    iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
+    iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
 };
 
 /* ================= SOCKET ================= */
@@ -205,104 +171,108 @@ const config = {
 socket = io(SERVER);
 
 socket.on("connect", ()=>{
-    console.log("Connected to Server");
-    socket.emit("join-room","ADMIN");
+    socket.emit("join-room","ADMIN");
 });
 
 /* ================= OFFER ================= */
 
 socket.on("offer", async (data)=>{
-    console.log("Offer received");
-    document.getElementById("placeholder").style.display = "none"; // Hide text
 
-    pc = new RTCPeerConnection(config);
+    pc = new RTCPeerConnection(config);
 
-    pc.ontrack = (event) => {
-        const video = document.getElementById("remoteVideo");
-        if (event.streams && event.streams[0]) {
-            video.srcObject = event.streams[0];
-        } else {
-            const stream = new MediaStream();
-            stream.addTrack(event.track);
-            video.srcObject = stream;
-        }
-        video.play().catch(e => console.log("Auto-play blocked:", e));
-        setStatus(true);
-    };
+    pc.ontrack = (event) => {
+        const video = document.getElementById("remoteVideo");
 
-    pc.onicecandidate = (e)=>{
-        if(e.candidate){
-            socket.emit("candidate",{
-                target: DEVICE_ID,
-                candidate: e.candidate.candidate,
-                sdpMid: e.candidate.sdpMid,
-                sdpMLineIndex: e.candidate.sdpMLineIndex
-            });
-        }
-    };
+        if (event.streams && event.streams[0]) {
+            video.srcObject = event.streams[0];
+        } else {
+            const stream = new MediaStream();
+            stream.addTrack(event.track);
+            video.srcObject = stream;
+        }
 
-    await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
-    const ans = await pc.createAnswer();
-    await pc.setLocalDescription(ans);
+        video.play().catch(()=>{});
+        setStatus(true);
+    };
 
-    socket.emit("answer",{ target: DEVICE_ID, sdp: ans.sdp });
+    pc.onicecandidate = (e)=>{
+        if(e.candidate){
+            socket.emit("candidate",{
+                target: DEVICE_ID,
+                candidate: e.candidate.candidate,
+                sdpMid: e.candidate.sdpMid,
+                sdpMLineIndex: e.candidate.sdpMLineIndex
+            });
+        }
+    };
+
+    // 🔥 FIXED PART
+    await pc.setRemoteDescription(
+        new RTCSessionDescription({
+            type: "offer",
+            sdp: data.sdp
+        })
+    );
+
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
+
+    socket.emit("answer",{
+        target: DEVICE_ID,
+        sdp: ans.sdp
+    });
 });
 
 /* ================= ICE ================= */
 
 socket.on("candidate", async d=>{
-    if(pc){
-        await pc.addIceCandidate(new RTCIceCandidate({
-            candidate: d.candidate,
-            sdpMid: d.sdpMid,
-            sdpMLineIndex: d.sdpMLineIndex
-        }));
-    }
+    if(pc){
+        await pc.addIceCandidate(new RTCIceCandidate({
+            candidate: d.candidate,
+            sdpMid: d.sdpMid,
+            sdpMLineIndex: d.sdpMLineIndex
+        }));
+    }
 });
 
 /* ================= BUTTONS ================= */
 
 function startCamera(){
-    if(!DEVICE_ID) { alert("No Device ID!"); return; }
-    console.log("Sending Start Command to: " + DEVICE_ID);
-    socket.emit("send-command",{
-        targetId: DEVICE_ID,
-        command: "start_video"
-    });
+    socket.emit("send-command",{
+        targetId: DEVICE_ID,
+        command: "start_video"
+    });
 }
 
 function stopCamera(){
-    if(!DEVICE_ID) return;
-    socket.emit("send-command",{
-        targetId: DEVICE_ID,
-        command: "stop_video"
-    });
+    socket.emit("send-command",{
+        targetId: DEVICE_ID,
+        command: "stop_video"
+    });
 
-    const v = document.getElementById("remoteVideo");
-    v.srcObject = null;
-    document.getElementById("placeholder").style.display = "block"; // Show text back
+    const v = document.getElementById("remoteVideo");
+    v.srcObject = null;
 
-    if(pc){
-        pc.close();
-        pc = null;
-    }
+    if(pc){
+        pc.close();
+        pc = null;
+    }
 
-    setStatus(false);
+    setStatus(false);
 }
 
 function switchCamera(){
-    if(!DEVICE_ID) return;
-    socket.emit("switch-camera",{ target: DEVICE_ID });
+    socket.emit("switch-camera",{ target: DEVICE_ID });
 }
 
 /* ================= UI ================= */
 
 function setStatus(live){
-    const s = document.getElementById("status");
-    s.textContent = live ? "LIVE" : "OFFLINE";
-    s.className = live ? "status live" : "status";
+    const s = document.getElementById("status");
+    s.textContent = live ? "LIVE" : "OFFLINE";
+    s.className = live ? "status live" : "status";
 }
 </script>
 
 </body>
-</html> 
+</html>
