@@ -4,82 +4,153 @@
 <title>Screen Monitor</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 <style>
-body{background:#111;color:#fff;font-family:sans-serif;text-align:center}
-video{width:360px;height:640px;background:black;border-radius:20px}
-button{padding:12px 25px;margin:10px;font-size:16px}
+body{background:#111;color:#fff;font-family:sans-serif;text-align:center;margin:0;padding:20px;}
+video{
+    width: 100%;
+    max-width: 360px;
+    height: auto;
+    aspect-ratio: 9/16;
+    background: #000;
+    border: 2px solid #333;
+    border-radius: 10px;
+    margin-top: 20px;
+}
+input{padding:10px; border-radius:5px; border:none;}
+button{padding:10px 20px;margin:5px;cursor:pointer;border-radius:5px;border:none;font-weight:bold;}
+.btn-start{background:#28a745;color:white;}
+.btn-stop{background:#dc3545;color:white;}
 </style>
 </head>
 
 <body>
 
-<h2>Screen Monitor</h2>
+<h2>Screen Monitor (Admin)</h2>
 
-<input id="id" placeholder="Device ID">
-<br>
-
-<button onclick="start()">START</button>
-<button onclick="stop()">STOP</button>
-
+<input id="id" placeholder="Device ID (e.g. 12345)">
 <br><br>
-<video id="v" autoplay playsinline></video>
+
+<button class="btn-start" onclick="start()">START SCREEN</button>
+<button class="btn-stop" onclick="stop()">STOP</button>
+
+<br>
+<div id="status" style="color:gray; margin-top:10px;">Status: Disconnected</div>
+
+<br>
+<video id="v" autoplay playsinline controls></video>
 
 <script>
+// Server URL check kar lena
 const socket = io("https://child-v9no.onrender.com");
 let pc;
 let deviceId;
 
-socket.on("connect", ()=>{
-  socket.emit("join-room","ADMIN");
+const iceServers = {
+    iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" }
+    ]
+};
+
+socket.on("connect", () => {
+    document.getElementById("status").innerText = "Status: Connected to Server";
+    console.log("Connected to Socket Server");
+    socket.emit("join-room", "ADMIN");
 });
 
-socket.on("offer", async d=>{
-  pc = new RTCPeerConnection({
-    iceServers:[{urls:"stun:stun.l.google.com:19302"}]
-  });
+// 1. OFFER AAYA (Android se)
+socket.on("offer", async (data) => {
+    console.log("📡 Offer Received");
+    
+    if (pc) pc.close();
+    
+    pc = new RTCPeerConnection(iceServers);
 
-  pc.ontrack = e=>{
-    document.getElementById("v").srcObject = e.streams[0];
-  };
+    // Incoming Video Stream Handle karna
+    pc.ontrack = (event) => {
+        console.log("🎥 Stream Received");
+        const videoElem = document.getElementById("v");
+        videoElem.srcObject = event.streams[0];
+        document.getElementById("status").innerText = "Status: Viewing Screen";
+    };
 
-  pc.onicecandidate = e=>{
-    if(e.candidate){
-      socket.emit("candidate",{
+    // Apne Candidates Android ko bhejna
+    pc.onicecandidate = (event) => {
+        if (event.candidate) {
+            socket.emit("candidate", {
+                target: deviceId,
+                candidate: event.candidate.candidate,
+                sdpMid: event.candidate.sdpMid,
+                sdpMLineIndex: event.candidate.sdpMLineIndex
+            });
+        }
+    };
+
+    // Connection State Debugging
+    pc.oniceconnectionstatechange = () => {
+        console.log("❄️ ICE State:", pc.iceConnectionState);
+        document.getElementById("status").innerText = "ICE State: " + pc.iceConnectionState;
+    };
+
+    // Remote Offer Set karna
+    await pc.setRemoteDescription(new RTCSessionDescription({
+        type: "offer",
+        sdp: data.sdp
+    }));
+
+    // Answer Banana
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    // Answer Wapas Bhejna
+    socket.emit("answer", {
         target: deviceId,
-        candidate: e.candidate.candidate,
-        sdpMid: e.candidate.sdpMid,
-        sdpMLineIndex: e.candidate.sdpMLineIndex
-      });
-    }
-  };
-
-  await pc.setRemoteDescription({
-    type:"offer",
-    sdp:d.sdp
-  });
-
-  const ans = await pc.createAnswer();
-  await pc.setLocalDescription(ans);
-
-  socket.emit("answer",{
-    target: deviceId,
-    sdp: ans.sdp
-  });
+        sdp: answer.sdp
+    });
 });
 
-function start(){
-  deviceId = document.getElementById("id").value;
-  socket.emit("send-command",{
-    targetId: deviceId,
-    command:"start_screen"
-  });
+// 2. CANDIDATE AAYA (🔥 YE MISSING THA PEHLE)
+socket.on("candidate", async (data) => {
+    console.log("🧊 Candidate Received");
+    try {
+        if (pc) {
+            await pc.addIceCandidate(new RTCIceCandidate({
+                candidate: data.candidate,
+                sdpMid: data.sdpMid,
+                sdpMLineIndex: data.sdpMLineIndex
+            }));
+        }
+    } catch (e) {
+        console.error("Error adding candidate", e);
+    }
+});
+
+function start() {
+    deviceId = document.getElementById("id").value;
+    if(!deviceId) { alert("Enter Device ID"); return; }
+    
+    console.log("Sending Start Command to: " + deviceId);
+    document.getElementById("status").innerText = "Status: Waiting for device...";
+    
+    socket.emit("command", { // Note: Server code check karna, usually wrapper object hota hai
+        target: deviceId,    // Server logic ke hisab se 'targetId' ya 'target' check karlena
+        command: "start_screen"
+    });
 }
 
-function stop(){
-  socket.emit("send-command",{
-    targetId: deviceId,
-    command:"stop_screen"
-  });
-  if(pc){ pc.close(); pc=null; }
+function stop() {
+    if(!deviceId) return;
+    socket.emit("command", {
+        target: deviceId,
+        command: "stop_screen"
+    });
+    
+    if (pc) {
+        pc.close();
+        pc = null;
+    }
+    document.getElementById("v").srcObject = null;
+    document.getElementById("status").innerText = "Status: Stopped";
 }
 </script>
 
