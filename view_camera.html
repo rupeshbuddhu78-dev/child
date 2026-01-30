@@ -22,34 +22,27 @@ body{
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     display:flex;
     justify-content:center;
-    /* Laptop screen fix: Body full height aur scroll band */
-    height: 100vh;
-    overflow: hidden; 
+    height:100vh;
+    overflow:hidden; /* ✅ SCROLL OFF */
 }
 
 .app{
     width:100%;
     max-width:480px;
-    /* Change: min-height hata kar height 100% kar diya */
-    height:100%; 
+    height:100vh;              /* ✅ FULL SCREEN FIT */
     background:#000;
     display:flex;
     flex-direction:column;
-    /* Thoda shadow diya taaki laptop pe alag dikhe */
-    box-shadow: 0 0 20px rgba(0,0,0,0.5); 
 }
 
 /* HEADER */
 .header{
-    /* Flex-shrink 0 means ye shrink nahi hoga */
-    flex-shrink: 0; 
     padding:14px 16px;
     display:flex;
     justify-content:space-between;
     align-items:center;
     border-bottom:1px solid rgba(255,255,255,0.1);
-    background: var(--panel); /* Header color match kiya */
-    color: white;
+    flex-shrink:0;
 }
 
 .status{
@@ -58,7 +51,6 @@ body{
     border-radius:20px;
     background:var(--red);
     font-weight:700;
-    color: white;
 }
 
 .status.live{
@@ -66,48 +58,40 @@ body{
     color:#000;
 }
 
-/* VIDEO - Main Adjustment Here */
+/* VIDEO */
 .video-box{
-    flex:1; /* Ye baki bachi hui jagah lega */
+    flex:1;                    /* ✅ AUTO HEIGHT */
     background:black;
     display:flex;
     justify-content:center;
     align-items:center;
-    overflow: hidden; /* Video bahar nahi jayega */
-    position: relative;
+    overflow:hidden;
 }
 
 video{
     width:100%;
     height:100%;
-    object-fit:contain; /* Video katne ki jagah fit hoga */
+    object-fit:contain;
 }
 
 /* CONTROLS */
 .controls{
-    flex-shrink: 0; /* Buttons kabhi shrink nahi honge */
-    padding:18px;
+    padding:14px;
     background:var(--panel);
     display:flex;
     gap:12px;
-    /* Bottom safe area for mobile */
-    padding-bottom: max(18px, env(safe-area-inset-bottom)); 
+    flex-shrink:0;             /* ✅ FIXED BOTTOM */
 }
 
 .btn{
     flex:1;
     border:none;
     border-radius:16px;
-    padding:15px 0;
+    padding:14px 0;
     font-size:15px;
     font-weight:700;
     color:white;
     cursor:pointer;
-    transition: opacity 0.2s;
-}
-
-.btn:active {
-    opacity: 0.7;
 }
 
 .start{ background:var(--green); color:#000; }
@@ -116,6 +100,17 @@ video{
     background:var(--blue);
     max-width:70px;
     font-size:18px;
+}
+
+/* 💻 LAPTOP VIEW FIX */
+@media (min-width: 900px){
+    .app{
+        height:95vh;
+        margin-top:10px;
+        border-radius:18px;
+        overflow:hidden;
+        border:1px solid rgba(255,255,255,0.15);
+    }
 }
 </style>
 </head>
@@ -206,7 +201,6 @@ socket.on("offer", async (data)=>{
         }
     };
 
-    // 🔥 FIXED PART
     await pc.setRemoteDescription(
         new RTCSessionDescription({
             type: "offer",
