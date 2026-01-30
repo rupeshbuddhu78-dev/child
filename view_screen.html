@@ -1,49 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
 <title>Screen Monitor</title>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 
 <style>
-body{
-  background:#111;
+body {
+  background:#0f0f0f;
   color:#fff;
-  font-family:sans-serif;
   text-align:center;
+  font-family:Arial;
 }
-video{
+
+video {
   width:360px;
   height:640px;
   background:black;
   border-radius:20px;
+  margin-top:15px;
 }
-button{
-  padding:12px 25px;
-  margin:10px;
+
+button {
+  padding:12px 30px;
   font-size:16px;
+  margin:10px;
+  border-radius:10px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Admin Screen Monitor</h2>
+<h2>📱 Live Screen Monitor</h2>
 
-<input id="id" placeholder="Device ID">
+<input id="deviceId" placeholder="Device ID">
+<br>
+
+<button onclick="startScreen()">START SCREEN</button>
+<button onclick="stopScreen()">STOP</button>
+
 <br><br>
 
-<button onclick="start()">START SCREEN</button>
-<button onclick="stop()">STOP</button>
-
-<br><br>
-
-<video id="v" autoplay playsinline></video>
+<video id="screenVideo" autoplay playsinline></video>
 
 <script>
+
 const socket = io("https://child-v9no.onrender.com");
 
 let pc = null;
-let deviceId = "";
+let deviceId = null;
 
 socket.on("connect", () => {
   console.log("ADMIN connected");
@@ -53,12 +60,9 @@ socket.on("connect", () => {
 /* ===============================
    RECEIVE OFFER FROM ANDROID
 ================================ */
-
 socket.on("offer", async data => {
 
-  console.log("📩 Offer received", data);
-
-  deviceId = data.from || document.getElementById("id").value;
+  console.log("Offer received");
 
   pc = new RTCPeerConnection({
     iceServers:[
@@ -67,13 +71,12 @@ socket.on("offer", async data => {
   });
 
   pc.ontrack = e => {
-    console.log("🎥 video track");
-    document.getElementById("v").srcObject = e.streams[0];
+    document.getElementById("screenVideo").srcObject = e.streams[0];
   };
 
   pc.onicecandidate = e => {
     if(e.candidate){
-      socket.emit("candidate",{
+      socket.emit("candidate", {
         target: deviceId,
         candidate: e.candidate.candidate,
         sdpMid: e.candidate.sdpMid,
@@ -83,51 +86,36 @@ socket.on("offer", async data => {
   };
 
   await pc.setRemoteDescription({
-    type: "offer",
-    sdp: data.offer.sdp
+    type:"offer",
+    sdp:data.sdp
   });
 
   const answer = await pc.createAnswer();
   await pc.setLocalDescription(answer);
 
-  socket.emit("answer",{
+  socket.emit("answer", {
     target: deviceId,
     sdp: answer.sdp
   });
-
 });
 
 /* ===============================
-   RECEIVE ICE FROM ANDROID
+   BUTTONS
 ================================ */
 
-socket.on("candidate", data => {
-  if(pc){
-    pc.addIceCandidate({
-      candidate: data.candidate,
-      sdpMid: data.sdpMid,
-      sdpMLineIndex: data.sdpMLineIndex
-    });
-  }
-});
+function startScreen(){
+  deviceId = document.getElementById("deviceId").value;
 
-/* ===============================
-   COMMANDS
-================================ */
-
-function start(){
-  deviceId = document.getElementById("id").value;
-
-  socket.emit("send-command",{
-    targetId: deviceId,
-    command: "start_screen"
+  socket.emit("screen-start", {
+    targetId: deviceId
   });
+
+  console.log("screen-start sent");
 }
 
-function stop(){
-  socket.emit("send-command",{
-    targetId: deviceId,
-    command: "stop_screen"
+function stopScreen(){
+  socket.emit("screen-stop", {
+    targetId: deviceId
   });
 
   if(pc){
@@ -135,6 +123,7 @@ function stop(){
     pc = null;
   }
 }
+
 </script>
 
 </body>
