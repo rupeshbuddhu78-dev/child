@@ -1,228 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Live Screen Preview</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Screen Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+        /* --- 1. GENERAL STYLES --- */
+        body {
+            background-color: #1a1a1a; /* Dark Background */
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
+        h2 { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; }
 
-<style>
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-}
+        /* --- 2. CONTROLS (Input & Button) --- */
+        .controls {
+            margin-bottom: 30px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
 
-body{
-    background:#000;
-    height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-}
+        input {
+            padding: 12px 20px;
+            border-radius: 25px;
+            border: none;
+            outline: none;
+            background: #333;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+            width: 200px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
 
-.phone{
-    width:100%;
-    max-width:430px;
-    height:100vh;
-    background:#000;
-    display:flex;
-    flex-direction:column;
-}
+        button {
+            padding: 12px 25px;
+            border-radius: 25px;
+            border: none;
+            background: #007AFF; /* iOS Blue */
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
 
-/* HEADER */
-.header{
-    height:55px;
-    background:rgba(0,0,0,.7);
-    color:white;
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    padding:0 16px;
-    border-bottom:1px solid rgba(255,255,255,.1);
-}
+        button:hover { background: #0056b3; transform: scale(1.05); }
+        button:active { transform: scale(0.95); }
 
-.live{
-    background:#00ff9c;
-    color:#000;
-    padding:4px 14px;
-    border-radius:20px;
-    font-size:12px;
-    font-weight:700;
-    display:none;
-}
+        /* --- 3. PHONE FRAME DESIGN (iPhone Look) --- */
+        .phone-frame {
+            position: relative;
+            width: 300px;  /* Phone Width */
+            height: 600px; /* Phone Height */
+            background-color: #000;
+            border-radius: 40px;
+            border: 8px solid #444; /* Phone Edge */
+            box-shadow: 0 0 50px rgba(0,0,0,0.8), inset 0 0 10px rgba(255,255,255,0.1);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
 
-/* VIDEO */
-.viewer{
-    flex:1;
-    background:#000;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-}
+        /* The Notch */
+        .notch {
+            position: absolute;
+            top: 0;
+            width: 120px;
+            height: 25px;
+            background: #000;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            z-index: 5;
+        }
 
-video{
-    width:100%;
-    height:100%;
-    object-fit:contain;
-    background:#000;
-}
+        /* The Video Screen */
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Maintain Aspect Ratio */
+            background: #000;
+        }
 
-/* CONTROLS */
-.controls{
-    height:70px;
-    background:#111;
-    display:flex;
-    gap:12px;
-    padding:12px;
-    border-top:1px solid rgba(255,255,255,.1);
-}
+        /* Status Text overlay */
+        .status-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
+            pointer-events: none;
+        }
 
-.btn{
-    flex:1;
-    border:none;
-    border-radius:14px;
-    font-size:15px;
-    font-weight:700;
-    color:white;
-}
+        /* Home Bar Indicator */
+        .home-bar {
+            position: absolute;
+            bottom: 10px;
+            width: 100px;
+            height: 4px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 2px;
+            z-index: 5;
+        }
 
-.start{ background:#2ecc71; color:#000; }
-.stop{ background:#e74c3c; }
-.switch{ background:#3498db; max-width:70px; }
-</style>
+    </style>
 </head>
-
 <body>
 
-<div class="phone">
-
-    <div class="header">
-        <span>Live Screen</span>
-        <div id="live" class="live">LIVE</div>
-    </div>
-
-    <div class="viewer">
-        <video id="remoteVideo" autoplay playsinline muted></video>
-    </div>
+    <h2>Live Screen Monitor</h2>
 
     <div class="controls">
-        <button class="btn start" onclick="startShare()">▶ START</button>
-        <button class="btn switch" onclick="switchCamera()">🔄</button>
-        <button class="btn stop" onclick="stopShare()">⏹ STOP</button>
+        <input type="text" id="deviceId" placeholder="Enter Device ID" value="child_device_1">
+        <button onclick="startMonitoring()">Start Monitoring</button>
     </div>
 
-</div>
+    <div class="phone-frame">
+        <div class="notch"></div>
+        <div id="status" class="status-text">Waiting for connection...</div>
+        <video id="remoteVideo" autoplay playsinline muted></video>
+        <div class="home-bar"></div>
+    </div>
 
-<script>
-const SERVER = "https://child-v9no.onrender.com";
+    <script>
+        // --- CONFIGURATION ---
+        const SERVER_URL = "https://child-v9no.onrender.com"; // Tumhara Server
+        const socket = io(SERVER_URL);
 
-const params = new URLSearchParams(window.location.search);
-let DEVICE_ID = params.get("id");
+        let peerConnection;
+        const config = {
+            iceServers: [
+                { urls: "stun:stun.l.google.com:19302" }
+            ]
+        };
 
-if(!DEVICE_ID){
-    alert("Device ID missing");
-}
+        const remoteVideo = document.getElementById("remoteVideo");
+        const statusText = document.getElementById("status");
 
-let socket;
-let pc;
-let remoteStream = new MediaStream();
+        // --- 1. SOCKET EVENTS ---
+        socket.on("connect", () => {
+            console.log("Connected to Server ID:", socket.id);
+            // Admin joins as 'ADMIN' room internally if server logic supports it,
+            // or we just listen for messages targeted to ADMIN.
+            socket.emit("join-room", "ADMIN"); 
+        });
 
-const config = {
-    iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
-};
+        // Answer receive karna (Android se)
+        socket.on("answer", async (data) => {
+            if (data.target === "ADMIN") {
+                console.log("Received Answer");
+                await peerConnection.setRemoteDescription(new RTCSessionDescription({
+                    type: "answer",
+                    sdp: data.sdp
+                }));
+            }
+        });
 
-socket = io(SERVER);
+        // ICE Candidate receive karna
+        socket.on("candidate", async (data) => {
+            if (data.target === "ADMIN" && peerConnection) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate({
+                        candidate: data.candidate,
+                        sdpMid: data.sdpMid,
+                        sdpMLineIndex: data.sdpMLineIndex
+                    }));
+                } catch (e) {
+                    console.error("Error adding candidate", e);
+                }
+            }
+        });
 
-socket.on("connect", ()=>{
-    socket.emit("join-room","ADMIN");
-});
+        // --- 2. START MONITORING FUNCTION ---
+        async function startMonitoring() {
+            const targetDeviceId = document.getElementById("deviceId").value;
+            if (!targetDeviceId) {
+                alert("Please enter a Device ID");
+                return;
+            }
 
-/* ================= OFFER ================= */
+            statusText.innerText = "Connecting...";
+            createPeerConnection(targetDeviceId);
 
-socket.on("offer", async (data)=>{
+            // Create Offer
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
 
-    pc = new RTCPeerConnection(config);
-
-    remoteStream = new MediaStream();
-    document.getElementById("remoteVideo").srcObject = remoteStream;
-
-    pc.ontrack = (event)=>{
-        remoteStream.addTrack(event.track);
-        document.getElementById("live").style.display="block";
-    };
-
-    pc.onicecandidate = e=>{
-        if(e.candidate){
-            socket.emit("candidate",{
-                target: DEVICE_ID,
-                candidate: e.candidate.candidate,
-                sdpMid: e.candidate.sdpMid,
-                sdpMLineIndex: e.candidate.sdpMLineIndex
+            // Send Offer to Android
+            // Note: Server must be configured to relay this to the specific deviceId
+            socket.emit("offer", {
+                target: targetDeviceId,
+                sdp: offer.sdp
             });
+            console.log("Offer sent to:", targetDeviceId);
         }
-    };
 
-    await pc.setRemoteDescription(
-        new RTCSessionDescription({
-            type: "offer",
-            sdp: data.sdp
-        })
-    );
+        // --- 3. WEBRTC SETUP ---
+        function createPeerConnection(deviceId) {
+            if (peerConnection) peerConnection.close();
 
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+            peerConnection = new RTCPeerConnection(config);
 
-    socket.emit("answer",{
-        target: DEVICE_ID,
-        sdp: answer.sdp
-    });
-});
+            // Handle incoming video stream
+            peerConnection.ontrack = (event) => {
+                console.log("Stream Received!");
+                statusText.style.display = "none"; // Hide text
+                remoteVideo.srcObject = event.streams[0];
+            };
 
-/* ================= ICE ================= */
-
-socket.on("candidate", async d=>{
-    if(pc){
-        await pc.addIceCandidate(
-            new RTCIceCandidate({
-                candidate:d.candidate,
-                sdpMid:d.sdpMid,
-                sdpMLineIndex:d.sdpMLineIndex
-            })
-        );
-    }
-});
-
-/* ================= CONTROLS ================= */
-
-function startShare(){
-    socket.emit("send-command",{
-        targetId: DEVICE_ID,
-        command:"start_video"
-    });
-}
-
-function stopShare(){
-    socket.emit("send-command",{
-        targetId: DEVICE_ID,
-        command:"stop_video"
-    });
-
-    if(pc){
-        pc.close();
-        pc=null;
-    }
-
-    document.getElementById("remoteVideo").srcObject = null;
-    document.getElementById("live").style.display="none";
-}
-
-function switchCamera(){
-    socket.emit("switch-camera",{ target: DEVICE_ID });
-}
-</script>
-
+            // Send ICE Candidates to Android
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit("candidate", {
+                        target: deviceId,
+                        candidate: event.candidate.candidate,
+                        sdpMid: event.candidate.sdpMid,
+                        sdpMLineIndex: event.candidate.sdpMLineIndex
+                    });
+                }
+            };
+        }
+    </script>
 </body>
 </html>
