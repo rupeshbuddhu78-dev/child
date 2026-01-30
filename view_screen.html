@@ -1,167 +1,72 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Live Screen Monitor</title>
-
+<title>Live Screen</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
 
 <style>
 body{
     margin:0;
-    background:#0f0f10;
-    font-family:system-ui,Segoe UI,sans-serif;
+    background:#000;
     display:flex;
     justify-content:center;
     align-items:center;
     height:100vh;
 }
-
-.wrapper{
+.phone{
     width:360px;
     height:720px;
-    background:black;
-    border-radius:40px;
+    background:#000;
+    border-radius:35px;
     border:8px solid #333;
-    position:relative;
     overflow:hidden;
-    box-shadow:0 0 40px rgba(0,0,0,.9);
 }
-
-.notch{
-    position:absolute;
-    top:0;
-    width:140px;
-    height:28px;
-    background:black;
-    left:50%;
-    transform:translateX(-50%);
-    border-bottom-left-radius:18px;
-    border-bottom-right-radius:18px;
-    z-index:10;
-}
-
 video{
     width:100%;
     height:100%;
     object-fit:contain;
-    background:black;
-}
-
-.status{
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-    color:#777;
-    font-size:14px;
-    z-index:5;
-}
-
-.topbar{
-    position:absolute;
-    top:12px;
-    width:100%;
-    text-align:center;
-    color:#0f0;
-    font-size:12px;
-    z-index:20;
-    display:none;
-}
-
-.controls{
-    position:absolute;
-    bottom:14px;
-    width:100%;
-    display:flex;
-    justify-content:center;
-    gap:10px;
-    z-index:20;
-}
-
-button{
-    background:#0a84ff;
-    border:none;
-    color:white;
-    padding:10px 18px;
-    border-radius:20px;
-    font-weight:600;
-    cursor:pointer;
 }
 </style>
 </head>
 
 <body>
 
-<div class="wrapper">
-
-    <div class="notch"></div>
-
-    <div class="topbar" id="liveText">● LIVE SCREEN</div>
-
-    <div id="status" class="status">Waiting for screen...</div>
-
-    <video id="remoteVideo" autoplay playsinline muted></video>
-
-    <div class="controls">
-        <button onclick="requestStart()">START</button>
-        <button onclick="stopView()">STOP</button>
-    </div>
-
+<div class="phone">
+    <video id="screen" autoplay playsinline></video>
 </div>
 
 <script>
-/* ================= CONFIG ================= */
-
 const SERVER = "https://child-v9no.onrender.com";
+
+const params = new URLSearchParams(location.search);
+const DEVICE_ID = params.get("id");
+
 const socket = io(SERVER);
-
-let pc = null;
-let currentDevice = null;
-
-const video = document.getElementById("remoteVideo");
-const statusText = document.getElementById("status");
-const liveText = document.getElementById("liveText");
+let pc;
 
 const config = {
-    iceServers: [
-        { urls: "stun:stun.l.google.com:19302" }
-    ]
+    iceServers:[{ urls:"stun:stun.l.google.com:19302" }]
 };
 
-/* ================= SOCKET ================= */
-
 socket.on("connect", ()=>{
-    console.log("ADMIN connected");
-    socket.emit("join-room","ADMIN");
+    console.log("Connected");
+    socket.emit("join-room", DEVICE_ID);
 });
 
-/* ================= OFFER FROM ANDROID ================= */
-
-socket.on("offer", async (data)=>{
-
-    console.log("📡 OFFER RECEIVED");
-
-    currentDevice = data.from || data.deviceId;
-
-    if(pc){
-        pc.close();
-        pc = null;
-    }
+/* 🔥 OFFER FROM ANDROID */
+socket.on("offer", async data => {
 
     pc = new RTCPeerConnection(config);
 
-    pc.ontrack = (event)=>{
-        video.srcObject = event.streams[0];
-        statusText.style.display = "none";
-        liveText.style.display = "block";
+    pc.ontrack = e => {
+        document.getElementById("screen").srcObject = e.streams[0];
     };
 
-    pc.onicecandidate = (e)=>{
+    pc.onicecandidate = e => {
         if(e.candidate){
             socket.emit("candidate",{
-                target: currentDevice,
+                target: DEVICE_ID,
                 candidate: e.candidate.candidate,
                 sdpMid: e.candidate.sdpMid,
                 sdpMLineIndex: e.candidate.sdpMLineIndex
@@ -174,65 +79,21 @@ socket.on("offer", async (data)=>{
         sdp:data.sdp
     });
 
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
+    const ans = await pc.createAnswer();
+    await pc.setLocalDescription(ans);
 
     socket.emit("answer",{
-        target: currentDevice,
-        sdp: answer.sdp
+        target: DEVICE_ID,
+        sdp: ans.sdp
     });
-
 });
 
-/* ================= ICE ================= */
-
-socket.on("candidate", async (d)=>{
+/* ICE FROM ANDROID */
+socket.on("candidate", d=>{
     if(pc){
-        await pc.addIceCandidate(new RTCIceCandidate({
-            candidate:d.candidate,
-            sdpMid:d.sdpMid,
-            sdpMLineIndex:d.sdpMLineIndex
-        }));
+        pc.addIceCandidate(new RTCIceCandidate(d));
     }
 });
-
-/* ================= CONTROLS ================= */
-
-function requestStart(){
-    const id = prompt("Enter Device ID:");
-    if(!id) return;
-
-    currentDevice = id;
-
-    statusText.innerText = "Requesting screen...";
-    statusText.style.display = "block";
-    liveText.style.display = "none";
-
-    socket.emit("send-command",{
-        targetId: id,
-        command: "start_screen"
-    });
-}
-
-function stopView(){
-
-    if(currentDevice){
-        socket.emit("send-command",{
-            targetId: currentDevice,
-            command: "stop_screen"
-        });
-    }
-
-    if(pc){
-        pc.close();
-        pc = null;
-    }
-
-    video.srcObject = null;
-    statusText.innerText = "Stopped";
-    statusText.style.display = "block";
-    liveText.style.display = "none";
-}
 </script>
 
 </body>
