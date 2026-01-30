@@ -22,24 +22,34 @@ body{
     font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
     display:flex;
     justify-content:center;
+    /* Laptop screen fix: Body full height aur scroll band */
+    height: 100vh;
+    overflow: hidden; 
 }
 
 .app{
     width:100%;
     max-width:480px;
-    min-height:100vh;
+    /* Change: min-height hata kar height 100% kar diya */
+    height:100%; 
     background:#000;
     display:flex;
     flex-direction:column;
+    /* Thoda shadow diya taaki laptop pe alag dikhe */
+    box-shadow: 0 0 20px rgba(0,0,0,0.5); 
 }
 
 /* HEADER */
 .header{
+    /* Flex-shrink 0 means ye shrink nahi hoga */
+    flex-shrink: 0; 
     padding:14px 16px;
     display:flex;
     justify-content:space-between;
     align-items:center;
     border-bottom:1px solid rgba(255,255,255,0.1);
+    background: var(--panel); /* Header color match kiya */
+    color: white;
 }
 
 .status{
@@ -48,6 +58,7 @@ body{
     border-radius:20px;
     background:var(--red);
     font-weight:700;
+    color: white;
 }
 
 .status.live{
@@ -55,27 +66,32 @@ body{
     color:#000;
 }
 
-/* VIDEO */
+/* VIDEO - Main Adjustment Here */
 .video-box{
-    flex:1;
+    flex:1; /* Ye baki bachi hui jagah lega */
     background:black;
     display:flex;
     justify-content:center;
     align-items:center;
+    overflow: hidden; /* Video bahar nahi jayega */
+    position: relative;
 }
 
 video{
     width:100%;
     height:100%;
-    object-fit:contain;
+    object-fit:contain; /* Video katne ki jagah fit hoga */
 }
 
 /* CONTROLS */
 .controls{
+    flex-shrink: 0; /* Buttons kabhi shrink nahi honge */
     padding:18px;
     background:var(--panel);
     display:flex;
     gap:12px;
+    /* Bottom safe area for mobile */
+    padding-bottom: max(18px, env(safe-area-inset-bottom)); 
 }
 
 .btn{
@@ -87,6 +103,11 @@ video{
     font-weight:700;
     color:white;
     cursor:pointer;
+    transition: opacity 0.2s;
+}
+
+.btn:active {
+    opacity: 0.7;
 }
 
 .start{ background:var(--green); color:#000; }
